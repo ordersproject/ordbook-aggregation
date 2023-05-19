@@ -1,0 +1,147 @@
+basePath: /book
+definitions:
+  request.OrderBrc20PushReq:
+    properties:
+      address:
+        type: string
+      orderState:
+        description: 1-create
+        type: integer
+      orderType:
+        description: 1-sell,2-buy
+        type: integer
+      psbtRaw:
+        type: string
+      tick:
+        type: string
+    type: object
+  respond.Brc20Item:
+    properties:
+      amount:
+        type: integer
+      buyerAddress:
+        type: string
+      coinAmount:
+        type: integer
+      coinDecimalNum:
+        type: integer
+      coinRatePrice:
+        type: integer
+      decimalNum:
+        type: integer
+      orderState:
+        description: 1-create,2-finish,3-cancel
+        type: integer
+      orderType:
+        description: 1-sell,2-buy
+        type: integer
+      psbtRaw:
+        type: string
+      sellerAddress:
+        type: string
+      tick:
+        type: string
+      timestamp:
+        type: integer
+    type: object
+  respond.Message:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+      processingTime:
+        type: integer
+    type: object
+  respond.OrderResponse:
+    properties:
+      flag:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/respond.Brc20Item'
+        type: array
+      total:
+        type: integer
+    type: object
+info:
+  contact:
+    name: API Support
+  description: OrderBook API Service
+  title: OrderBook API Service
+  version: "1.0"
+paths:
+  /brc20/order/push:
+    post:
+      description: Push order
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.OrderBrc20PushReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Message'
+      summary: Push order
+      tags:
+      - brc20
+  /brc20/orders:
+    get:
+      description: Fetch orders
+      parameters:
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: sellerAddress
+        in: query
+        name: sellerAddress
+        type: string
+      - description: buyerAddress
+        in: query
+        name: buyerAddress
+        type: string
+      - description: orderState
+        in: query
+        name: orderState
+        type: integer
+      - description: orderType
+        in: query
+        name: orderType
+        type: integer
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      - description: flag
+        in: query
+        name: flag
+        type: integer
+      - description: sortKey
+        in: query
+        name: sortKey
+        type: string
+      - description: sortType
+        in: query
+        name: sortType
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.OrderResponse'
+      summary: Fetch orders
+      tags:
+      - brc20
+schemes:
+- https
+swagger: "2.0"

@@ -1,0 +1,11 @@
+[
+  {
+    "DsName":"ord",
+    "Addrs":"127.0.0.1:0000",
+    "TimeOut": 120,
+    "Database": "ord",
+    "UserName": "root",
+    "Password": "000000",
+    "PoolLimit": 200
+  }
+]
