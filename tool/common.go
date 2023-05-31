@@ -77,3 +77,15 @@ func b58encode(b []byte) (s string) {
 	}
 	return s
 }
+
+
+func SHA256(message []byte) []byte{
+	hash := sha256.New()
+	hash.Write(message)
+	bytes := hash.Sum(nil)
+	return bytes
+}
+
+func DoubleSHA256(message []byte) []byte{
+	return SHA256(SHA256(message))
+}

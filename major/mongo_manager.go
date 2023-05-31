@@ -5,10 +5,10 @@ import (
 )
 
 const (
-	DsOrderbook = "orderbook"
+	DsOrdbook = "ordbook"
 )
 
 func GetOrderbookDb()  (*mongo.Client, error) {
-	return GetDBWith(DsOrderbook)
+	return GetDBWith(DsOrdbook)
 }
 

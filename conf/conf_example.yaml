@@ -1,2 +1,9 @@
 # api port
 port: "0000"
+
+hiro_domain: "https://api.hiro.so"
+oklink:
+  domain: "https://www.oklink.com"
+  key: ""
+mempool_space:
+  domain: "https://mempool.space"

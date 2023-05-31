@@ -8,6 +8,13 @@ import (
 
 var (
 	Port = ""
+	HiroDomain = ""
+	OklinkDomain = ""
+	OklinkKey = ""
+	MempoolSpace = ""
+	PlatformPrivateKey = ""
+	PlatformTaprootAddress = ""
+	PlatformTaprootAddress2 = ""
 )
 
 func InitConfig() {
@@ -16,4 +23,9 @@ func InitConfig() {
 		panic(fmt.Errorf("Fatal error config file: %s \n", err))
 	}
 	Port = viper.GetString("port")
+	HiroDomain = viper.GetString("hiro_domain")
+	OklinkDomain, OklinkKey = viper.GetString("oklink.domain"), viper.GetString("oklink.key")
+	PlatformPrivateKey, PlatformTaprootAddress, PlatformTaprootAddress2 =
+		viper.GetString("platform.private_key"), viper.GetString("platform.taproot_address"), viper.GetString("platform.taproot_address_2")
+	MempoolSpace = viper.GetString("mempool_space.domain")
 }

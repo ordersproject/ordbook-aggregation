@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
-	"github.com/swaggo/gin-swagger"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"net/http"
 	"ordbook-aggregation/config"
 	"ordbook-aggregation/controller/middleware"
 	"time"
+
+	_ "ordbook-aggregation/docs"
 )
 
 
@@ -23,14 +25,29 @@ func Run() {
 	router.Use(middleware.IPRateLimitMiddleware(limiter))
 
 
-	// meta
+	// brc20
 	brc20 := router.Group("/brc20")
 	{
 		brc20.POST("/order/push", PushOrder)
 		brc20.GET("/orders", FetchOrders)
+		brc20.GET("/tickers", FetchTicker)
+		brc20.GET("/kline", FetchKline)
+
+		brc20.GET("/order/bid/pre", FetchPreBid)
+		brc20.GET("/order/bid", FetchBidPsbt)
+		brc20.POST("/order/bid/push", UpdateBidPsbt)
+		brc20.POST("/order/bid/do", DoBid)
+
+		brc20.POST("/order/update", UpdateOrder)
+
+		brc20.POST("/inscribe/pre", PreInscribe)
+		brc20.POST("/inscribe/commit", CommitInscribe)
+
+		brc20.POST("/utxo/colddown", ColdDownUtxo)
 	}
 
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	url := ginSwagger.URL("/swagger/doc.json")
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
 
 	_ = router.Run(fmt.Sprintf("0.0.0.0:%s", config.Port))
 }

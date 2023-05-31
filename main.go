@@ -7,6 +7,7 @@ import (
 	"ordbook-aggregation/config"
 	"ordbook-aggregation/controller"
 	"ordbook-aggregation/major"
+	_ "ordbook-aggregation/service/cache_service"
 )
 
 var ENV string

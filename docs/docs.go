@@ -25,6 +25,268 @@ var doc = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/brc20/inscribe/commit": {
+            "post": {
+                "description": "Commit inscribe",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Commit inscribe",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.Brc20CommitReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/inscribe/pre": {
+            "post": {
+                "description": "Pre inscribe",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Pre inscribe",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.Brc20PreReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/kline": {
+            "get": {
+                "description": "Fetch tick kline data",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch tick kline data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "tick",
+                        "name": "tick",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "interval",
+                        "name": "interval",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit",
+                        "name": "Limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.KlineItem"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/order/bid": {
+            "get": {
+                "description": "Fetch bid",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch bid",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "net:mainnet/signet/testnet",
+                        "name": "net",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "tick",
+                        "name": "tick",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "inscriptionId",
+                        "name": "inscriptionId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "inscriptionNumber",
+                        "name": "inscriptionNumber",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "coinAmount",
+                        "name": "coinAmount",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "amount",
+                        "name": "amount",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.OrderResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/order/bid/do": {
+            "post": {
+                "description": "Do bid order",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Do bid order",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OrderBrc20DoBidReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/order/bid/pre": {
+            "get": {
+                "description": "Fetch pre bid",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch pre bid",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "net:mainnet/signet/testnet",
+                        "name": "net",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "tick",
+                        "name": "tick",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.OrderResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/order/bid/push": {
+            "post": {
+                "description": "Push bid order",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Push bid order",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OrderBrc20UpdateBidReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/order/push": {
             "post": {
                 "description": "Push order",
@@ -56,6 +318,37 @@ var doc = `{
                 }
             }
         },
+        "/brc20/order/update": {
+            "post": {
+                "description": "Update order",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Update order",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OrderBrc20UpdateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/orders": {
             "get": {
                 "description": "Fetch orders",
@@ -67,6 +360,12 @@ var doc = `{
                 ],
                 "summary": "Fetch orders",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "net:mainnet/signet/testnet",
+                        "name": "net",
+                        "in": "query"
+                    },
                     {
                         "type": "string",
                         "description": "tick",
@@ -131,13 +430,179 @@ var doc = `{
                     }
                 }
             }
+        },
+        "/brc20/tickers": {
+            "get": {
+                "description": "Fetch tick info",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch tick info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "tick",
+                        "name": "tick",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Brc20TickInfoResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/utxo/colddown": {
+            "post": {
+                "description": "Do bid order",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Cold down the utxo",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ColdDownUtxo"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "request.Brc20CommitReq": {
+            "type": "object",
+            "properties": {
+                "feeAddress": {
+                    "description": "platform fee address",
+                    "type": "string"
+                },
+                "net": {
+                    "description": "mainnet/signet/testnet",
+                    "type": "string"
+                }
+            }
+        },
+        "request.Brc20PreReq": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "net": {
+                    "description": "mainnet/signet/testnet",
+                    "type": "string"
+                },
+                "receiveAddress": {
+                    "description": "Address which user receive ordinals",
+                    "type": "string"
+                }
+            }
+        },
+        "request.ColdDownUtxo": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "changeAddress": {
+                    "type": "string"
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "feeRate": {
+                    "type": "integer"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "net": {
+                    "type": "string"
+                },
+                "perAmount": {
+                    "type": "integer"
+                },
+                "pkScript": {
+                    "type": "string"
+                },
+                "preTxHex": {
+                    "type": "string"
+                },
+                "priKeyHex": {
+                    "type": "string"
+                },
+                "txId": {
+                    "type": "string"
+                },
+                "utxoType": {
+                    "type": "integer"
+                }
+            }
+        },
+        "request.OrderBrc20DoBidReq": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "string"
+                },
+                "inscriptionId": {
+                    "type": "string"
+                },
+                "inscriptionNumber": {
+                    "type": "string"
+                },
+                "net": {
+                    "description": "mainnet/signet/testnet",
+                    "type": "string"
+                },
+                "orderId": {
+                    "type": "string"
+                },
+                "psbtRaw": {
+                    "type": "string"
+                },
+                "tick": {
+                    "type": "string"
+                }
+            }
+        },
         "request.OrderBrc20PushReq": {
             "type": "object",
             "properties": {
                 "address": {
+                    "type": "string"
+                },
+                "coinAmount": {
+                    "type": "integer"
+                },
+                "net": {
+                    "description": "mainnet/signet/testnet",
                     "type": "string"
                 },
                 "orderState": {
@@ -156,46 +621,222 @@ var doc = `{
                 }
             }
         },
-        "respond.Brc20Item": {
+        "request.OrderBrc20UpdateBidReq": {
             "type": "object",
             "properties": {
+                "address": {
+                    "type": "string"
+                },
                 "amount": {
                     "type": "integer"
                 },
-                "buyerAddress": {
+                "net": {
+                    "description": "mainnet/signet/testnet",
                     "type": "string"
                 },
-                "coinAmount": {
-                    "type": "integer"
-                },
-                "coinDecimalNum": {
-                    "type": "integer"
-                },
-                "coinRatePrice": {
-                    "type": "integer"
-                },
-                "decimalNum": {
-                    "type": "integer"
-                },
-                "orderState": {
-                    "description": "1-create,2-finish,3-cancel",
-                    "type": "integer"
-                },
-                "orderType": {
-                    "description": "1-sell,2-buy",
-                    "type": "integer"
+                "orderId": {
+                    "type": "string"
                 },
                 "psbtRaw": {
                     "type": "string"
                 },
+                "tick": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.OrderBrc20UpdateReq": {
+            "type": "object",
+            "properties": {
+                "net": {
+                    "description": "mainnet/signet/testnet",
+                    "type": "string"
+                },
+                "orderId": {
+                    "type": "string"
+                },
+                "orderState": {
+                    "description": "2-finish/3-cancel",
+                    "type": "integer"
+                },
+                "psbtRaw": {
+                    "type": "string"
+                }
+            }
+        },
+        "respond.Brc20Item": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "description": "btc买卖值，按最小单位，sat",
+                    "type": "integer"
+                },
+                "buyerAddress": {
+                    "description": "购买地址",
+                    "type": "string"
+                },
+                "coinAmount": {
+                    "description": "brc20代币买卖值，没有最小单位，没有小数",
+                    "type": "integer"
+                },
+                "coinDecimalNum": {
+                    "description": "brc20代币暂时忽略",
+                    "type": "integer"
+                },
+                "coinRatePrice": {
+                    "description": "brc20代币对应btc的汇率",
+                    "type": "integer"
+                },
+                "decimalNum": {
+                    "description": "btc小数位数",
+                    "type": "integer"
+                },
+                "net": {
+                    "description": "网络环境",
+                    "type": "string"
+                },
+                "orderId": {
+                    "description": "订单ID",
+                    "type": "string"
+                },
+                "orderState": {
+                    "description": "订单状态：1-create,2-finish,3-cancel",
+                    "type": "integer"
+                },
+                "orderType": {
+                    "description": "订单类型：1-sell,2-buy",
+                    "type": "integer"
+                },
+                "psbtRaw": {
+                    "description": "PSBT生交易",
+                    "type": "string"
+                },
                 "sellerAddress": {
+                    "description": "出售地址",
                     "type": "string"
                 },
                 "tick": {
+                    "description": "brc20代币symbol",
                     "type": "string"
                 },
                 "timestamp": {
+                    "description": "创建时间",
                     "type": "integer"
+                }
+            }
+        },
+        "respond.Brc20TickInfoResponse": {
+            "type": "object",
+            "properties": {
+                "flag": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/respond.Brc20TickItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "respond.Brc20TickItem": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "string"
+                },
+                "at": {
+                    "description": "updateTime",
+                    "type": "integer"
+                },
+                "avgPrice": {
+                    "type": "string"
+                },
+                "buy": {
+                    "description": "最新成交价",
+                    "type": "string"
+                },
+                "high": {
+                    "type": "string"
+                },
+                "last": {
+                    "type": "string"
+                },
+                "low": {
+                    "type": "string"
+                },
+                "net": {
+                    "description": "网络环境",
+                    "type": "string"
+                },
+                "open": {
+                    "type": "string"
+                },
+                "pair": {
+                    "description": "交易对",
+                    "type": "string"
+                },
+                "priceChangePercent": {
+                    "description": "变动百分比：0.11表示0.11%",
+                    "type": "string"
+                },
+                "quoteSymbol": {
+                    "description": "涨跌符号：+/-",
+                    "type": "string"
+                },
+                "sell": {
+                    "type": "string"
+                },
+                "tick": {
+                    "description": "tick",
+                    "type": "string"
+                },
+                "vol": {
+                    "type": "string"
+                },
+                "volume": {
+                    "type": "string"
+                }
+            }
+        },
+        "respond.KlineItem": {
+            "type": "object",
+            "properties": {
+                "0": {
+                    "type": "string"
+                },
+                "1": {
+                    "type": "string"
+                },
+                "2": {
+                    "type": "string"
+                },
+                "3": {
+                    "type": "string"
+                },
+                "4": {
+                    "type": "string"
+                },
+                "5": {
+                    "type": "string"
+                },
+                "6": {
+                    "type": "string"
+                },
+                "7": {
+                    "type": "string"
+                },
+                "8": {
+                    "type": "string"
+                },
+                "9": {
+                    "type": "string"
+                },
+                "net": {
+                    "type": "string"
                 }
             }
         },
@@ -249,8 +890,8 @@ var SwaggerInfo = swaggerInfo{
 	Host:        "",
 	BasePath:    "/book",
 	Schemes:     []string{"https"},
-	Title:       "OrderBook API Service",
-	Description: "OrderBook API Service",
+	Title:       "OrdBook API Service",
+	Description: "OrdBook API Service",
 }
 
 type s struct{}

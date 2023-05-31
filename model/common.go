@@ -15,7 +15,9 @@ const (
 type OrderState int
 
 const (
-	OrderStateCreate OrderState = 1
-	OrderStateFinish OrderState = 2
-	OrderStateCancel OrderState = 3
+	OrderStateCreate    OrderState = 1
+	OrderStateFinish    OrderState = 2
+	OrderStateCancel    OrderState = 3
+	OrderStatePreCreate OrderState = 4
+	OrderStateTimeout   OrderState = 5
 )

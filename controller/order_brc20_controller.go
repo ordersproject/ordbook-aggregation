@@ -40,6 +40,7 @@ func PushOrder(c *gin.Context) {
 // @Description Fetch orders
 // @Produce  json
 // @Tags brc20
+// @Param net query string false "net:mainnet/signet/testnet"
 // @Param tick query string false "tick"
 // @Param sellerAddress query string false "sellerAddress"
 // @Param buyerAddress query string false "buyerAddress"
@@ -60,6 +61,7 @@ func FetchOrders(c *gin.Context) {
 		flagStr = c.DefaultQuery("flag", "0")
 		sortTypeStr = c.DefaultQuery("sortType", "0")
 		req *request.OrderBrc20FetchReq = &request.OrderBrc20FetchReq{
+			Net:          c.DefaultQuery("net", ""),
 			Tick:          c.DefaultQuery("tick", ""),
 			OrderState:    0,
 			OrderType:     0,
@@ -85,4 +87,192 @@ func FetchOrders(c *gin.Context) {
 	}
 	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
 	return
+}
+
+
+// @Summary Fetch tick info
+// @Description Fetch tick info
+// @Produce  json
+// @Tags brc20
+// @Param tick query string false "tick"
+// @Success 200 {object} respond.Brc20TickInfoResponse ""
+// @Router /brc20/tickers [get]
+func FetchTicker(c *gin.Context) {
+	var (
+		t   int64 = tool.MakeTimestamp()
+		req *request.TickBrc20FetchReq = &request.TickBrc20FetchReq{
+			Tick:          c.DefaultQuery("tick", ""),
+			Limit:         0,
+			Flag:          0,
+			SortKey:       c.DefaultQuery("sortKey", ""),
+			SortType:      0,
+		}
+	)
+
+	resp, err := order_brc20_service.FetchTickers(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(resp, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary Fetch tick kline data
+// @Description Fetch tick kline data
+// @Produce  json
+// @Tags brc20
+// @Param tick query string false "tick"
+// @Param interval query string false "interval"
+// @Param Limit query int false "Limit"
+// @Success 200 {object} respond.KlineItem ""
+// @Router /brc20/kline [get]
+func FetchKline(c *gin.Context) {
+	var (
+		t   int64 = tool.MakeTimestamp()
+		req *request.TickKlineFetchReq = &request.TickKlineFetchReq{
+			Tick:          c.DefaultQuery("tick", ""),
+			Limit:0,
+			Interval:c.DefaultQuery("interval", ""),
+		}
+	)
+	_ = req
+
+	c.JSONP(http.StatusOK, respond.RespSuccess(nil, tool.MakeTimestamp()-t))
+	return
+}
+
+
+// @Summary Update order
+// @Description Update order
+// @Produce  json
+// @Param Request body request.OrderBrc20UpdateReq true "Request"
+// @Tags brc20
+// @Success 200 {object} respond.Message ""
+// @Router /brc20/order/update [post]
+func UpdateOrder(c *gin.Context) {
+	var (
+		t   int64            = tool.MakeTimestamp()
+		requestModel *request.OrderBrc20UpdateReq
+	)
+	if c.ShouldBindJSON(&requestModel) == nil {
+		responseModel, err := order_brc20_service.UpdateOrder(requestModel)
+		if err != nil {
+			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+			return
+		}
+		c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+		return
+	}
+	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
+}
+
+
+// @Summary Fetch pre bid
+// @Description Fetch pre bid
+// @Produce  json
+// @Tags brc20
+// @Param net query string false "net:mainnet/signet/testnet"
+// @Param tick query string false "tick"
+// @Success 200 {object} respond.OrderResponse ""
+// @Router /brc20/order/bid/pre [get]
+func FetchPreBid(c *gin.Context) {
+	var (
+		t   int64            = tool.MakeTimestamp()
+		req *request.OrderBrc20GetBidReq = &request.OrderBrc20GetBidReq{
+			Net:          c.DefaultQuery("net", ""),
+			Tick:          c.DefaultQuery("tick", ""),
+		}
+	)
+	responseModel, err := order_brc20_service.FetchPreBid(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary Fetch bid
+// @Description Fetch bid
+// @Produce  json
+// @Tags brc20
+// @Param net query string false "net:mainnet/signet/testnet"
+// @Param tick query string false "tick"
+// @Param inscriptionId query string false "inscriptionId"
+// @Param inscriptionNumber query string false "inscriptionNumber"
+// @Param coinAmount query string false "coinAmount"
+// @Param address query string false "address"
+// @Param amount query int false "amount"
+// @Success 200 {object} respond.OrderResponse ""
+// @Router /brc20/order/bid [get]
+func FetchBidPsbt(c *gin.Context) {
+	var (
+		t   int64            = tool.MakeTimestamp()
+		amountStr string = c.DefaultQuery("amount", "0")
+		req *request.OrderBrc20GetBidReq = &request.OrderBrc20GetBidReq{
+			Net:               c.DefaultQuery("net", ""),
+			Tick:              c.DefaultQuery("tick", ""),
+			InscriptionId:     c.DefaultQuery("inscriptionId", ""),
+			InscriptionNumber: c.DefaultQuery("inscriptionNumber", ""),
+			CoinAmount:        c.DefaultQuery("coinAmount", "0"),
+			Address:           c.DefaultQuery("address", ""),
+		}
+	)
+	req.Amount, _ = strconv.ParseUint(amountStr, 10, 64)
+	responseModel, err := order_brc20_service.FetchBidPsbt(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary Push bid order
+// @Description Push bid order
+// @Produce  json
+// @Param Request body request.OrderBrc20UpdateBidReq true "Request"
+// @Tags brc20
+// @Success 200 {object} respond.Message ""
+// @Router /brc20/order/bid/push [post]
+func UpdateBidPsbt(c *gin.Context) {
+	var (
+		t   int64            = tool.MakeTimestamp()
+		requestModel *request.OrderBrc20UpdateBidReq
+	)
+	if c.ShouldBindJSON(&requestModel) == nil {
+		responseModel, err := order_brc20_service.UpdateBidPsbt(requestModel)
+		if err != nil {
+			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+			return
+		}
+		c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+		return
+	}
+	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
+}
+
+// @Summary Do bid order
+// @Description Do bid order
+// @Produce  json
+// @Param Request body request.OrderBrc20DoBidReq true "Request"
+// @Tags brc20
+// @Success 200 {object} respond.Message ""
+// @Router /brc20/order/bid/do [post]
+func DoBid(c *gin.Context) {
+	var (
+		t   int64            = tool.MakeTimestamp()
+		requestModel *request.OrderBrc20DoBidReq
+	)
+	if c.ShouldBindJSON(&requestModel) == nil {
+		responseModel, err := order_brc20_service.DoBid(requestModel)
+		if err != nil {
+			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+			return
+		}
+		c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+		return
+	}
+	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
 }
