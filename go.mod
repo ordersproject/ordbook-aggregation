@@ -9,6 +9,7 @@ require (
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.8
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2
 	github.com/gin-gonic/gin v1.9.0
+	github.com/gobwas/ws v1.2.1
 	github.com/godaddy-x/jorm v1.0.67
 	github.com/pkg/errors v0.9.1
 	github.com/shopspring/decimal v1.3.1
@@ -16,6 +17,7 @@ require (
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.8.12
+	github.com/tidwall/gjson v1.14.4
 	go.mongodb.org/mongo-driver v1.11.6
 	golang.org/x/crypto v0.5.0
 )
@@ -41,6 +43,8 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.11.2 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/goccy/go-json v0.10.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -63,6 +67,8 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.9 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect

@@ -8,7 +8,6 @@ import (
 	"ordbook-aggregation/controller/respond"
 	"ordbook-aggregation/service/cache_service"
 	"ordbook-aggregation/service/inscription_service"
-	"strings"
 )
 
 func PreInscribe(req *request.Brc20PreReq) (*respond.Brc20PreResp, error) {
@@ -16,20 +15,8 @@ func PreInscribe(req *request.Brc20PreReq) (*respond.Brc20PreResp, error) {
 		fromPrivateKeyHex, fromTaprootAddress string = "", ""
 		fee int64 = 0
 		err error
-		netParams *chaincfg.Params = &chaincfg.MainNetParams
+		netParams *chaincfg.Params = GetNetParams(req.Net)
 	)
-	switch strings.ToLower(req.Net) {
-	case "mainnet":
-		netParams = &chaincfg.MainNetParams
-		break
-	case "signet":
-		netParams = &chaincfg.SigNetParams
-		break
-	case "testnet":
-		netParams = &chaincfg.TestNet3Params
-		break
-	}
-
 	fromPrivateKeyHex, fromTaprootAddress, fee, err = inscription_service.CreateKeyAndCalculateInscribe(netParams, req.ReceiveAddress, req.Content)
 	if err != nil {
 		return nil, err
@@ -54,19 +41,8 @@ func CommitInscribe(req *request.Brc20CommitReq) (*respond.Brc20CommitResp, erro
 		commitTxHash, revealTxHash, inscriptionId string = "", "", ""
 		err                         error
 		fromPriKeyHex, toTaprootAddress, content = "", "", ""
-		netParams *chaincfg.Params = &chaincfg.MainNetParams
+		netParams *chaincfg.Params = GetNetParams(req.Net)
 	)
-	switch strings.ToLower(req.Net) {
-	case "mainnet":
-		netParams = &chaincfg.MainNetParams
-		break
-	case "signet":
-		netParams = &chaincfg.SigNetParams
-		break
-	case "testnet":
-		netParams = &chaincfg.TestNet3Params
-		break
-	}
 	inscribeInfo, isExist := cache_service.GetMetaNameOrderItemMap().Get(req.FeeAddress)
 	if !isExist {
 		return nil, errors.New("pre request has not been done")

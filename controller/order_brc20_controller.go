@@ -18,7 +18,7 @@ import (
 // @Param Request body request.OrderBrc20PushReq true "Request"
 // @Tags brc20
 // @Success 200 {object} respond.Message ""
-// @Router /brc20/order/push [post]
+// @Router /brc20/order/ask/push [post]
 func PushOrder(c *gin.Context) {
 	var (
 		t   int64            = tool.MakeTimestamp()
@@ -204,7 +204,7 @@ func FetchPreBid(c *gin.Context) {
 // @Param coinAmount query string false "coinAmount"
 // @Param address query string false "address"
 // @Param amount query int false "amount"
-// @Success 200 {object} respond.OrderResponse ""
+// @Success 200 {object} respond.BidPsbt ""
 // @Router /brc20/order/bid [get]
 func FetchBidPsbt(c *gin.Context) {
 	var (
@@ -275,4 +275,116 @@ func DoBid(c *gin.Context) {
 		return
 	}
 	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
+}
+
+// @Summary Fetch uuid
+// @Description Fetch uuid
+// @Produce  json
+// @Tags brc20
+// @Success 200 {object} respond.WsUuidResp ""
+// @Router /brc20/ws/uuid [get]
+func GetWsUuid(c *gin.Context) {
+	var (
+		t   int64 = tool.MakeTimestamp()
+	)
+
+
+	resp, err := order_brc20_service.GetWsUuid(c.ClientIP())
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(resp, tool.MakeTimestamp()-t))
+	return
+}
+
+
+// @Summary Check inscription brc20 valid
+// @Description Check inscription brc20 valid
+// @Produce  json
+// @Param inscriptionId query string false "inscriptionId"
+// @Param inscriptionNumber query string false "inscriptionNumber"
+// @Tags brc20
+// @Success 200 {object} respond.CheckBrc20InscriptionReq ""
+// @Router /brc20/check/info [get]
+func CheckBrc20(c *gin.Context) {
+	var (
+		t   int64 = tool.MakeTimestamp()
+		req *request.CheckBrc20InscriptionReq = &request.CheckBrc20InscriptionReq{
+			InscriptionId:     c.DefaultQuery("inscriptionId", ""),
+			InscriptionNumber: c.DefaultQuery("inscriptionNumber", ""),
+		}
+	)
+	resp, err := order_brc20_service.CheckBrc20(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(resp, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary Check inscription brc20 valid
+// @Description Check inscription brc20 valid
+// @Produce  json
+// @Param tick path string true "tick"
+// @Param address path string true "address"
+// @Param net query string false "net"
+// @Param page query int false "page"
+// @Param limit query int false "limit"
+// @Tags brc20
+// @Success 200 {object} respond.BalanceDetails ""
+// @Router /brc20/address/{address}/{tick} [get]
+func GetBrc20BalanceDetail(c *gin.Context) {
+	var (
+		t   int64 = tool.MakeTimestamp()
+		pageStr string = c.DefaultQuery("page", "1")
+		limitStr string = c.DefaultQuery("limit", "60")
+		req *request.Brc20AddressReq = &request.Brc20AddressReq{
+			Net:     c.DefaultQuery("net", ""),
+			Tick:    c.Param("tick"),
+			Address:  c.Param("address"),
+		}
+	)
+	req.Page, _ = strconv.ParseInt(pageStr, 10, 64)
+	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
+	resp, err := order_brc20_service.GetBrc20BalanceDetail(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(resp, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary Get bid dummy list
+// @Description Get bid dummy list
+// @Produce  json
+// @Param address path string true "address"
+// @Param net query string false "net"
+// @Param skip query int false "skip"
+// @Param limit query int false "limit"
+// @Tags brc20
+// @Success 200 {object} respond.Brc20BidDummyResponse ""
+// @Router /brc20/order/bid/dummy/{address} [get]
+func GetBidDummyList(c *gin.Context) {
+	var (
+		t   int64 = tool.MakeTimestamp()
+		skipStr string = c.DefaultQuery("skip", "1")
+		limitStr string = c.DefaultQuery("limit", "60")
+		req *request.Brc20BidAddressDummyReq = &request.Brc20BidAddressDummyReq{
+			Net:     c.DefaultQuery("net", ""),
+			Tick:    c.Param("tick"),
+			Address:  c.Param("address"),
+		}
+	)
+	req.Skip, _ = strconv.ParseInt(skipStr, 10, 64)
+	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
+	resp, err := order_brc20_service.GetBidDummyList(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(resp, tool.MakeTimestamp()-t))
+	return
 }

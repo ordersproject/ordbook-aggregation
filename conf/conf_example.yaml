@@ -7,3 +7,6 @@ oklink:
   key: ""
 mempool_space:
   domain: "https://mempool.space"
+
+ws:
+  port: "0001"

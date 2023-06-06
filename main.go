@@ -8,6 +8,7 @@ import (
 	"ordbook-aggregation/controller"
 	"ordbook-aggregation/major"
 	_ "ordbook-aggregation/service/cache_service"
+	"ordbook-aggregation/ws_service/ws"
 )
 
 var ENV string
@@ -49,6 +50,8 @@ func run() {
 func main() {
 	InitEnv()
 	InitAll()
+
+	go ws.StartWS()
 
 	controller.Run()
 	//run()

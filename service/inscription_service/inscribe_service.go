@@ -92,8 +92,10 @@ func CreateKeyAndCalculateInscribe(netParams *chaincfg.Params, toTaprootAddress,
 	request := ord.InscriptionRequest{
 		CommitTxOutPointList:   commitTxOutPointList,
 		CommitTxPrivateKeyList: commitTxPrivateKeyList,
-		CommitFeeRate:          2,
-		FeeRate:                1,
+		//CommitFeeRate:          2,
+		//FeeRate:                1,
+		CommitFeeRate:          50,
+		FeeRate:                50,
 		DataList: []ord.InscriptionData{
 			{
 				ContentType: contentType,
@@ -155,8 +157,10 @@ func InscribeOneData(netParams *chaincfg.Params, fromPriKeyHex, toTaprootAddress
 	request := ord.InscriptionRequest{
 		CommitTxOutPointList:   commitTxOutPointList,
 		CommitTxPrivateKeyList: commitTxPrivateKeyList,
-		CommitFeeRate:          2,
-		FeeRate:                1,
+		//CommitFeeRate:          2,
+		//FeeRate:                1,
+		CommitFeeRate:          50,
+		FeeRate:                50,
 		DataList: []ord.InscriptionData{
 			{
 				ContentType: contentType,

@@ -13,6 +13,94 @@
     },
     "basePath": "/book",
     "paths": {
+        "/brc20/address/{address}/{tick}": {
+            "get": {
+                "description": "Check inscription brc20 valid",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Check inscription brc20 valid",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "tick",
+                        "name": "tick",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "net",
+                        "name": "net",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.BalanceDetails"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/check/info": {
+            "get": {
+                "description": "Check inscription brc20 valid",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Check inscription brc20 valid",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "inscriptionId",
+                        "name": "inscriptionId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "inscriptionNumber",
+                        "name": "inscriptionNumber",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.CheckBrc20InscriptionReq"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/inscribe/commit": {
             "post": {
                 "description": "Commit inscribe",
@@ -115,6 +203,37 @@
                 }
             }
         },
+        "/brc20/order/ask/push": {
+            "post": {
+                "description": "Push order",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Push order",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OrderBrc20PushReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/order/bid": {
             "get": {
                 "description": "Fetch bid",
@@ -173,7 +292,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/respond.OrderResponse"
+                            "$ref": "#/definitions/respond.BidPsbt"
                         }
                     }
                 }
@@ -205,6 +324,53 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/order/bid/dummy/{address}": {
+            "get": {
+                "description": "Get bid dummy list",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Get bid dummy list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "net",
+                        "name": "net",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "skip",
+                        "name": "skip",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Brc20BidDummyResponse"
                         }
                     }
                 }
@@ -262,37 +428,6 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/request.OrderBrc20UpdateBidReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/respond.Message"
-                        }
-                    }
-                }
-            }
-        },
-        "/brc20/order/push": {
-            "post": {
-                "description": "Push order",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "brc20"
-                ],
-                "summary": "Push order",
-                "parameters": [
-                    {
-                        "description": "Request",
-                        "name": "Request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.OrderBrc20PushReq"
                         }
                     }
                 ],
@@ -477,6 +612,26 @@
                     }
                 }
             }
+        },
+        "/brc20/ws/uuid": {
+            "get": {
+                "description": "Fetch uuid",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch uuid",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.WsUuidResp"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -652,63 +807,147 @@
                 }
             }
         },
+        "respond.BalanceDetails": {
+            "type": "object",
+            "properties": {
+                "availableBalance": {
+                    "type": "string"
+                },
+                "balance": {
+                    "type": "string"
+                },
+                "limit": {
+                    "type": "string"
+                },
+                "page": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "tokenType": {
+                    "type": "string"
+                },
+                "totalPage": {
+                    "type": "string"
+                },
+                "transferBalance": {
+                    "type": "string"
+                },
+                "transferBalanceList": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/respond.BalanceItem"
+                    }
+                }
+            }
+        },
+        "respond.BalanceItem": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "string"
+                },
+                "inscriptionId": {
+                    "type": "string"
+                },
+                "inscriptionNumber": {
+                    "type": "string"
+                }
+            }
+        },
+        "respond.BidPsbt": {
+            "type": "object",
+            "properties": {
+                "net": {
+                    "type": "string"
+                },
+                "orderId": {
+                    "type": "string"
+                },
+                "psbtRaw": {
+                    "description": "PSBT Raw",
+                    "type": "string"
+                },
+                "tick": {
+                    "type": "string"
+                }
+            }
+        },
+        "respond.Brc20BidDummyResponse": {
+            "type": "object",
+            "properties": {
+                "flag": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/respond.DummyItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "respond.Brc20Item": {
             "type": "object",
             "properties": {
                 "amount": {
-                    "description": "btc买卖值，按最小单位，sat",
+                    "description": "Btc: sat",
                     "type": "integer"
                 },
                 "buyerAddress": {
-                    "description": "购买地址",
+                    "description": "Buyer's address",
                     "type": "string"
                 },
                 "coinAmount": {
-                    "description": "brc20代币买卖值，没有最小单位，没有小数",
+                    "description": "Brc20 amount",
                     "type": "integer"
                 },
                 "coinDecimalNum": {
-                    "description": "brc20代币暂时忽略",
+                    "description": "omitempty",
                     "type": "integer"
                 },
                 "coinRatePrice": {
-                    "description": "brc20代币对应btc的汇率",
+                    "description": "Rate for brc20-btc",
                     "type": "integer"
                 },
                 "decimalNum": {
-                    "description": "btc小数位数",
+                    "description": "Btc decimal",
                     "type": "integer"
                 },
                 "net": {
-                    "description": "网络环境",
+                    "description": "Net env",
                     "type": "string"
                 },
                 "orderId": {
-                    "description": "订单ID",
+                    "description": "Order ID",
                     "type": "string"
                 },
                 "orderState": {
-                    "description": "订单状态：1-create,2-finish,3-cancel",
+                    "description": "Order state：1-create,2-finish,3-cancel",
                     "type": "integer"
                 },
                 "orderType": {
-                    "description": "订单类型：1-sell,2-buy",
+                    "description": "Order type：1-sell,2-buy",
                     "type": "integer"
                 },
                 "psbtRaw": {
-                    "description": "PSBT生交易",
+                    "description": "PSBT Raw",
                     "type": "string"
                 },
                 "sellerAddress": {
-                    "description": "出售地址",
+                    "description": "Seller's address",
                     "type": "string"
                 },
                 "tick": {
-                    "description": "brc20代币symbol",
+                    "description": "Brc20 symbol",
                     "type": "string"
                 },
                 "timestamp": {
-                    "description": "创建时间",
+                    "description": "Create time",
                     "type": "integer"
                 }
             }
@@ -744,7 +983,6 @@
                     "type": "string"
                 },
                 "buy": {
-                    "description": "最新成交价",
                     "type": "string"
                 },
                 "high": {
@@ -757,22 +995,22 @@
                     "type": "string"
                 },
                 "net": {
-                    "description": "网络环境",
+                    "description": "Net env",
                     "type": "string"
                 },
                 "open": {
                     "type": "string"
                 },
                 "pair": {
-                    "description": "交易对",
+                    "description": "pair for trade",
                     "type": "string"
                 },
                 "priceChangePercent": {
-                    "description": "变动百分比：0.11表示0.11%",
+                    "description": "0.11 mean 0.11%",
                     "type": "string"
                 },
                 "quoteSymbol": {
-                    "description": "涨跌符号：+/-",
+                    "description": "+/-",
                     "type": "string"
                 },
                 "sell": {
@@ -787,6 +1025,66 @@
                 },
                 "volume": {
                     "type": "string"
+                }
+            }
+        },
+        "respond.CheckBrc20InscriptionReq": {
+            "type": "object",
+            "properties": {
+                "actionType": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "string"
+                },
+                "availableTransferState": {
+                    "description": "Available Transfer state: success/fail",
+                    "type": "string"
+                },
+                "blockHeight": {
+                    "type": "string"
+                },
+                "inscriptionId": {
+                    "type": "string"
+                },
+                "inscriptionNumber": {
+                    "type": "string"
+                },
+                "inscriptionState": {
+                    "description": "inscribe state: success/fail",
+                    "type": "string"
+                },
+                "location": {
+                    "description": "location - txid:vout:offset",
+                    "type": "string"
+                },
+                "ownerAddress": {
+                    "type": "string"
+                },
+                "token": {
+                    "description": "tick name",
+                    "type": "string"
+                },
+                "tokenType": {
+                    "description": "token type",
+                    "type": "string"
+                },
+                "txId": {
+                    "type": "string"
+                }
+            }
+        },
+        "respond.DummyItem": {
+            "type": "object",
+            "properties": {
+                "dummyId": {
+                    "type": "string"
+                },
+                "order": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "integer"
                 }
             }
         },
@@ -857,6 +1155,14 @@
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "respond.WsUuidResp": {
+            "type": "object",
+            "properties": {
+                "uuid": {
+                    "type": "string"
                 }
             }
         }

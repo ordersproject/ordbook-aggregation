@@ -27,3 +27,22 @@ func CreateTaprootKey(netParams *chaincfg.Params) (string, string, error){
 	log.Printf("new taproot address %s \n", taprootAddress.EncodeAddress())
 	return privateKeyHex, taprootAddress.EncodeAddress(), nil
 }
+
+
+func CreateSegwitKey(netParams *chaincfg.Params) (string, string, error){
+	privateKey, err := btcec.NewPrivateKey()
+	if err != nil {
+		return "", "", err
+	}
+	privateKeyHex := hex.EncodeToString(privateKey.Serialize())
+	log.Printf("new priviate key %s \n", privateKeyHex)
+
+	publicKey := hex.EncodeToString(privateKey.PubKey().SerializeCompressed())
+	log.Printf("new public key %s \n", publicKey)
+	nativeSegwitAddress, err := btcutil.NewAddressWitnessPubKeyHash(btcutil.Hash160(privateKey.PubKey().SerializeCompressed()), netParams)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("new native segwit address %s \n", nativeSegwitAddress.EncodeAddress())
+	return privateKeyHex, nativeSegwitAddress.EncodeAddress(), nil
+}

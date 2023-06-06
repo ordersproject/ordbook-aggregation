@@ -26,10 +26,12 @@ type OrderBrc20Model struct {
 	InscriptionNumber string     `json:"inscriptionNumber" bson:"inscriptionNumber"`
 	PsbtRawPreAsk     string     `json:"psbtRawPreAsk" bson:"psbtRawPreAsk"`
 	PsbtRawFinalAsk   string     `json:"psbtRawFinalAsk" bson:"psbtRawFinalAsk"`
+	PsbtAskTxId       string     `json:"psbtAskTxId" bson:"psbtAskTxId"`
 	PsbtRawPreBid     string     `json:"psbtRawPreBid" bson:"psbtRawPreBid"`
 	PsbtRawMidBid     string     `json:"psbtRawMidBid" bson:"psbtRawMidBid"`
 	PsbtRawFinalBid   string     `json:"psbtRawBidFinalBid" bson:"psbtRawBidFinalBid"`
-	Integral         int64      `json:"integral" bson:"integral"`
+	PsbtBidTxId       string     `json:"psbtBidTxId" bson:"psbtBidTxId"`
+	Integral          int64      `json:"integral" bson:"integral"`
 	Timestamp         int64      `json:"timestamp" bson:"timestamp"`
 	CreateTime        int64      `json:"createTime" bson:"createTime"`
 	UpdateTime        int64      `json:"updateTime" bson:"updateTime"`
@@ -68,33 +70,37 @@ func (s OrderBrc20Model) GetWriteDB() (*mongo.Collection, error) {
 	return collection, nil
 }
 
+type DummyState int
 
-type OrderBrc20BidModel struct {
-	Id                int64  `json:"id" bson:"_id" tb:"order_brc20_bid_model" mg:"true"`
-	Net               string `json:"net" bson:"net"`
-	OrderId           string `json:"orderId" bson:"orderId"`
-	Tick              string `json:"tick" bson:"tick"`
-	Amount            uint64 `json:"amount" bson:"amount"`
-	CoinAmount        uint64 `json:"coinAmount" bson:"coinAmount"`
-	PlatformTx        string `json:"platformTx" bson:"platformTx"`
-	InscriptionId     string `json:"inscriptionId" bson:"inscriptionId"`
-	InscriptionNumber string `json:"inscriptionNumber" bson:"inscriptionNumber"`
-	PsbtRaw           string `json:"psbtRaw" bson:"psbtRaw"`
-	Timestamp         int64  `json:"timestamp" bson:"timestamp"`
-	CreateTime        int64  `json:"createTime" bson:"createTime"`
-	UpdateTime        int64  `json:"updateTime" bson:"updateTime"`
-	State             int64  `json:"state" bson:"state"`
+const (
+	DummyStateLive DummyState = 1
+	DummyStateCancel DummyState = 2
+	DummyStateFinish DummyState = 3
+)
+
+type OrderBrc20BidDummyModel struct {
+	Id         int64      `json:"id" bson:"_id" tb:"order_brc20_bid_dummy_model" mg:"true"`
+	Net        string     `json:"net" bson:"net"`
+	DummyId    string     `json:"dummyId" bson:"dummyId"` //txId:index
+	OrderId    string     `json:"orderId" bson:"orderId"`
+	Tick       string     `json:"tick" bson:"tick"`
+	Address    string     `json:"address" bson:"address"`
+	DummyState DummyState `json:"dummyState" bson:"dummyState"`
+	Timestamp  int64      `json:"timestamp" bson:"timestamp"`
+	CreateTime int64      `json:"createTime" bson:"createTime"`
+	UpdateTime int64      `json:"updateTime" bson:"updateTime"`
+	State      int64      `json:"state" bson:"state"`
 }
 
-func (s OrderBrc20BidModel) getCollection() string {
-	return "order_brc20_bid_model"
+func (s OrderBrc20BidDummyModel) getCollection() string {
+	return "order_brc20_bid_dummy_model"
 }
 
-func (s OrderBrc20BidModel) getDB() string {
+func (s OrderBrc20BidDummyModel) getDB() string {
 	return major.DsOrdbook
 }
 
-func (s OrderBrc20BidModel) GetReadDB() (*mongo.Collection, error) {
+func (s OrderBrc20BidDummyModel) GetReadDB() (*mongo.Collection, error) {
 	mongoDB, err := major.GetOrderbookDb()
 	if err != nil {
 		return nil, err
@@ -106,7 +112,7 @@ func (s OrderBrc20BidModel) GetReadDB() (*mongo.Collection, error) {
 	return collection, nil
 }
 
-func (s OrderBrc20BidModel) GetWriteDB() (*mongo.Collection, error) {
+func (s OrderBrc20BidDummyModel) GetWriteDB() (*mongo.Collection, error) {
 	mongoDB, err := major.GetOrderbookDb()
 	if err != nil {
 		return nil, err
@@ -117,6 +123,4 @@ func (s OrderBrc20BidModel) GetWriteDB() (*mongo.Collection, error) {
 	}
 	return collection, nil
 }
-
-
 

@@ -116,49 +116,104 @@ definitions:
       psbtRaw:
         type: string
     type: object
+  respond.BalanceDetails:
+    properties:
+      availableBalance:
+        type: string
+      balance:
+        type: string
+      limit:
+        type: string
+      page:
+        type: string
+      token:
+        type: string
+      tokenType:
+        type: string
+      totalPage:
+        type: string
+      transferBalance:
+        type: string
+      transferBalanceList:
+        items:
+          $ref: '#/definitions/respond.BalanceItem'
+        type: array
+    type: object
+  respond.BalanceItem:
+    properties:
+      amount:
+        type: string
+      inscriptionId:
+        type: string
+      inscriptionNumber:
+        type: string
+    type: object
+  respond.BidPsbt:
+    properties:
+      net:
+        type: string
+      orderId:
+        type: string
+      psbtRaw:
+        description: PSBT Raw
+        type: string
+      tick:
+        type: string
+    type: object
+  respond.Brc20BidDummyResponse:
+    properties:
+      flag:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/respond.DummyItem'
+        type: array
+      total:
+        type: integer
+    type: object
   respond.Brc20Item:
     properties:
       amount:
-        description: btc买卖值，按最小单位，sat
+        description: 'Btc: sat'
         type: integer
       buyerAddress:
-        description: 购买地址
+        description: Buyer's address
         type: string
       coinAmount:
-        description: brc20代币买卖值，没有最小单位，没有小数
+        description: Brc20 amount
         type: integer
       coinDecimalNum:
-        description: brc20代币暂时忽略
+        description: omitempty
         type: integer
       coinRatePrice:
-        description: brc20代币对应btc的汇率
+        description: Rate for brc20-btc
         type: integer
       decimalNum:
-        description: btc小数位数
+        description: Btc decimal
         type: integer
       net:
-        description: 网络环境
+        description: Net env
         type: string
       orderId:
-        description: 订单ID
+        description: Order ID
         type: string
       orderState:
-        description: 订单状态：1-create,2-finish,3-cancel
+        description: Order state：1-create,2-finish,3-cancel
         type: integer
       orderType:
-        description: 订单类型：1-sell,2-buy
+        description: Order type：1-sell,2-buy
         type: integer
       psbtRaw:
-        description: PSBT生交易
+        description: PSBT Raw
         type: string
       sellerAddress:
-        description: 出售地址
+        description: Seller's address
         type: string
       tick:
-        description: brc20代币symbol
+        description: Brc20 symbol
         type: string
       timestamp:
-        description: 创建时间
+        description: Create time
         type: integer
     type: object
   respond.Brc20TickInfoResponse:
@@ -182,7 +237,6 @@ definitions:
       avgPrice:
         type: string
       buy:
-        description: 最新成交价
         type: string
       high:
         type: string
@@ -191,18 +245,18 @@ definitions:
       low:
         type: string
       net:
-        description: 网络环境
+        description: Net env
         type: string
       open:
         type: string
       pair:
-        description: 交易对
+        description: pair for trade
         type: string
       priceChangePercent:
-        description: 变动百分比：0.11表示0.11%
+        description: 0.11 mean 0.11%
         type: string
       quoteSymbol:
-        description: 涨跌符号：+/-
+        description: +/-
         type: string
       sell:
         type: string
@@ -213,6 +267,47 @@ definitions:
         type: string
       volume:
         type: string
+    type: object
+  respond.CheckBrc20InscriptionReq:
+    properties:
+      actionType:
+        type: string
+      amount:
+        type: string
+      availableTransferState:
+        description: 'Available Transfer state: success/fail'
+        type: string
+      blockHeight:
+        type: string
+      inscriptionId:
+        type: string
+      inscriptionNumber:
+        type: string
+      inscriptionState:
+        description: 'inscribe state: success/fail'
+        type: string
+      location:
+        description: location - txid:vout:offset
+        type: string
+      ownerAddress:
+        type: string
+      token:
+        description: tick name
+        type: string
+      tokenType:
+        description: token type
+        type: string
+      txId:
+        type: string
+    type: object
+  respond.DummyItem:
+    properties:
+      dummyId:
+        type: string
+      order:
+        type: string
+      timestamp:
+        type: integer
     type: object
   respond.KlineItem:
     properties:
@@ -260,6 +355,11 @@ definitions:
       total:
         type: integer
     type: object
+  respond.WsUuidResp:
+    properties:
+      uuid:
+        type: string
+    type: object
 info:
   contact:
     name: API Support
@@ -267,6 +367,64 @@ info:
   title: OrdBook API Service
   version: "1.0"
 paths:
+  /brc20/address/{address}/{tick}:
+    get:
+      description: Check inscription brc20 valid
+      parameters:
+      - description: tick
+        in: path
+        name: tick
+        required: true
+        type: string
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: net
+        in: query
+        name: net
+        type: string
+      - description: page
+        in: query
+        name: page
+        type: integer
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.BalanceDetails'
+      summary: Check inscription brc20 valid
+      tags:
+      - brc20
+  /brc20/check/info:
+    get:
+      description: Check inscription brc20 valid
+      parameters:
+      - description: inscriptionId
+        in: query
+        name: inscriptionId
+        type: string
+      - description: inscriptionNumber
+        in: query
+        name: inscriptionNumber
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.CheckBrc20InscriptionReq'
+      summary: Check inscription brc20 valid
+      tags:
+      - brc20
   /brc20/inscribe/commit:
     post:
       description: Commit inscribe
@@ -333,6 +491,26 @@ paths:
       summary: Fetch tick kline data
       tags:
       - brc20
+  /brc20/order/ask/push:
+    post:
+      description: Push order
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.OrderBrc20PushReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Message'
+      summary: Push order
+      tags:
+      - brc20
   /brc20/order/bid:
     get:
       description: Fetch bid
@@ -371,7 +549,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/respond.OrderResponse'
+            $ref: '#/definitions/respond.BidPsbt'
       summary: Fetch bid
       tags:
       - brc20
@@ -393,6 +571,37 @@ paths:
           schema:
             $ref: '#/definitions/respond.Message'
       summary: Do bid order
+      tags:
+      - brc20
+  /brc20/order/bid/dummy/{address}:
+    get:
+      description: Get bid dummy list
+      parameters:
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: net
+        in: query
+        name: net
+        type: string
+      - description: skip
+        in: query
+        name: skip
+        type: integer
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Brc20BidDummyResponse'
+      summary: Get bid dummy list
       tags:
       - brc20
   /brc20/order/bid/pre:
@@ -435,26 +644,6 @@ paths:
           schema:
             $ref: '#/definitions/respond.Message'
       summary: Push bid order
-      tags:
-      - brc20
-  /brc20/order/push:
-    post:
-      description: Push order
-      parameters:
-      - description: Request
-        in: body
-        name: Request
-        required: true
-        schema:
-          $ref: '#/definitions/request.OrderBrc20PushReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/respond.Message'
-      summary: Push order
       tags:
       - brc20
   /brc20/order/update:
@@ -569,6 +758,19 @@ paths:
       summary: Cold down the utxo
       tags:
       - System
+  /brc20/ws/uuid:
+    get:
+      description: Fetch uuid
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.WsUuidResp'
+      summary: Fetch uuid
+      tags:
+      - brc20
 schemes:
 - https
 swagger: "2.0"

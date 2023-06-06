@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -40,7 +41,7 @@ func BuildCommonTx(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutp
 		if err != nil {
 			return nil, err
 		}
-		addrHash, err := btcutil.NewAddressPubKeyHash(addr.ScriptAddress(), netParam)
+		addrHash, err := btcutil.NewAddressWitnessPubKeyHash(addr.ScriptAddress(), netParam)
 		if err != nil {
 			return nil, err
 		}
@@ -76,7 +77,7 @@ func BuildCommonTx(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutp
 		if err != nil {
 			return nil, err
 		}
-		addrHash, err := btcutil.NewAddressPubKeyHash(addr.ScriptAddress(), netParam)
+		addrHash, err := btcutil.NewAddressWitnessPubKeyHash(addr.ScriptAddress(), netParam)
 		if err != nil {
 			return nil, err
 		}
@@ -99,13 +100,30 @@ func BuildCommonTx(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutp
 		if err != nil {
 			return nil, err
 		}
-		sigScript, err := txscript.SignatureScript(tx, i, pkScriptByte,
-			txscript.SigHashAll, privateKey, true)
+		//sigScript, err := txscript.SignatureScript(tx, i, pkScriptByte, txscript.SigHashDefault, privateKey, true)
+
+		//bldr := txscript.NewScriptBuilder()
+		//bldr.AddData(pkScriptByte)
+		//sigScript, err := bldr.Script()
+		//if err != nil {
+		//	return nil, err
+		//}
+
+		prevOutputFetcher := NewPrevOutputFetcher(pkScriptByte, int64(in.Amount))
+		sigHashes := txscript.NewTxSigHashes(tx, prevOutputFetcher)
+
+		witnessScript, err := txscript.WitnessSignature(
+			tx, sigHashes, i, int64(in.Amount), pkScriptByte,
+			txscript.SigHashAll, privateKey, true,
+		)
 		if err != nil {
+			fmt.Println(err)
 			return nil, err
 		}
-		tx.TxIn[i].SignatureScript = sigScript
+		//tx.TxIn[i].SignatureScript = sigScript
+		tx.TxIn[i].Witness = witnessScript
 	}
+
 	return tx, nil
 }
 

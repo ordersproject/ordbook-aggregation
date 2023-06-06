@@ -59,6 +59,7 @@ type OrderBrc20UpdateBidReq struct {
 	Address string `json:"address"`
 	OrderId string `json:"orderId"`
 	PsbtRaw string `json:"psbtRaw"`
+	Rate              int    `json:"rate"` //sats/B
 }
 
 type OrderBrc20UpdateReq struct {
@@ -77,4 +78,28 @@ type OrderBrc20DoBidReq struct {
 	InscriptionNumber string `json:"inscriptionNumber"`
 	CoinAmount        string `json:"amount"`
 	PsbtRaw           string `json:"psbtRaw"`
+}
+
+type CheckBrc20InscriptionReq struct {
+	InscriptionId     string `json:"inscriptionId"`
+	InscriptionNumber string `json:"inscriptionNumber"`
+	//PreTxId           string `json:"preTxId"`
+	//PreIndex          int64  `json:"preIndex"`
+}
+
+type Brc20AddressReq struct {
+	Net     string `json:"net"` //mainnet/signet/testnet
+	Tick    string `json:"tick"`
+	Address string `json:"address"`
+	Page int64 `json:"page"`
+	Limit int64 `json:"limit"`
+}
+
+
+type Brc20BidAddressDummyReq struct {
+	Net     string `json:"net"` //mainnet/signet/testnet
+	Tick    string `json:"tick"`
+	Address string `json:"address"`
+	Skip int64 `json:"skip"`
+	Limit int64 `json:"limit"`
 }

@@ -3,3 +3,6 @@ go.sum
 conf/conf_pro.yaml
 conf/mdb_pro.json
 deploy
+view
+log
+*.txt

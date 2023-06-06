@@ -1,8 +1,14 @@
 package order_brc20_service
 
 import (
+	"encoding/hex"
+	"fmt"
+	"github.com/btcsuite/btcd/chaincfg"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/mongo_service"
+	"ordbook-aggregation/tool"
+	"ordbook-aggregation/ws_service/ws"
+	"strings"
 )
 
 func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel{
@@ -31,6 +37,9 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel{
 		total++
 		sellTotal++
 	}
+	if sellTotal != 0 {
+		sellPrice = sellPrice/sellTotal
+	}
 	sellPrice = sellPrice/sellTotal
 
 	for _, v := range bidList{
@@ -42,8 +51,13 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel{
 		total++
 		buyTotal++
 	}
-	buyPrice = buyPrice/buyTotal
-	marketPrice = totalPrice/total
+	if buyTotal != 0 {
+		buyPrice = buyPrice/buyTotal
+	}
+	if total != 0 {
+		marketPrice = totalPrice/total
+	}
+
 
 	tickInfo, _ = mongo_service.FindBrc20TickModelByPair(pair)
 	if tickInfo == nil {
@@ -63,6 +77,7 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel{
 	if err != nil {
 		return nil
 	}
+	ws.SendTickInfo(ws.NewWsNotifyTick(tickInfo))
 	return tickInfo
 }
 
@@ -75,4 +90,59 @@ func GetMarketPrice(net, tick, pair string) uint64 {
 		return 0
 	}
 	return tickInfo.AvgPrice
+}
+
+func GetNetParams(net string) *chaincfg.Params {
+	var (
+		netParams *chaincfg.Params = &chaincfg.MainNetParams
+	)
+	switch strings.ToLower(net) {
+	case "mainnet", "livenet":
+		netParams = &chaincfg.MainNetParams
+		break
+	case "signet":
+		netParams = &chaincfg.SigNetParams
+		break
+	case "testnet":
+		netParams = &chaincfg.TestNet3Params
+		break
+	}
+	return netParams
+}
+
+func GetTxHash(rawTxByte []byte) string {
+	txHash := tool.DoubleSHA256(rawTxByte)
+	//翻转
+	for i := 0; i < len(txHash)/2; i++ {
+		h := txHash[len(txHash)-1-i]
+		txHash[len(txHash)-1-i] = txHash[i]
+		txHash[i] = h
+	}
+	return hex.EncodeToString(txHash)
+}
+
+func GetTestFakerInscription(net string) []*model.OrderUtxoModel {
+	utxoMockInscriptionList, _ := mongo_service.FindUtxoList(net, -1, 1000, model.UtxoTypeFakerInscription)
+	return utxoMockInscriptionList
+}
+
+func SaveForUserBidDummy(net, tick, address, orderId, dummyPreTxId string, dummyPreIndex int64, state model.DummyState)  {
+	dummyEntity := &model.OrderBrc20BidDummyModel{
+		Net:        net,
+		DummyId:    fmt.Sprintf("%s:%d", dummyPreTxId, dummyPreIndex),
+		OrderId:    orderId,
+		Tick:       tick,
+		Address:    address,
+		DummyState: state,
+		Timestamp:  tool.MakeTimestamp(),
+	}
+	mongo_service.SetOrderBrc20BidDummyModel(dummyEntity)
+}
+
+func UpdateForOrderBidDummy(orderId string, state model.DummyState)  {
+	dummyList, _ := mongo_service.FindOrderBrc20BidDummyModelList(orderId, "", model.DummyStateLive, 0, 10)
+	for _, v := range dummyList {
+		v.DummyState = state
+		mongo_service.SetOrderBrc20BidDummyModel(v)
+	}
 }

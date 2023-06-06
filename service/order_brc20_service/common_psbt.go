@@ -14,7 +14,16 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/hiro_service"
+	"ordbook-aggregation/service/oklink_service"
 	"ordbook-aggregation/tool"
+	"strings"
+)
+
+type UtxoType int
+
+const (
+	NonWitness UtxoType = 1
+	Witness    UtxoType = 2
 )
 
 type PsbtBuilder struct {
@@ -28,10 +37,13 @@ type Input struct {
 }
 
 type InputSign struct {
-	Index       int                `json:"index"`
+	UtxoType    UtxoType             `json:"utxo_type"`
+	Index       int                  `json:"index"`
 	OutRaw      string               `json:"out_raw"`
+	PkScript    string               `json:"pk_script"`
+	Amount      uint64               `json:"amount"`
 	SighashType txscript.SigHashType `json:"sighash_type"`
-	PriHex string `json:"pri_hex"`
+	PriHex      string               `json:"pri_hex"`
 }
 
 type Output struct {
@@ -85,39 +97,66 @@ func CreatePsbtBuilder(netParams *chaincfg.Params, ins []Input, outs []Output) (
 
 func (s *PsbtBuilder) UpdateAndSignInput(signIns []InputSign) error {
 	for _, v := range signIns {
-		tx := wire.NewMsgTx(2)
-		nonWitnessUtxoHex, err := hex.DecodeString(v.OutRaw)
-		if err != nil {
-			return err
-		}
-		err = tx.Deserialize(bytes.NewReader(nonWitnessUtxoHex))
-		if err != nil {
-			return err
-		}
-		err = s.PsbtUpdater.AddInNonWitnessUtxo(tx, v.Index)
-		if err != nil {
-			return err
-		}
-		err = s.PsbtUpdater.AddInSighashType(v.SighashType, v.Index)
-		if err != nil {
-			return err
-		}
-
 		privateKeyBytes, err := hex.DecodeString(v.PriHex)
 		if err != nil {
 			return err
 		}
 		privateKey, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
-
 		sigScript := []byte{}
-		sigScript, err = txscript.RawTxInSignature(s.PsbtUpdater.Upsbt.UnsignedTx, v.Index, s.PsbtUpdater.Upsbt.Inputs[v.Index].NonWitnessUtxo.TxOut[s.PsbtUpdater.Upsbt.UnsignedTx.TxIn[v.Index].PreviousOutPoint.Index].PkScript, v.SighashType, privateKey)
+		switch v.UtxoType {
+		case NonWitness:
+			tx := wire.NewMsgTx(2)
+			nonWitnessUtxoHex, err := hex.DecodeString(v.OutRaw)
+			if err != nil {
+				return err
+			}
+			err = tx.Deserialize(bytes.NewReader(nonWitnessUtxoHex))
+			if err != nil {
+				return err
+			}
+			err = s.PsbtUpdater.AddInNonWitnessUtxo(tx, v.Index)
+			if err != nil {
+				return err
+			}
+			err = s.PsbtUpdater.AddInSighashType(v.SighashType, v.Index)
+			if err != nil {
+				return err
+			}
+			sigScript, err = txscript.RawTxInSignature(s.PsbtUpdater.Upsbt.UnsignedTx, v.Index, s.PsbtUpdater.Upsbt.Inputs[v.Index].NonWitnessUtxo.TxOut[s.PsbtUpdater.Upsbt.UnsignedTx.TxIn[v.Index].PreviousOutPoint.Index].PkScript, v.SighashType, privateKey)
+			if err != nil {
+				return err
+			}
+			break
+		case Witness:
+			witnessUtxoScriptHex, err := hex.DecodeString(
+				v.PkScript)
+			if err != nil {
+				return err
+			}
+			txout := wire.TxOut{Value: int64(v.Amount), PkScript: witnessUtxoScriptHex}
+			err = s.PsbtUpdater.AddInWitnessUtxo(&txout, v.Index)
+			if err != nil {
+				return err
+			}
+			err = s.PsbtUpdater.AddInSighashType(v.SighashType, v.Index)
+			if err != nil {
+				return err
+			}
+			prevOutputFetcher := NewPrevOutputFetcher(s.PsbtUpdater.Upsbt.Inputs[v.Index].WitnessUtxo.PkScript, s.PsbtUpdater.Upsbt.Inputs[v.Index].WitnessUtxo.Value)
+			sigHashes := txscript.NewTxSigHashes(s.PsbtUpdater.Upsbt.UnsignedTx, prevOutputFetcher)
+			sigScript, err = txscript.RawTxInWitnessSignature(s.PsbtUpdater.Upsbt.UnsignedTx, sigHashes, v.Index, s.PsbtUpdater.Upsbt.Inputs[v.Index].WitnessUtxo.Value, s.PsbtUpdater.Upsbt.Inputs[v.Index].WitnessUtxo.PkScript, v.SighashType, privateKey)
+			if err != nil {
+				return err
+			}
+			break
+		}
+		fmt.Printf("sigScript: %s\n", hex.EncodeToString(sigScript))
+
+		publicKey := hex.EncodeToString(privateKey.PubKey().SerializeCompressed())
+		pubByte, err := hex.DecodeString(publicKey)
 		if err != nil {
 			return err
 		}
-		publicKey := hex.EncodeToString(privateKey.PubKey().SerializeCompressed())
-
-		fmt.Printf("sigScript: %s\n", hex.EncodeToString(sigScript))
-		pubByte, err := hex.DecodeString(publicKey)
 		res, err := s.PsbtUpdater.Sign(v.Index, sigScript, pubByte, nil, nil)
 		if err != nil || res != 0 {
 			return err
@@ -130,13 +169,21 @@ func (s *PsbtBuilder) UpdateAndSignInput(signIns []InputSign) error {
 	return nil
 }
 
+func (s *PsbtBuilder) AddPartialSigIn(partialSigs []*psbt.PartialSig, index int) error {
+	s.PsbtUpdater.Upsbt.Inputs[index].PartialSigs = partialSigs
+	if err := s.PsbtUpdater.Upsbt.SanityCheck(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *PsbtBuilder) ToString() (string, error) {
 	var b bytes.Buffer
 	err := s.PsbtUpdater.Upsbt.Serialize(&b)
 	if err != nil {
 		return "", err
 	}
-	return b.String(), nil
+	return hex.EncodeToString(b.Bytes()), nil
 }
 
 
@@ -167,6 +214,85 @@ func (s *PsbtBuilder) GetOutputs() []*wire.TxOut {
 }
 
 func (s *PsbtBuilder) AddInput(in Input, signIn InputSign) error {
+	txHash, err := chainhash.NewHashFromStr(in.OutTxId)
+	if err != nil {
+		return err
+	}
+	s.PsbtUpdater.Upsbt.UnsignedTx.AddTxIn(&wire.TxIn{
+		PreviousOutPoint: *wire.NewOutPoint(txHash, in.OutIndex),
+		Sequence:         wire.MaxTxInSequenceNum,
+	})
+	s.PsbtUpdater.Upsbt.Inputs = append(s.PsbtUpdater.Upsbt.Inputs, psbt.PInput{})
+
+
+
+	privateKeyBytes, err := hex.DecodeString(signIn.PriHex)
+	if err != nil {
+		return err
+	}
+	privateKey, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
+	sigScript := []byte{}
+	switch signIn.UtxoType {
+	case NonWitness:
+		tx := wire.NewMsgTx(2)
+		nonWitnessUtxoHex, err := hex.DecodeString(signIn.OutRaw)
+		if err != nil {
+			return err
+		}
+		err = tx.Deserialize(bytes.NewReader(nonWitnessUtxoHex))
+		if err != nil {
+			return err
+		}
+		err = s.PsbtUpdater.AddInNonWitnessUtxo(tx, signIn.Index)
+		if err != nil {
+			return err
+		}
+		err = s.PsbtUpdater.AddInSighashType(signIn.SighashType, signIn.Index)
+		if err != nil {
+			return err
+		}
+		sigScript, err = txscript.RawTxInSignature(s.PsbtUpdater.Upsbt.UnsignedTx, signIn.Index, s.PsbtUpdater.Upsbt.Inputs[signIn.Index].NonWitnessUtxo.TxOut[s.PsbtUpdater.Upsbt.UnsignedTx.TxIn[signIn.Index].PreviousOutPoint.Index].PkScript, signIn.SighashType, privateKey)
+		if err != nil {
+			return err
+		}
+		break
+	case Witness:
+		witnessUtxoScriptHex, err := hex.DecodeString(
+			signIn.PkScript)
+		if err != nil {
+			return err
+		}
+		txout := wire.TxOut{Value: int64(signIn.Amount), PkScript: witnessUtxoScriptHex}
+		err = s.PsbtUpdater.AddInWitnessUtxo(&txout, signIn.Index)
+		if err != nil {
+			return err
+		}
+		err = s.PsbtUpdater.AddInSighashType(signIn.SighashType, signIn.Index)
+		if err != nil {
+			return err
+		}
+		prevOutputFetcher := NewPrevOutputFetcher(s.PsbtUpdater.Upsbt.Inputs[signIn.Index].WitnessUtxo.PkScript, s.PsbtUpdater.Upsbt.Inputs[signIn.Index].WitnessUtxo.Value)
+		sigHashes := txscript.NewTxSigHashes(s.PsbtUpdater.Upsbt.UnsignedTx, prevOutputFetcher)
+		sigScript, err = txscript.RawTxInWitnessSignature(s.PsbtUpdater.Upsbt.UnsignedTx, sigHashes, signIn.Index, s.PsbtUpdater.Upsbt.Inputs[signIn.Index].WitnessUtxo.Value, s.PsbtUpdater.Upsbt.Inputs[signIn.Index].WitnessUtxo.PkScript, signIn.SighashType, privateKey)
+		if err != nil {
+			return err
+		}
+		break
+	}
+	fmt.Printf("sigScript: %s\n", hex.EncodeToString(sigScript))
+	publicKey := hex.EncodeToString(privateKey.PubKey().SerializeCompressed())
+	pubByte, err := hex.DecodeString(publicKey)
+	if err != nil {
+		return err
+	}
+	res, err := s.PsbtUpdater.Sign(signIn.Index, sigScript, pubByte, nil, nil)
+	if err != nil || res != 0 {
+		return err
+	}
+	_, err = psbt.MaybeFinalize(s.PsbtUpdater.Upsbt, signIn.Index)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -194,6 +320,28 @@ func (s *PsbtBuilder) ExtractPsbtTransaction() (string, error) {
 	return hex.EncodeToString(b.Bytes()), nil
 }
 
+type PrevOutputFetcher struct{
+	pkScript []byte
+	value int64
+}
+
+
+func NewPrevOutputFetcher(pkScript []byte, value int64) *PrevOutputFetcher {
+	return &PrevOutputFetcher{
+		pkScript,
+		value,
+	}
+}
+
+
+func (d *PrevOutputFetcher) FetchPrevOutput(wire.OutPoint) *wire.TxOut{
+	return &wire.TxOut{
+		Value:    d.value,
+		PkScript: d.pkScript,
+	}
+}
+
+
 
 
 func CheckOrdinals(preTxOut *wire.TxIn) (*hiro_service.HiroInscription, error) {
@@ -201,6 +349,45 @@ func CheckOrdinals(preTxOut *wire.TxIn) (*hiro_service.HiroInscription, error) {
 	inscription, err := hiro_service.GetOutInscription(output)
 	return inscription, err
 }
+
+func CheckBrc20Ordinals(preTxOut *wire.TxIn, tick, address string) (*oklink_service.BalanceItem, error) {
+	inscriptionId := fmt.Sprintf("%si%d", preTxOut.PreviousOutPoint.Hash.String(), preTxOut.PreviousOutPoint.Index)
+	inscriptionResp, err := oklink_service.GetInscriptions("", inscriptionId, "", 1, 5)
+	if err != nil {
+		return nil, err
+	}
+	has := false
+	for _, v := range inscriptionResp.InscriptionsList {
+		if inscriptionId == v.InscriptionId &&
+			v.State == "success" &&
+			strings.ToLower(v.TokenType) == "brc20" &&
+			address == v.OwnerAddress{
+
+			has = true
+			break
+		}
+	}
+	if !has {
+		return nil, errors.New("Not a valid inscription. ")
+	}
+
+	brc20Resp, err := oklink_service.GetAddressBrc20BalanceResult(address, tick, 1, 50)
+	if err != nil {
+		return nil, err
+	}
+	item := &oklink_service.BalanceItem{}
+	for _, v := range brc20Resp.TransferBalanceList {
+		if inscriptionId == v.InscriptionId {
+			item = v
+			break
+		}
+	}
+	if item.Amount == "" {
+		return nil, errors.New("Not a valid brc20. ")
+	}
+	return item, err
+}
+
 
 func GetInscriptionContent(inscriptionId string) (interface{}, error) {
 	return hiro_service.GetInscriptionContent(inscriptionId)

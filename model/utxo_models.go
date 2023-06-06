@@ -11,6 +11,7 @@ type UtxoType int
 const (
 	UtxoTypeDummy UtxoType = 1
 	UtxoTypeBidY  UtxoType = 2
+	UtxoTypeFakerInscription  UtxoType = 6
 )
 
 type UsedState int

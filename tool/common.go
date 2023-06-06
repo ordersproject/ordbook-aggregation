@@ -1,8 +1,10 @@
 package tool
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"golang.org/x/crypto/ripemd160"
 	"math/big"
 )
@@ -88,4 +90,17 @@ func SHA256(message []byte) []byte{
 
 func DoubleSHA256(message []byte) []byte{
 	return SHA256(SHA256(message))
+}
+
+
+func GetUUID() (string, error) {
+	b := make([]byte, 16)
+	//fmt.Println(b)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	uuid := fmt.Sprintf("%x-%x-%x-%x-%x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+	return uuid, nil
 }

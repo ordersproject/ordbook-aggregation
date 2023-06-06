@@ -36,7 +36,7 @@ func GetAddressBrc20BalanceResult(address, tick string, page, limit int64) (*Okl
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println(result)
 	if err = tool.JsonToObject(result, &resp) ; err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
@@ -81,6 +81,7 @@ func GetInscriptions(token, inscriptionId, inscriptionNumber string, page, limit
 		return nil, err
 	}
 
+	fmt.Println(result)
 	if err = tool.JsonToObject(result, &resp) ; err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
@@ -150,13 +151,14 @@ func BroadcastTx(hex string) (*BroadcastTxResp, error) {
 		err        error
 		req map[string]string = map[string]string{
 			"chainShortName":"btc",
-			"signedTx":"hex",
+			"signedTx":hex,
 		}
 		headers map[string]string = map[string]string{
 			"Ok-Access-Key":config.OklinkKey,
 		}
 	)
 
+	fmt.Println(hex)
 	url = fmt.Sprintf("%s/api/v5/explorer/transaction/publish-tx", config.OklinkDomain)
 	result, err = tool.PostUrl(url, req, headers)
 	if err != nil {

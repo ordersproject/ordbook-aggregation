@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"ordbook-aggregation/config"
 	"ordbook-aggregation/controller/middleware"
-	"time"
-
 	_ "ordbook-aggregation/docs"
 )
 
@@ -21,14 +19,15 @@ func Run() {
 	router.Use(middleware.ResponseTime())
 
 
-	limiter := middleware.NewIPRateLimiter(1 * time.Second, 120)
-	router.Use(middleware.IPRateLimitMiddleware(limiter))
+	//limiter := middleware.NewIPRateLimiter(1 * time.Second, 120)
+	//router.Use(middleware.IPRateLimitMiddleware(limiter))
 
 
 	// brc20
 	brc20 := router.Group("/brc20")
 	{
 		brc20.POST("/order/push", PushOrder)
+		brc20.POST("/order/ask/push", PushOrder)
 		brc20.GET("/orders", FetchOrders)
 		brc20.GET("/tickers", FetchTicker)
 		brc20.GET("/kline", FetchKline)
@@ -44,6 +43,12 @@ func Run() {
 		brc20.POST("/inscribe/commit", CommitInscribe)
 
 		brc20.POST("/utxo/colddown", ColdDownUtxo)
+
+		brc20.GET("/ws/uuid", GetWsUuid)
+		brc20.GET("/check/info", CheckBrc20)
+		brc20.GET("/address/:address/:tick", GetBrc20BalanceDetail)
+
+		brc20.GET("/order/bid/dummy/:address", GetBidDummyList)
 	}
 
 	url := ginSwagger.URL("/swagger/doc.json")
