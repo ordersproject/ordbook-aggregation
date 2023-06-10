@@ -17,17 +17,18 @@ func PreInscribe(req *request.Brc20PreReq) (*respond.Brc20PreResp, error) {
 		err error
 		netParams *chaincfg.Params = GetNetParams(req.Net)
 	)
-	fromPrivateKeyHex, fromTaprootAddress, fee, err = inscription_service.CreateKeyAndCalculateInscribe(netParams, req.ReceiveAddress, req.Content)
+	fromPrivateKeyHex, fromTaprootAddress, fee, err = inscription_service.CreateKeyAndCalculateInscribe(netParams, req.ReceiveAddress, req.Content, req.FeeRate)
 	if err != nil {
 		return nil, err
 	}
 	_ = fromPrivateKeyHex
 
-	cache_service.GetMetaNameOrderItemMap().Set(fromTaprootAddress, &cache_service.InscribeInfo{
+	cache_service.GetInscribeItemMap().Set(fromTaprootAddress, &cache_service.InscribeInfo{
 		FromPrivateKeyHex: fromPrivateKeyHex,
 		Content:           req.Content,
-		ToTaprootAddress:  req.ReceiveAddress,
+		ToAddress:         req.ReceiveAddress,
 		Fee:               fee,
+		FeeRate:           req.FeeRate,
 	})
 
 	return &respond.Brc20PreResp{
@@ -40,19 +41,20 @@ func CommitInscribe(req *request.Brc20CommitReq) (*respond.Brc20CommitResp, erro
 	var (
 		commitTxHash, revealTxHash, inscriptionId string = "", "", ""
 		err                         error
-		fromPriKeyHex, toTaprootAddress, content = "", "", ""
+		fromPriKeyHex, toAddress, content = "", "", ""
 		netParams *chaincfg.Params = GetNetParams(req.Net)
 	)
-	inscribeInfo, isExist := cache_service.GetMetaNameOrderItemMap().Get(req.FeeAddress)
+	inscribeInfo, isExist := cache_service.GetInscribeItemMap().Get(req.FeeAddress)
 	if !isExist {
 		return nil, errors.New("pre request has not been done")
 	}
-	fromPriKeyHex, toTaprootAddress, content = inscribeInfo.FromPrivateKeyHex, inscribeInfo.ToTaprootAddress, inscribeInfo.Content
+	fromPriKeyHex, toAddress, content = inscribeInfo.FromPrivateKeyHex, inscribeInfo.ToAddress, inscribeInfo.Content
 	fmt.Println(fromPriKeyHex)
-	fmt.Println(toTaprootAddress)
+	fmt.Println(toAddress)
 	fmt.Println(content)
+	fmt.Println(inscribeInfo.FeeRate)
 
-	commitTxHash, revealTxHash, inscriptionId, err = inscription_service.InscribeOneData(netParams, fromPriKeyHex, toTaprootAddress, content)
+	commitTxHash, revealTxHash, inscriptionId, err = inscription_service.InscribeOneData(netParams, fromPriKeyHex, toAddress, content, inscribeInfo.FeeRate, "")
 	if err != nil {
 		return nil, err
 	}
@@ -62,3 +64,4 @@ func CommitInscribe(req *request.Brc20CommitReq) (*respond.Brc20CommitResp, erro
 		InscriptionId: inscriptionId,
 	}, nil
 }
+

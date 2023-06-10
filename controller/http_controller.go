@@ -36,12 +36,12 @@ func Run() {
 		brc20.GET("/order/bid", FetchBidPsbt)
 		brc20.POST("/order/bid/push", UpdateBidPsbt)
 		brc20.POST("/order/bid/do", DoBid)
-
 		brc20.POST("/order/update", UpdateOrder)
 
 		brc20.POST("/inscribe/pre", PreInscribe)
 		brc20.POST("/inscribe/commit", CommitInscribe)
 
+		brc20.POST("/brc20/transfer/colddown", ColdDownBrc20Transfer)
 		brc20.POST("/utxo/colddown", ColdDownUtxo)
 
 		brc20.GET("/ws/uuid", GetWsUuid)

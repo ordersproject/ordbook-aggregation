@@ -9,15 +9,56 @@ definitions:
         description: mainnet/signet/testnet
         type: string
     type: object
+  request.Brc20MarketPriceSetReq:
+    properties:
+      guidePrice:
+        type: integer
+      net:
+        description: livenet/signet/testnet
+        type: string
+      pair:
+        type: string
+      tick:
+        type: string
+    type: object
   request.Brc20PreReq:
     properties:
       content:
         type: string
+      feeRate:
+        type: integer
       net:
         description: mainnet/signet/testnet
         type: string
       receiveAddress:
         description: Address which user receive ordinals
+        type: string
+    type: object
+  request.ColdDownBrcTransfer:
+    properties:
+      address:
+        type: string
+      amount:
+        type: integer
+      changeAddress:
+        type: string
+      feeRate:
+        type: integer
+      index:
+        type: integer
+      inscribeTransferAmount:
+        type: integer
+      net:
+        type: string
+      pkScript:
+        type: string
+      preTxHex:
+        type: string
+      priKeyHex:
+        type: string
+      tick:
+        type: string
+      txId:
         type: string
     type: object
   request.ColdDownUtxo:
@@ -51,6 +92,8 @@ definitions:
     type: object
   request.OrderBrc20DoBidReq:
     properties:
+      address:
+        type: string
       amount:
         type: string
       inscriptionId:
@@ -58,7 +101,7 @@ definitions:
       inscriptionNumber:
         type: string
       net:
-        description: mainnet/signet/testnet
+        description: livenet/signet/testnet
         type: string
       orderId:
         type: string
@@ -66,6 +109,8 @@ definitions:
         type: string
       tick:
         type: string
+      value:
+        type: integer
     type: object
   request.OrderBrc20PushReq:
     properties:
@@ -74,7 +119,7 @@ definitions:
       coinAmount:
         type: integer
       net:
-        description: mainnet/signet/testnet
+        description: livenet/signet/testnet
         type: string
       orderState:
         description: 1-create
@@ -94,19 +139,22 @@ definitions:
       amount:
         type: integer
       net:
-        description: mainnet/signet/testnet
+        description: livenet/signet/testnet
         type: string
       orderId:
         type: string
       psbtRaw:
         type: string
+      rate:
+        description: sats/B
+        type: integer
       tick:
         type: string
     type: object
   request.OrderBrc20UpdateReq:
     properties:
       net:
-        description: mainnet/signet/testnet
+        description: livenet/signet/testnet
         type: string
       orderId:
         type: string
@@ -403,6 +451,26 @@ paths:
       summary: Check inscription brc20 valid
       tags:
       - brc20
+  /brc20/brc20/transfer/colddown:
+    post:
+      description: Cold down the brc20 transfer
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.ColdDownBrcTransfer'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Message'
+      summary: Cold down the brc20 transfer
+      tags:
+      - System
   /brc20/check/info:
     get:
       description: Check inscription brc20 valid
@@ -425,6 +493,26 @@ paths:
       summary: Check inscription brc20 valid
       tags:
       - brc20
+  /brc20/guide/price/set:
+    post:
+      description: Set guide price
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.Brc20MarketPriceSetReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Message'
+      summary: Set guide price
+      tags:
+      - System
   /brc20/inscribe/commit:
     post:
       description: Commit inscribe
@@ -473,7 +561,7 @@ paths:
         in: query
         name: tick
         type: string
-      - description: interval
+      - description: interval：1m/1s/15m/1h/4h/1d/1w/
         in: query
         name: interval
         type: string
@@ -686,11 +774,11 @@ paths:
         in: query
         name: buyerAddress
         type: string
-      - description: orderState
+      - description: 'orderState: 1-create,2-finish,3-cancel'
         in: query
         name: orderState
         type: integer
-      - description: orderType
+      - description: 'orderType: 1-sell,2-buy'
         in: query
         name: orderType
         type: integer

@@ -40,7 +40,7 @@ var (
 
 )
 
-func CreateKeyAndCalculateInscribe(netParams *chaincfg.Params, toTaprootAddress, content string) (string, string, int64, error) {
+func CreateKeyAndCalculateInscribe(netParams *chaincfg.Params, toAddress, content string, feeRate int64) (string, string, int64, error) {
 	fromPriKeyHex, fromTaprootAddress, err := create_key.CreateTaprootKey(netParams)
 	if err != nil {
 		return "", "", 0, err
@@ -94,8 +94,8 @@ func CreateKeyAndCalculateInscribe(netParams *chaincfg.Params, toTaprootAddress,
 		CommitTxPrivateKeyList: commitTxPrivateKeyList,
 		//CommitFeeRate:          2,
 		//FeeRate:                1,
-		CommitFeeRate:          50,
-		FeeRate:                50,
+		CommitFeeRate:          feeRate,
+		FeeRate:                feeRate,
 		DataList: []ord.InscriptionData{
 			{
 				ContentType: contentType,
@@ -115,14 +115,12 @@ func CreateKeyAndCalculateInscribe(netParams *chaincfg.Params, toTaprootAddress,
 	return fromPriKeyHex, fromTaprootAddress, fee, nil
 }
 
-func InscribeOneData(netParams *chaincfg.Params, fromPriKeyHex, toTaprootAddress, content string) (string, string, string, error) {
-	//netParams := &chaincfg.SigNetParams
+func InscribeOneData(netParams *chaincfg.Params, fromPriKeyHex, toAddress, content string, feeRate int64, changeAddress string) (string, string, string, error) {
 	btcApiClient := mempool.NewClient(netParams)
 	contentType := "text/plain;charset=utf-8"
-	//dataMap := make(map[string]interface{})
 
 	utxoPrivateKeyHex := fromPriKeyHex
-	destination := toTaprootAddress
+	destination := toAddress
 
 	commitTxOutPointList := make([]*wire.OutPoint, 0)
 	commitTxPrivateKeyList := make([]*btcec.PrivateKey, 0)
@@ -159,8 +157,8 @@ func InscribeOneData(netParams *chaincfg.Params, fromPriKeyHex, toTaprootAddress
 		CommitTxPrivateKeyList: commitTxPrivateKeyList,
 		//CommitFeeRate:          2,
 		//FeeRate:                1,
-		CommitFeeRate:          50,
-		FeeRate:                50,
+		CommitFeeRate:          feeRate,
+		FeeRate:                feeRate,
 		DataList: []ord.InscriptionData{
 			{
 				ContentType: contentType,
@@ -169,6 +167,7 @@ func InscribeOneData(netParams *chaincfg.Params, fromPriKeyHex, toTaprootAddress
 			},
 		},
 		SingleRevealTxOnly: false,
+		ChangeAddress:changeAddress,
 	}
 
 	tool, err := ord.NewInscriptionToolWithBtcApiClient(netParams, btcApiClient, &request)

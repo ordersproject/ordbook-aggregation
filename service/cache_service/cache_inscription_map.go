@@ -1,7 +1,6 @@
 package cache_service
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -20,8 +19,9 @@ type InscribeItemMap struct {
 type InscribeInfo struct {
 	FromPrivateKeyHex string
 	Content           string
-	ToTaprootAddress  string
+	ToAddress  string
 	Fee int64
+	FeeRate int64
 }
 
 func NewInscribeItemMap() *InscribeItemMap {
@@ -33,7 +33,7 @@ func NewInscribeItemMap() *InscribeItemMap {
 	return userInfoItemMap
 }
 
-func GetMetaNameOrderItemMap() *InscribeItemMap {
+func GetInscribeItemMap() *InscribeItemMap {
 	if _inscribeItemMap == nil {
 		_inscribeItemMap = NewInscribeItemMap()
 	}
@@ -66,7 +66,6 @@ func (u InscribeItemMap) GetAndSet(fromAddress string, newInfo *InscribeInfo) (*
 
 func (u InscribeItemMap) Set(fromAddress string, newInfo *InscribeInfo)  {
 	u.Lock.Lock()
-	fmt.Printf("锁住[%s]Set\n", fromAddress)
 	defer u.Lock.Unlock()
 	u.InscribeInfoExist[fromAddress] = newInfo
 }
@@ -76,14 +75,12 @@ func (u InscribeItemMap) Deleted(orderInfo string)  {
 	u.Lock.Lock()
 	defer u.Lock.Unlock()
 	newInscribeInfoItems := make(map[string]*InscribeInfo)
-	fmt.Println("*********清除前：", len(u.InscribeInfoExist))
 	for m, v := range u.InscribeInfoExist {
 		if m == orderInfo {
 			continue
 		}
 		newInscribeInfoItems[m] = v
 	}
-	fmt.Println("*********清除后：", len(newInscribeInfoItems))
 	u.InscribeInfoExist = nil
 	u.InscribeInfoExist = newInscribeInfoItems
 }

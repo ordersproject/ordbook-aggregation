@@ -38,6 +38,7 @@ type InscriptionRequest struct {
 	SingleRevealTxOnly bool // Currently, the official Ordinal parser can only parse a single NFT per transaction.
 	// When the official Ordinal parser supports parsing multiple NFTs in the future, we can consider using a single reveal transaction.
 	RevealOutValue int64
+	ChangeAddress string
 }
 
 type inscriptionTxCtxData struct {
@@ -67,7 +68,7 @@ type InscriptionTool struct {
 
 const (
 	defaultSequenceNum    = wire.MaxTxInSequenceNum - 10
-	defaultRevealOutValue = int64(500) // 500 sat, ord default 10000
+	defaultRevealOutValue = int64(546) // 500 sat, ord default 10000
 
 	MaxStandardTxWeight = blockchain.MaxBlockWeight / 10
 )
@@ -121,7 +122,19 @@ func (tool *InscriptionTool) _initTool(net *chaincfg.Params, request *Inscriptio
 	if err != nil {
 		return err
 	}
-	err = tool.buildCommitTx(request.CommitTxOutPointList, totalRevealPrevOutput, request.CommitFeeRate)
+	var changePkScriptByte []byte
+	if request.ChangeAddress != "" {
+		changeAddr, err := btcutil.DecodeAddress(request.ChangeAddress, net)
+		if err != nil {
+			return err
+		}
+		changePkScriptByte, err = txscript.PayToAddrScript(changeAddr)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = tool.buildCommitTx(request.CommitTxOutPointList, totalRevealPrevOutput, request.CommitFeeRate, &changePkScriptByte)
 	if err != nil {
 		return err
 	}
@@ -312,7 +325,7 @@ func (tool *InscriptionTool) getTxOutByOutPoint(outPoint *wire.OutPoint) (*wire.
 	return txOut, nil
 }
 
-func (tool *InscriptionTool) buildCommitTx(commitTxOutPointList []*wire.OutPoint, totalRevealPrevOutput, commitFeeRate int64) error {
+func (tool *InscriptionTool) buildCommitTx(commitTxOutPointList []*wire.OutPoint, totalRevealPrevOutput, commitFeeRate int64, changePkScriptByte *[]byte) error {
 	totalSenderAmount := btcutil.Amount(0)
 	tx := wire.NewMsgTx(wire.TxVersion)
 	var changePkScript *[]byte
@@ -323,6 +336,9 @@ func (tool *InscriptionTool) buildCommitTx(commitTxOutPointList []*wire.OutPoint
 		}
 		if changePkScript == nil { // first sender as change address
 			changePkScript = &txOut.PkScript
+			if changePkScriptByte != nil {
+				changePkScript = changePkScriptByte
+			}
 		}
 		in := wire.NewTxIn(commitTxOutPointList[i], nil, nil)
 		in.Sequence = defaultSequenceNum

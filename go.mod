@@ -11,6 +11,7 @@ require (
 	github.com/gin-gonic/gin v1.9.0
 	github.com/gobwas/ws v1.2.1
 	github.com/godaddy-x/jorm v1.0.67
+	github.com/gomodule/redigo v1.8.9
 	github.com/pkg/errors v0.9.1
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/viper v1.15.0

@@ -79,6 +79,37 @@ var doc = `{
                 }
             }
         },
+        "/brc20/brc20/transfer/colddown": {
+            "post": {
+                "description": "Cold down the brc20 transfer",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Cold down the brc20 transfer",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ColdDownBrcTransfer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/check/info": {
             "get": {
                 "description": "Check inscription brc20 valid",
@@ -108,6 +139,37 @@ var doc = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/respond.CheckBrc20InscriptionReq"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/guide/price/set": {
+            "post": {
+                "description": "Set guide price",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Set guide price",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.Brc20MarketPriceSetReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
                         }
                     }
                 }
@@ -194,7 +256,7 @@ var doc = `{
                     },
                     {
                         "type": "string",
-                        "description": "interval",
+                        "description": "interval：1m/1s/15m/1h/4h/1d/1w/",
                         "name": "interval",
                         "in": "query"
                     },
@@ -521,13 +583,13 @@ var doc = `{
                     },
                     {
                         "type": "integer",
-                        "description": "orderState",
+                        "description": "orderState: 1-create,2-finish,3-cancel",
                         "name": "orderState",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "orderType",
+                        "description": "orderType: 1-sell,2-buy",
                         "name": "orderType",
                         "in": "query"
                     },
@@ -660,11 +722,32 @@ var doc = `{
                 }
             }
         },
+        "request.Brc20MarketPriceSetReq": {
+            "type": "object",
+            "properties": {
+                "guidePrice": {
+                    "type": "integer"
+                },
+                "net": {
+                    "description": "livenet/signet/testnet",
+                    "type": "string"
+                },
+                "pair": {
+                    "type": "string"
+                },
+                "tick": {
+                    "type": "string"
+                }
+            }
+        },
         "request.Brc20PreReq": {
             "type": "object",
             "properties": {
                 "content": {
                     "type": "string"
+                },
+                "feeRate": {
+                    "type": "integer"
                 },
                 "net": {
                     "description": "mainnet/signet/testnet",
@@ -672,6 +755,47 @@ var doc = `{
                 },
                 "receiveAddress": {
                     "description": "Address which user receive ordinals",
+                    "type": "string"
+                }
+            }
+        },
+        "request.ColdDownBrcTransfer": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "changeAddress": {
+                    "type": "string"
+                },
+                "feeRate": {
+                    "type": "integer"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "inscribeTransferAmount": {
+                    "type": "integer"
+                },
+                "net": {
+                    "type": "string"
+                },
+                "pkScript": {
+                    "type": "string"
+                },
+                "preTxHex": {
+                    "type": "string"
+                },
+                "priKeyHex": {
+                    "type": "string"
+                },
+                "tick": {
+                    "type": "string"
+                },
+                "txId": {
                     "type": "string"
                 }
             }
@@ -723,6 +847,9 @@ var doc = `{
         "request.OrderBrc20DoBidReq": {
             "type": "object",
             "properties": {
+                "address": {
+                    "type": "string"
+                },
                 "amount": {
                     "type": "string"
                 },
@@ -733,7 +860,7 @@ var doc = `{
                     "type": "string"
                 },
                 "net": {
-                    "description": "mainnet/signet/testnet",
+                    "description": "livenet/signet/testnet",
                     "type": "string"
                 },
                 "orderId": {
@@ -744,6 +871,9 @@ var doc = `{
                 },
                 "tick": {
                     "type": "string"
+                },
+                "value": {
+                    "type": "integer"
                 }
             }
         },
@@ -757,7 +887,7 @@ var doc = `{
                     "type": "integer"
                 },
                 "net": {
-                    "description": "mainnet/signet/testnet",
+                    "description": "livenet/signet/testnet",
                     "type": "string"
                 },
                 "orderState": {
@@ -786,7 +916,7 @@ var doc = `{
                     "type": "integer"
                 },
                 "net": {
-                    "description": "mainnet/signet/testnet",
+                    "description": "livenet/signet/testnet",
                     "type": "string"
                 },
                 "orderId": {
@@ -794,6 +924,10 @@ var doc = `{
                 },
                 "psbtRaw": {
                     "type": "string"
+                },
+                "rate": {
+                    "description": "sats/B",
+                    "type": "integer"
                 },
                 "tick": {
                     "type": "string"
@@ -804,7 +938,7 @@ var doc = `{
             "type": "object",
             "properties": {
                 "net": {
-                    "description": "mainnet/signet/testnet",
+                    "description": "livenet/signet/testnet",
                     "type": "string"
                 },
                 "orderId": {

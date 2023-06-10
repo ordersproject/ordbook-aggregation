@@ -93,7 +93,7 @@ func SetOrderUtxoModel(orderUtxo *model.OrderUtxoModel) (*model.OrderUtxoModel, 
 		bsonData = append(bsonData, bson.E{Key: "txId", Value: orderUtxo.TxId})
 		bsonData = append(bsonData, bson.E{Key: "index", Value: orderUtxo.Index})
 		bsonData = append(bsonData, bson.E{Key: "pkScript", Value: orderUtxo.PkScript})
-		bsonData = append(bsonData, bson.E{Key: "usedState", Value: orderUtxo.UsedState})
+		bsonData = append(bsonData, bson.E{Key: "used", Value: orderUtxo.UsedState})
 		bsonData = append(bsonData, bson.E{Key: "useTx", Value: orderUtxo.UseTx})
 		bsonData = append(bsonData, bson.E{Key: "sortIndex", Value: orderUtxo.SortIndex})
 		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: orderUtxo.Timestamp})
@@ -110,6 +110,35 @@ func SetOrderUtxoModel(orderUtxo *model.OrderUtxoModel) (*model.OrderUtxoModel, 
 		return createOrderUtxoModel(orderUtxo)
 	}
 }
+
+
+func UpdateOrderUtxoModelForUsed(utxoId, useTx string, UsedState  model.UsedState) error {
+	entity, err := FindOrderUtxoModelByUtxorId(utxoId)
+	if err == nil && entity != nil {
+		collection, err := model.OrderUtxoModel{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"utxoId", utxoId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "used", Value: UsedState})
+		bsonData = append(bsonData, bson.E{Key: "useTx", Value: useTx})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+
 
 func FindUtxoList(net string, startIndex, limit int64, utxoType model.UtxoType) ([]*model.OrderUtxoModel, error){
 	collection, err := model.OrderUtxoModel{}.GetReadDB()

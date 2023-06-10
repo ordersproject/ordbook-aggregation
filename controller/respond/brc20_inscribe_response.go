@@ -10,3 +10,9 @@ type Brc20CommitResp struct {
 	RevealTxHash  string `json:"revealTxHash"`
 	InscriptionId string `json:"inscriptionId"`
 }
+
+type Brc20TransferCommitResp struct {
+	CommitTxHash  string `json:"commitTxHash"`
+	RevealTxHash  string `json:"revealTxHash"`
+	InscriptionId string `json:"inscriptionId"`
+}

@@ -65,3 +65,21 @@ type BroadcastTxResp struct {
 	ChainShortName string `json:"chainShortName"`
 	TxId string `json:"txid"`
 }
+
+
+
+type OklinkUtxoDetails struct {
+	Page             string         `json:"page"`
+	Limit            string         `json:"limit"`
+	TotalPage        string         `json:"totalPage"`
+	UtxoList []*UtxoItem `json:"utxoList"`
+}
+
+type UtxoItem struct {
+	TxId          string `json:"txid"`
+	Index         string `json:"index"`
+	Height        string `json:"height"`
+	BlockTime     string `json:"blockTime"`
+	Address       string `json:"address"`
+	UnspentAmount string `json:"unspentAmount"`
+}

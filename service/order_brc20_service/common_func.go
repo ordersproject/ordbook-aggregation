@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/btcsuite/btcd/chaincfg"
+	"ordbook-aggregation/config"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/tool"
@@ -40,7 +41,6 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel{
 	if sellTotal != 0 {
 		sellPrice = sellPrice/sellTotal
 	}
-	sellPrice = sellPrice/sellTotal
 
 	for _, v := range bidList{
 		if v.CoinRatePrice == 0 {
@@ -59,7 +59,7 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel{
 	}
 
 
-	tickInfo, _ = mongo_service.FindBrc20TickModelByPair(pair)
+	tickInfo, _ = mongo_service.FindBrc20TickModelByPair(net, pair)
 	if tickInfo == nil {
 		tickInfo = &model.Brc20TickModel{
 			Net:                net,
@@ -82,15 +82,24 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel{
 }
 
 func GetMarketPrice(net, tick, pair string) uint64 {
-	tickInfo, _ := mongo_service.FindBrc20TickModelByPair(pair)
+	tickInfo, _ := mongo_service.FindBrc20TickModelByPair(net, pair)
 	if tickInfo == nil {
 		tickInfo = UpdateMarketPrice(net, tick, pair)
 	}
+	guideEntity, _ := mongo_service.FindOrderBrc20MarketPriceModelByPair(net, pair)
 	if tickInfo == nil {
-		return 0
+		if guideEntity == nil {
+			return 0
+		}
+		return uint64(guideEntity.Price)
+	}else {
+		if guideEntity != nil && guideEntity.Price > int64(tickInfo.AvgPrice) {
+			return uint64(guideEntity.Price)
+		}
 	}
 	return tickInfo.AvgPrice
 }
+
 
 func GetNetParams(net string) *chaincfg.Params {
 	var (
@@ -144,5 +153,70 @@ func UpdateForOrderBidDummy(orderId string, state model.DummyState)  {
 	for _, v := range dummyList {
 		v.DummyState = state
 		mongo_service.SetOrderBrc20BidDummyModel(v)
+	}
+}
+
+func GetPlatformKeyAndAddressSendBrc20(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeySendBrc20, config.PlatformTestnetAddressSendBrc20
+	}
+	return config.PlatformMainnetPrivateKeySendBrc20, config.PlatformMainnetAddressSendBrc20
+}
+
+func GetPlatformKeyAndAddressReceiveBrc20(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyReceiveBrc20, config.PlatformTestnetAddressReceiveBrc20
+	}
+	return config.PlatformMainnetPrivateKeyReceiveBrc20, config.PlatformMainnetAddressReceiveBrc20
+}
+
+func GetPlatformKeyAndAddressReceiveBidValue(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyReceiveBidValue, config.PlatformTestnetAddressReceiveBidValue
+	}
+	return config.PlatformMainnetPrivateKeyReceiveBidValue, config.PlatformMainnetAddressReceiveBidValue
+}
+
+func GetPlatformKeyAndAddressReceiveDummyValue(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyReceiveDummyValue, config.PlatformTestnetAddressReceiveDummyValue
+	}
+	return config.PlatformMainnetPrivateKeyReceiveDummyValue, config.PlatformMainnetAddressReceiveDummyValue
+}
+
+func CheckBidInscriptionIdExist(inscriptionId string) bool {
+	entity, _ := mongo_service.FindOrderBrc20ModelByInscriptionId(inscriptionId, model.OrderStateCreate)
+	if entity == nil || entity.Id == 0 {
+		return false
+	}
+	return true
+}
+
+func setUsedDummyUtxo(utxoDummyList []*model.OrderUtxoModel, useTx string)  {
+	for _, v := range utxoDummyList {
+		v.UseTx = useTx
+		v.UsedState = model.UsedYes
+		err := mongo_service.UpdateOrderUtxoModelForUsed(v.UtxoId, useTx, v.UsedState)
+		if err != nil {
+			continue
+		}
+	}
+}
+
+func setUsedBidYUtxo(utxoBidYList []*model.OrderUtxoModel, useTx string)  {
+	for _, v := range utxoBidYList {
+		v.UseTx = useTx
+		v.UsedState = model.UsedYes
+		err := mongo_service.UpdateOrderUtxoModelForUsed(v.UtxoId, useTx, v.UsedState)
+		if err != nil {
+			continue
+		}
+	}
+}
+
+func serUsedFakerInscriptionUtxo(utxoId, useTx string, useState model.UsedState)  {
+	err := mongo_service.UpdateOrderUtxoModelForUsed(utxoId, useTx, useState)
+	if err != nil {
+		return
 	}
 }

@@ -44,8 +44,8 @@ func PushOrder(c *gin.Context) {
 // @Param tick query string false "tick"
 // @Param sellerAddress query string false "sellerAddress"
 // @Param buyerAddress query string false "buyerAddress"
-// @Param orderState query int false "orderState"
-// @Param orderType query int false "orderType"
+// @Param orderState query int false "orderState: 1-create,2-finish,3-cancel"
+// @Param orderType query int false "orderType: 1-sell,2-buy"
 // @Param limit query int false "limit"
 // @Param flag query int false "flag"
 // @Param sortKey query string false "sortKey"
@@ -123,7 +123,7 @@ func FetchTicker(c *gin.Context) {
 // @Produce  json
 // @Tags brc20
 // @Param tick query string false "tick"
-// @Param interval query string false "interval"
+// @Param interval query string false "interval：1m/1s/15m/1h/4h/1d/1w/"
 // @Param Limit query int false "Limit"
 // @Success 200 {object} respond.KlineItem ""
 // @Router /brc20/kline [get]

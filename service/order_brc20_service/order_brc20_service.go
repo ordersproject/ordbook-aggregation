@@ -1,23 +1,29 @@
 package order_brc20_service
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/shopspring/decimal"
-	"ordbook-aggregation/config"
 	"ordbook-aggregation/controller/request"
 	"ordbook-aggregation/controller/respond"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/create_key"
-	"ordbook-aggregation/service/mempool_space_service"
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/service/oklink_service"
 	"ordbook-aggregation/tool"
 	"strconv"
 	"strings"
+	"time"
+)
+
+const (
+	inSize uint64 = 180
 )
 
 func PushOrder(req *request.OrderBrc20PushReq) (string, error) {
@@ -176,6 +182,7 @@ func FetchPreBid(req *request.OrderBrc20GetBidReq) (*respond.BidPre, error) {
 		brc20BalanceResult *oklink_service.OklinkBrc20BalanceDetails
 		err error
 		list []*respond.AvailableItem = make([]*respond.AvailableItem, 0)
+		_, platformAddressSendBrc20 string = GetPlatformKeyAndAddressSendBrc20(req.Net)
 	)
 	//if strings.ToLower(req.Net) != "mainnet" && strings.ToLower(req.Net) != "livenet" {
 	//	return nil, errors.New("Net not yet. ")
@@ -183,19 +190,26 @@ func FetchPreBid(req *request.OrderBrc20GetBidReq) (*respond.BidPre, error) {
 	if strings.ToLower(req.Net) == "testnet" {
 		utxoFakerBrc20 := GetTestFakerInscription(req.Net)
 		for _, v := range utxoFakerBrc20 {
+			inscriptionId := fmt.Sprintf("%si%d", v.TxId, v.Index)
+			if CheckBidInscriptionIdExist(inscriptionId) {
+				continue
+			}
 			list = append(list, &respond.AvailableItem{
-				InscriptionId:     fmt.Sprintf("%si%d", v.TxId, v.Index),
+				InscriptionId:     inscriptionId,
 				InscriptionNumber: fmt.Sprintf("test%d", v.Index),
 				CoinAmount:        "120",
 			})
 		}
 
 	}else {
-		brc20BalanceResult, err = oklink_service.GetAddressBrc20BalanceResult(config.PlatformTaprootAddress, req.Tick, 1, 50)
+		brc20BalanceResult, err = oklink_service.GetAddressBrc20BalanceResult(platformAddressSendBrc20, req.Tick, 1, 50)
 		if err != nil  {
 			return nil, err
 		}
 		for _, v := range brc20BalanceResult.TransferBalanceList {
+			if CheckBidInscriptionIdExist(v.InscriptionId) {
+				continue
+			}
 			list = append(list, &respond.AvailableItem{
 				InscriptionId:     v.InscriptionId,
 				InscriptionNumber: v.InscriptionNumber,
@@ -229,12 +243,15 @@ func FetchBidPsbt(req *request.OrderBrc20GetBidReq) (*respond.BidPsbt, error) {
 		coinRatePrice uint64 = 0
 		inscriptionId string = ""
 		inscriptionNumber string = ""
-		inputSignsExchangePriHex string = config.PlatformPrivateKey
+		platformPrivateKeyReceiveBidValue, platformAddressReceiveBidValue string = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
+		platformPrivateKeySendBrc20, platformAddressSendBrc20 string = GetPlatformKeyAndAddressSendBrc20(req.Net)
+		inputSignsExchangePriHex string = platformPrivateKeySendBrc20
 		inputSignsExchangePkScript string = ""
-		inputSignsUtxoType UtxoType = NonWitness
+		inputSignsUtxoType UtxoType = Witness
 		inputSignsTxHex string = ""
 		inputSignsAmount uint64 = 0
 	)
+	_ = platformPrivateKeyReceiveBidValue
 
 	if strings.ToLower(req.Net) == "testnet" {
 		inscriptionId = req.InscriptionId
@@ -260,7 +277,7 @@ func FetchBidPsbt(req *request.OrderBrc20GetBidReq) (*respond.BidPsbt, error) {
 			}
 		}
 	}else {
-		brc20BalanceResult, err = oklink_service.GetAddressBrc20BalanceResult(config.PlatformTaprootAddress, req.Tick, 1, 50)
+		brc20BalanceResult, err = oklink_service.GetAddressBrc20BalanceResult(platformAddressSendBrc20, req.Tick, 1, 50)
 		if err != nil  {
 			return nil, err
 		}
@@ -295,14 +312,37 @@ func FetchBidPsbt(req *request.OrderBrc20GetBidReq) (*respond.BidPsbt, error) {
 			}
 		}
 
-		txHex, stateCode, err := mempool_space_service.GetTxHex(req.Net, inscriptionTxId)
-		if stateCode == 429 {
-			return nil, errors.New("Exceed limits. ")
-		}
+		//txHex, stateCode, err := mempool_space_service.GetTxHex(req.Net, inscriptionTxId)
+		//if stateCode == 429 {
+		//	return nil, errors.New("Exceed limits. ")
+		//}
+		//if err != nil {
+		//	return nil, err
+		//}
+		//inputSignsTxHex = txHex
+		preTx, err := oklink_service.GetTxDetail(inscriptionTxId)
 		if err != nil {
 			return nil, err
 		}
-		inputSignsTxHex = txHex
+		preTxOut := preTx.OutputDetails[inscriptionTxIndex]
+		preTxOutAmountDe, err := decimal.NewFromString(preTxOut.Amount)
+		if err != nil {
+			return nil, errors.New("The value of platform brc input decimal parse err. ")
+		}
+		inputSignsAmount = uint64(preTxOutAmountDe.Mul(decimal.New(1, 8)).IntPart())
+
+		inputSignsExchangePriHex = platformPrivateKeySendBrc20
+		addr, err := btcutil.DecodeAddress(platformAddressSendBrc20, netParams)
+		if err != nil {
+			return nil, err
+		}
+		pkScript, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			return nil, err
+		}
+
+		inputSignsExchangePkScript = hex.EncodeToString(pkScript)
+		inputSignsUtxoType = Witness
 	}
 
 
@@ -313,26 +353,25 @@ func FetchBidPsbt(req *request.OrderBrc20GetBidReq) (*respond.BidPsbt, error) {
 	})
 	marketPrice := GetMarketPrice(req.Net, req.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(req.Tick)))
 	if marketPrice <= 0 {
-		if strings.ToLower(req.Net) != "testnet" {
-			return nil, errors.New("Empty market price. ")
-		}else {
-			marketPrice = 10000
-		}
+		return nil, errors.New("Empty Market. ")
 	}
 	coinAmountInt, _ := strconv.ParseUint(req.CoinAmount, 10, 64)
+	fmt.Printf("marketPrice:%d\n", marketPrice)
 	marketPrice = marketPrice * coinAmountInt
+	fmt.Printf("finalMarketPrice:%d\n", marketPrice)
+	fmt.Printf("coinAmountInt:%d\n", coinAmountInt)
 
 	//todo check marketPrice >= req.amount
 
 	outputs := make([]Output, 0)
 	outputs = append(outputs, Output{
-		Address: config.PlatformTaprootAddress2,
+		Address: platformAddressReceiveBidValue,
 		Amount:  marketPrice,
 	})
-	inputSigns := make([]InputSign, 0)
+	inputSigns := make([]*InputSign, 0)
 
 
-	inputSigns = append(inputSigns, InputSign{
+	inputSigns = append(inputSigns, &InputSign{
 		Index:       0,
 		OutRaw:      inputSignsTxHex,
 		PkScript:    inputSignsExchangePkScript,
@@ -403,10 +442,13 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 		err error
 		psbtBuilder *PsbtBuilder
 		netParams *chaincfg.Params = GetNetParams(req.Net)
+		coinRatePrice uint64 = 0
+		buyerAddress string = ""
+		_, platformAddressReceiveBidValue string = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
 	)
 	entityOrder, _ = mongo_service.FindOrderBrc20ModelByOrderId(req.OrderId)
 	if entityOrder == nil || entityOrder.Id == 0 {
-		return "", errors.New("")
+		return "", errors.New("order is empty. ")
 	}
 	if entityOrder.OrderType != model.OrderTypeBuy {
 		return "", errors.New("Order not a bid. ")
@@ -414,7 +456,7 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 
 	psbtBuilder, err = NewPsbtBuilder(netParams, req.PsbtRaw)
 	if err !=  nil  {
-		return "", err
+		return "", errors.New("Wrong Psbt: Parse err. ")
 	}
 	preOutList := psbtBuilder.GetInputs()
 	if preOutList == nil || len(preOutList) == 0 {
@@ -424,26 +466,45 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 		return "", errors.New("Wrong Psbt: No match inputs. ")
 	}
 
+	//check platform brc20 utxo
 	exchangeInput := preOutList[2]
 	if exchangeInput.PreviousOutPoint.Hash.String() != entityOrder.PlatformTx {
 		return "", errors.New("Wrong Psbt: No inscription input. ")
 	}
+	//check buyer pay utxo
 	buyerInput := preOutList[3]
 	buyerInputTxId := buyerInput.PreviousOutPoint.Hash.String()
 	buyerInputIndex := buyerInput.PreviousOutPoint.Index
-	buyerTx, err := oklink_service.GetTxDetail(buyerInputTxId)
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("Get Buyer preTx err:%s", err.Error()))
-	}
-	buyerAmount, _ := strconv.ParseUint(buyerTx.OutputDetails[buyerInputIndex].Amount, 10, 64)
-	if  buyerAmount <= req.Amount {
-		return "", errors.New("Wrong Psbt: The value of buyer input dose not match. ")
+	buyerInAmount := uint64(0)
+	if strings.ToLower(req.Net) != "testnet" {
+		buyerTx, err := oklink_service.GetTxDetail(buyerInputTxId)
+		if err != nil {
+			return "", errors.New(fmt.Sprintf("Get Buyer preTx err:%s", err.Error()))
+		}
+		//buyerInAmount, _ = strconv.ParseUint(buyerTx.OutputDetails[buyerInputIndex].Amount, 10, 64)
+		buyerAmountDe, err := decimal.NewFromString(buyerTx.OutputDetails[buyerInputIndex].Amount)
+		if err != nil {
+			return "", errors.New("Wrong Psbt: The value of buyer input decimal parse err. ")
+		}
+		buyerInAmount = uint64(buyerAmountDe.Mul(decimal.New(1, 8)).IntPart())
+		fmt.Printf("buyerInputIndex:%d, buyerInAmount:%d, req.Amount:%d\n", buyerInputIndex, buyerInAmount, req.Amount)
+		if  buyerInAmount <= req.Amount {
+			return "", errors.New("Wrong Psbt: The value of buyer input dose not match. ")
+		}
+		buyerAddress = buyerTx.OutputDetails[buyerInputIndex].OutputHash
+	}else {
+		buyerInAmount = req.BuyerInValue
+		buyerAddress = req.Address
 	}
 
+
+	//check out: len-6 for no buyer changeWallet
 	outList := psbtBuilder.GetOutputs()
-	if len(preOutList) != 6 && len(preOutList) != 7 {
+	if len(outList) != 6 && len(outList) != 7 {
 		return "", errors.New("Wrong Psbt: No match outputs. ")
 	}
+
+	//check out for platform receive marketPrice amount and address
 	exchangeOut := outList[2]
 	if uint64(exchangeOut.Value) != entityOrder.MarketAmount {
 		return "", errors.New("Wrong Psbt: wrong value of out for exchange. ")
@@ -452,15 +513,64 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 	if err != nil {
 		return "", errors.New("Wrong Psbt: Extract address from out for exchange. ")
 	}
-	if addrs[0].EncodeAddress() != config.PlatformTaprootAddress2 {
+	if addrs[0].EncodeAddress() != platformAddressReceiveBidValue {
 		return "", errors.New("Wrong Psbt: wrong address of out for exchange. ")
 	}
+
+	platformFeeOut := outList[3]
+	if uint64(platformFeeOut.Value) == 0 {
+		return "", errors.New("Wrong Psbt: wrong value of platform fee. ")
+	}
+	platformFee := uint64(platformFeeOut.Value)
+	changeAmount := uint64(0)
+	if len(outList) == 7 {
+		changeOut := outList[6]
+		_, changeAddrs, _, err := txscript.ExtractPkScriptAddrs(changeOut.PkScript, netParams)
+		if err != nil {
+			return "", errors.New("Wrong Psbt: Extract address from out for buyer changeWallet. ")
+		}
+		if changeAddrs[0].EncodeAddress() != buyerAddress {
+			return "", errors.New("Wrong Psbt: wrong address of out for buyer changeWallet. ")
+		}
+		changeAmount = uint64(changeOut.Value)
+	}
+
+	//check amount
+	buyAmount := int64(buyerInAmount) - int64(platformFee) - int64(changeAmount) - int64(req.Fee) - (600*2)
+	fmt.Printf("buyerInAmount:%d, platformFee:%d, changeAmount:%d, req.Fee:%d\n", buyerInAmount, platformFee, changeAmount, req.Fee)
+	fmt.Printf("buyAmount:%d, req.Amount:%d\n", buyAmount, req.Amount)
+	if buyAmount <= 0 {
+		return "", errors.New("Wrong Psbt: The purchase amount is less than 0. ")
+	}
+	if buyAmount != int64(req.Amount) {
+		return "", errors.New("Wrong Psbt: The purchase amount dose not match. ")
+	}
+	supplementaryAmount := entityOrder.MarketAmount - uint64(buyAmount)
+	if supplementaryAmount < 600 {
+		return "", errors.New("Wrong Psbt: The purchase amount exceeds the market price. ")
+	}
+
 
 	for i := 0; i < 2; i++ {
 		dummy := preOutList[i]
 		SaveForUserBidDummy(entityOrder.Net, entityOrder.Tick, entityOrder.BuyerAddress, entityOrder.OrderId, dummy.PreviousOutPoint.Hash.String(), int64(dummy.PreviousOutPoint.Index), model.DummyStateLive)
 	}
 
+
+	outAmountDe := decimal.NewFromInt(int64(req.Amount))
+	coinAmountDe := decimal.NewFromInt(int64(entityOrder.CoinAmount))
+	coinRatePriceStr := outAmountDe.Div(coinAmountDe).StringFixed(0)
+	coinRatePrice, _ = strconv.ParseUint(coinRatePriceStr, 10, 64)
+
+
+	entityOrder.PlatformFee = platformFee
+	entityOrder.ChangeAmount = changeAmount
+	entityOrder.Fee = req.Fee
+	entityOrder.FeeRate = req.Rate
+	entityOrder.SupplementaryAmount = supplementaryAmount
+	entityOrder.CoinRatePrice = coinRatePrice
+	entityOrder.BuyerAddress = buyerAddress
+	entityOrder.Amount = req.Amount
 	entityOrder.OrderState = model.OrderStateCreate
 	entityOrder.PsbtRawMidBid = req.PsbtRaw
 	_, err = mongo_service.SetOrderBrc20Model(entityOrder)
@@ -489,6 +599,15 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		inscriptionBrc20BalanceItem *oklink_service.BalanceItem
 		coinAmount uint64 = 0
 		brc20ReceiveValue uint64 = 0
+		platformPrivateKeyReceiveBidValue, platformAddressReceiveBidValue string = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
+		_, platformAddressReceiveBrc20 string = GetPlatformKeyAndAddressReceiveBrc20(req.Net)
+		_, platformAddressReceiveDummyValue string = GetPlatformKeyAndAddressReceiveDummyValue(req.Net)
+		_, platformAddressSendBrc20 string = GetPlatformKeyAndAddressSendBrc20(req.Net)
+
+		sellerSendAddress string = req.Address
+		inValue uint64 = req.Value
+
+		platformPayPerAmount uint64 = 10000
 	)
 	entity, _ = mongo_service.FindOrderBrc20ModelByOrderId(req.OrderId)
 	if entity == nil {
@@ -516,21 +635,32 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	if len(preOutList) != 1 || len(sellOuts) != 1 {
 		return nil, errors.New("Wrong Psbt: wrong length of inputs or length of outputs. ")
 	}
-	preSellBrc20Tx, err := oklink_service.GetTxDetail(preOutList[0].PreviousOutPoint.Hash.String())
-	if err != nil {
-		return nil, errors.New("Wrong Psbt: brc20 input is empty preTx. ")
+	if strings.ToLower(req.Net) != "testnet" {
+		preSellBrc20Tx, err := oklink_service.GetTxDetail(preOutList[0].PreviousOutPoint.Hash.String())
+		if err != nil {
+			return nil, errors.New("Wrong Psbt: brc20 input is empty preTx. ")
+		}
+		//inValue, _ = strconv.ParseUint(preSellBrc20Tx.OutputDetails[preOutList[0].PreviousOutPoint.Index].Amount, 10, 64)
+		inValueDe, err := decimal.NewFromString(preSellBrc20Tx.OutputDetails[preOutList[0].PreviousOutPoint.Index].Amount)
+		if err != nil {
+			return nil, errors.New("Wrong Psbt: The value of brc20 input decimal parse err. ")
+		}
+		inValue = uint64(inValueDe.Mul(decimal.New(1, 8)).IntPart())
+		if inValue == 0 {
+			return nil, errors.New("Wrong Psbt: brc20 out of preTx is empty amount. ")
+		}
+		sellerSendAddress = preSellBrc20Tx.OutputDetails[preOutList[0].PreviousOutPoint.Index].OutputHash
 	}
-	inValue, _ := strconv.ParseUint(preSellBrc20Tx.OutputDetails[preOutList[0].PreviousOutPoint.Index].Amount, 10, 64)
-	if inValue == 0 {
-		return nil, errors.New("Wrong Psbt: brc20 out of preTx is empty amount. ")
-	}
-	sellerSendAddress := preSellBrc20Tx.OutputDetails[preOutList[0].PreviousOutPoint.Index].OutputHash
+
 	sellerReceiveValue := uint64(sellOuts[0].Value)
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(sellOuts[0].PkScript, netParams)
 	if err != nil {
 		return nil, errors.New("Wrong Psbt: Extract address from out for Seller. ")
 	}
 	sellerReceiveAddress := addrs[0].EncodeAddress()
+	if sellerReceiveValue != entity.Amount {
+		return nil, errors.New("Wrong Psbt: Seller receive value dose not match. ")
+	}
 
 	has := false
 	for _, v := range preOutList {
@@ -548,6 +678,8 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			return nil, errors.New("Wrong Psbt: Empty inscription. ")
 		}
 		coinAmount, _ = strconv.ParseUint(inscriptionBrc20BalanceItem.Amount, 10, 64)
+	}else {
+		coinAmount, _ = strconv.ParseUint(req.CoinAmount, 10, 64)
 	}
 	if coinAmount != entity.CoinAmount {
 		return nil, errors.New("Wrong Psbt: brc20 coin amount dose not match. ")
@@ -557,14 +689,35 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 
 
 
-	utxoDummyList, _ = mongo_service.FindUtxoList(req.Net, startIndexDummy, 2, model.UtxoTypeDummy)
-	if len(utxoDummyList) == 0 {
-		return nil, errors.New("Service Upgrade for dummy. ")
+	//todo lock utxo
+	//utxoDummyList, _ = mongo_service.FindUtxoList(req.Net, startIndexDummy, 2, model.UtxoTypeDummy)
+	//if len(utxoDummyList) == 0 {
+	//	return nil, errors.New("Service Upgrade for dummy. ")
+	//}
+	utxoDummyList, err = GetUnoccupiedUtxoList(req.Net, 2, model.UtxoTypeDummy)
+	defer ReleaseUtxoList(utxoDummyList)
+	if err != nil {
+		return nil, err
 	}
-	utxoBidYList, _ = mongo_service.FindUtxoList(req.Net, startIndexBidY, 5, model.UtxoTypeBidY)
-	if len(utxoBidYList) == 0 {
-		return nil, errors.New("Service Upgrade for bid. ")
+
+
+
+	//get bidY pay utxo
+	limit := (entity.SupplementaryAmount + sellerReceiveValue + entity.Fee)/platformPayPerAmount + 1
+	//utxoBidYList, _ = mongo_service.FindUtxoList(req.Net, startIndexBidY, int64(limit), model.UtxoTypeBidY)
+	//if len(utxoBidYList) == 0 {
+	//	return nil, errors.New("Service Upgrade for bid. ")
+	//}
+	//if uint64(len(utxoBidYList)) != limit {
+	//	return nil, errors.New("Service Upgrade for bid. ")
+	//}
+
+	utxoBidYList, err = GetUnoccupiedUtxoList(req.Net, int64(limit), model.UtxoTypeBidY)
+	defer ReleaseUtxoList(utxoDummyList)
+	if err != nil {
+		return nil, err
 	}
+
 
 
 
@@ -596,12 +749,12 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 
 	//add dummy outs - idnex: 0
 	outputs = append(outputs, Output{
-		Address: config.PlatformTaprootAddress2,
+		Address: platformAddressReceiveDummyValue,
 		Amount:  dummyOutValue,
 	})
 	//add receive brc20 outs - idnex: 1
 	outputs = append(outputs, Output{
-		Address: config.PlatformTaprootAddress,
+		Address: platformAddressReceiveBrc20,
 		Amount:  brc20ReceiveValue,
 	})
 	//add receive seller outs - idnex: 2
@@ -613,7 +766,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	//add receive exchange psbtX outs - idnex: 3
 	psbtXValue := entity.MarketAmount - sellerReceiveValue
 	exchangePsbtXOut :=  Output{
-		Address: config.PlatformTaprootAddress2,
+		Address: platformAddressReceiveBidValue,
 		Amount:  psbtXValue,
 	}
 	outputs = append(outputs, exchangePsbtXOut)
@@ -628,19 +781,21 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	//finish PSBT(Y)
 	newPsbtBuilder, err = CreatePsbtBuilder(netParams, inputs, outputs)
 	if err !=  nil  {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("PSBT(Y): newPsbtBuilder err:%s",err.Error()))
 	}
 
-	partialSigs := psbtBuilder.PsbtUpdater.Upsbt.Inputs[0].PartialSigs
-	err = newPsbtBuilder.AddPartialSigIn(partialSigs, 2)
+	finalScriptWitness := psbtBuilder.PsbtUpdater.Upsbt.Inputs[0].FinalScriptWitness
+	witnessUtxo := psbtBuilder.PsbtUpdater.Upsbt.Inputs[0].WitnessUtxo
+	sighashType := psbtBuilder.PsbtUpdater.Upsbt.Inputs[0].SighashType
+	err = newPsbtBuilder.AddSigIn(witnessUtxo, sighashType, finalScriptWitness, 2)
 	if err !=  nil  {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("PSBT(Y): AddPartialSigIn err:%s",err.Error()))
 	}
 
-	inSigns := make([]InputSign, 0)
+	inSigns := make([]*InputSign, 0)
 	//add dummy ins sign - index: 0,1
 	for k, dummy := range utxoDummyList {
-		inSigns = append(inSigns, InputSign{
+		inSigns = append(inSigns, &InputSign{
 			Index:       k,
 			PkScript:    dummy.PkScript,
 			Amount:      dummy.Amount,
@@ -651,7 +806,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	}
 	//add Exchange pay value ins - index: 3,3+
 	for k, payBid := range utxoBidYList {
-		inSigns = append(inSigns, InputSign{
+		inSigns = append(inSigns, &InputSign{
 			Index:       k+3,
 			PkScript:    payBid.PkScript,
 			Amount:      payBid.Amount,
@@ -662,76 +817,175 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	}
 	err = newPsbtBuilder.UpdateAndSignInput(inSigns)
 	if err !=  nil  {
-		return nil, err
+		return nil,  errors.New(fmt.Sprintf("PSBT(Y): UpdateAndSignInput err:%s",err.Error()))
 	}
 	psbtRawFinalAsk, err := newPsbtBuilder.ToString()
 	if err !=  nil  {
-		return nil, err
+		return nil,  errors.New(fmt.Sprintf("PSBT(Y): ToString err:%s",err.Error()))
 	}
 	entity.PsbtRawFinalAsk = psbtRawFinalAsk
 
 	txRawPsbtY, err := newPsbtBuilder.ExtractPsbtTransaction()
 	if err !=  nil  {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("PSBT(Y): ExtractPsbtTransaction err:%s",err.Error()))
 	}
 	txRawPsbtYByte, _ := hex.DecodeString(txRawPsbtY)
-	psbtYTxId := GetTxHash(txRawPsbtYByte)
+
+	txPsbtY := wire.NewMsgTx(2)
+	err = txPsbtY.Deserialize(bytes.NewReader(txRawPsbtYByte))
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("PSBT(Y): txRawPsbtY Deserialize err:%s",err.Error()))
+	}
+
+	psbtYTxId := txPsbtY.TxHash().String()
+
+
+
 
 	//finish PSBT(X)
 	bidPsbtBuilder, err := NewPsbtBuilder(netParams, entity.PsbtRawMidBid)
 	if err !=  nil  {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("PSBT(X): NewPsbtBuilder err:%s",err.Error()))
 	}
+	//Check PSBT(X) utxo valid
+	insPsbtX := bidPsbtBuilder.GetInputs()
+	addressUtxoMap := make(map[string][]*wire.TxIn)
+	addressUtxoMap[entity.BuyerAddress] = make([]*wire.TxIn, 0)
+	addressUtxoMap[platformAddressSendBrc20] = make([]*wire.TxIn, 0)
+	for k, v := range insPsbtX {
+		if k == 2 {
+			addressUtxoMap[platformAddressSendBrc20] = append(addressUtxoMap[platformAddressSendBrc20], v)
+		}else {
+			addressUtxoMap[entity.BuyerAddress] = append(addressUtxoMap[entity.BuyerAddress], v)
+		}
+	}
+	for address, list := range addressUtxoMap{
+		utxoResp, err := oklink_service.GetAddressUtxo(address, 1, 50)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("PSBT(Y): Recheck address utxo list err:%s", err.Error()))
+		}
+		for _, bidIn := range list {
+			bidInId := fmt.Sprintf("%s_%d", bidIn.PreviousOutPoint.Hash.String(), bidIn.PreviousOutPoint.Index)
+			has := false
+			for _, u := range utxoResp.UtxoList {
+				uId := fmt.Sprintf("%s_%s", u.TxId, u.Index)
+				if bidInId == uId {
+					has = true
+					break
+				}
+			}
+			if !has {
+				entity.OrderState = model.OrderStateErr
+				_, err := mongo_service.SetOrderBrc20Model(entity)
+				if err != nil {
+					return nil, err
+				}
+				return nil, errors.New(fmt.Sprintf("PSBT(Y): Recheck address utxo list, utxo had been spent: %s", bidInId))
+			}
+		}
+	}
+
+
+
 	bidIn := Input{
 		OutTxId:  psbtYTxId,
 		OutIndex: 3,
 	}
-	bidInSign := InputSign{
-		UtxoType:    NonWitness,
-		Index:       0,
+	bidInSign := &InputSign{
+		UtxoType:    Witness,
+		Index:       len(bidPsbtBuilder.GetInputs()),
 		OutRaw:      txRawPsbtY,
-		PkScript:    "",
+		PkScript:    hex.EncodeToString(txPsbtY.TxOut[bidIn.OutIndex].PkScript),
 		Amount:      psbtXValue,
-		SighashType: txscript.SigHashAll,
-		PriHex:      config.PlatformPrivateKey2,
+		SighashType: txscript.SigHashAll|txscript.SigHashAnyOneCanPay,
+		PriHex:      platformPrivateKeyReceiveBidValue,
 	}
 	err = bidPsbtBuilder.AddInput(bidIn, bidInSign)
 	if err !=  nil  {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("PSBT(X): AddInput err:%s",err.Error()))
 	}
 	psbtRawFinalBid, err := bidPsbtBuilder.ToString()
 	if err !=  nil  {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("PSBT(X): ToString err:%s",err.Error()))
 	}
 	entity.PsbtRawFinalBid = psbtRawFinalBid
 
 	txRawPsbtX, err := bidPsbtBuilder.ExtractPsbtTransaction()
 	if err !=  nil  {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("PSBT(X): ExtractPsbtTransaction err:%s",err.Error()))
 	}
 	txRawPsbtXByte, _ := hex.DecodeString(txRawPsbtX)
-	psbtXTxId := GetTxHash(txRawPsbtXByte)
+
+	txPsbtX := wire.NewMsgTx(2)
+	err = txPsbtX.Deserialize(bytes.NewReader(txRawPsbtXByte))
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("PSBT(Y): txRawPsbtY Deserialize err:%s",err.Error()))
+	}
+
+	psbtXTxId := txPsbtX.TxHash().String()
+
 	entity.PsbtAskTxId = psbtYTxId
 	entity.PsbtBidTxId = psbtXTxId
+	entity.SellerAddress = sellerSendAddress
 	_, err = mongo_service.SetOrderBrc20Model(entity)
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Printf("PsbtY:%s\n", txRawPsbtY)
+	fmt.Printf("psbtYTxId: %s\n", psbtYTxId)
+	fmt.Printf("PsbtX:%s\n", txRawPsbtX)
+	fmt.Printf("psbtXTxId: %s\n", psbtXTxId)
+
+	txPsbtXRespTxId := ""
+	txPsbtYRespTxId := ""
+	if req.Net == "mainnet" || req.Net == "livenet"  {
+		txPsbtYResp, err := oklink_service.BroadcastTx(txRawPsbtY)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Broadcast Psbt(Y) %s err:%s", req.Net, err.Error()))
+		}
+		setUsedDummyUtxo(utxoDummyList, txPsbtYResp.TxId)
+		setUsedBidYUtxo(utxoBidYList, txPsbtYResp.TxId)
+
+
+		time.Sleep(2 * time.Second)
+		txPsbtXResp, err := oklink_service.BroadcastTx(txRawPsbtX)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s", req.Net, err.Error()))
+		}
+
+		txPsbtXRespTxId = txPsbtXResp.TxId
+		txPsbtYRespTxId = txPsbtYResp.TxId
+	}else {
+
+		setUsedDummyUtxo(utxoDummyList, psbtYTxId)
+		setUsedBidYUtxo(utxoBidYList,psbtYTxId)
+		fmt.Println("Check first")
+		return &respond.DoBidResp{
+			TxIdX: psbtXTxId,
+			TxIdY: psbtYTxId,
+		}, nil
+
+
+		//txPsbtYResp, err := mempool_space_service.BroadcastTx(req.Net, txRawPsbtY)
+		//if err != nil {
+		//	return nil, errors.New(fmt.Sprintf("Broadcast Psbt(Y) %s err:%s", req.Net, err.Error()))
+		//}
+		//setUsedDummyUtxo(utxoDummyList, txPsbtYResp)
+		//setUsedBidYUtxo(utxoBidYList, txPsbtYResp)
+		//txPsbtXResp, err := mempool_space_service.BroadcastTx(req.Net, txRawPsbtX)
+		//if err != nil {
+		//	return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s", req.Net, err.Error()))
+		//}
+		//serUsedFakerInscriptionUtxo(strings.ReplaceAll(entity.InscriptionId, "i", "_"), txPsbtXResp, model.UsedYes)
+
+		//txPsbtXRespTxId = txPsbtXResp
+		//txPsbtYRespTxId = txPsbtYResp
+	}
+
+	UpdateForOrderBidDummy(entity.OrderId, model.DummyStateFinish)
 	saveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, 4, psbtXTxId)
 	saveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, 5, psbtXTxId)
-
-	txPsbtYResp, err := oklink_service.BroadcastTx(txRawPsbtY)
-	if err != nil {
-		return nil, err
-	}
-	txPsbtXResp, err := oklink_service.BroadcastTx(txRawPsbtX)
-	if err != nil {
-		return nil, err
-	}
-	UpdateForOrderBidDummy(entity.OrderId, model.DummyStateFinish)
-
-
 
 	entity.OrderState = model.OrderStateFinish
 	_, err = mongo_service.SetOrderBrc20Model(entity)
@@ -739,12 +993,9 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		return nil, err
 	}
 
-
-
-
 	return &respond.DoBidResp{
-		TxIdX: txPsbtYResp.TxId,
-		TxIdY: txPsbtXResp.TxId,
+		TxIdX: txPsbtXRespTxId,
+		TxIdY: txPsbtYRespTxId,
 	}, nil
 }
 

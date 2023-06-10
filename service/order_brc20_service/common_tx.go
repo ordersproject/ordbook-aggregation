@@ -41,11 +41,7 @@ func BuildCommonTx(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutp
 		if err != nil {
 			return nil, err
 		}
-		addrHash, err := btcutil.NewAddressWitnessPubKeyHash(addr.ScriptAddress(), netParam)
-		if err != nil {
-			return nil, err
-		}
-		pkScript, err := txscript.PayToAddrScript(addrHash)
+		pkScript, err := txscript.PayToAddrScript(addr)
 		if err != nil {
 			return nil, err
 		}
@@ -77,11 +73,11 @@ func BuildCommonTx(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutp
 		if err != nil {
 			return nil, err
 		}
-		addrHash, err := btcutil.NewAddressWitnessPubKeyHash(addr.ScriptAddress(), netParam)
-		if err != nil {
-			return nil, err
-		}
-		pkScript, err := txscript.PayToAddrScript(addrHash)
+		//addrHash, err := btcutil.NewAddressWitnessPubKeyHash(addr.ScriptAddress(), netParam)
+		//if err != nil {
+		//	return nil, err
+		//}
+		pkScript, err := txscript.PayToAddrScript(addr)
 		if err != nil {
 			return nil, err
 		}

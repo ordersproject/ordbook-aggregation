@@ -33,3 +33,27 @@ func ColdDownUtxo(c *gin.Context) {
 	}
 	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
 }
+
+// @Summary Cold down the brc20 transfer
+// @Description Cold down the brc20 transfer
+// @Produce  json
+// @Param Request body request.ColdDownBrcTransfer true "Request"
+// @Tags System
+// @Success 200 {object} respond.Message ""
+// @Router /brc20/brc20/transfer/colddown [post]
+func ColdDownBrc20Transfer(c *gin.Context) {
+	var (
+		t   int64            = tool.MakeTimestamp()
+		requestModel *request.ColdDownBrcTransfer
+	)
+	if c.ShouldBindJSON(&requestModel) == nil {
+		responseModel, err := order_brc20_service.ColdDownBrc20Transfer(requestModel)
+		if err != nil {
+			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+			return
+		}
+		c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+		return
+	}
+	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
+}

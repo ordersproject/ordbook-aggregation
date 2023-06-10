@@ -44,6 +44,38 @@ func PostUrl(url string, data interface{}, headers map[string]string) (string, e
 	return string(result), nil
 }
 
+func PostUrlAndCode(url string, data interface{}, headers map[string]string) (string, int, error) {
+	bodyByte, err := json.Marshal(data)
+	if err != nil {
+		return "", 500, nil
+	}
+	//fmt.Println("ThirdPart Post:", string(bodyByte))
+	reader := bytes.NewReader(bodyByte)
+	request, err := http.NewRequest("POST", url, reader)
+	if err != nil {
+		return "", 500, nil
+	}
+
+	request.Header.Set("Content-type", "application/json;charset=UTF-8")
+	//request.Header.Set("Content-type", "application/json")
+	if headers != nil && len(headers) != 0 {
+		for key := range headers {
+			request.Header.Set(key, headers[key])
+		}
+	}
+	client := http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		return "", 500, err
+	}
+
+	result, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return "", response.StatusCode, err
+	}
+	defer response.Body.Close()
+	return string(result), response.StatusCode, nil
+}
 
 //GET请求
 func GetUrlForSingle(url string) (string, error) {

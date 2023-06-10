@@ -2,17 +2,20 @@ package mongo_service
 
 import (
 	"context"
+	"errors"
 	"github.com/godaddy-x/jorm/util"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"ordbook-aggregation/model"
 )
 
-func FindBrc20TickModelByPair(pair string) (*model.Brc20TickModel, error) {
+func FindBrc20TickModelByPair(net, pair string) (*model.Brc20TickModel, error) {
 	collection, err :=  model.Brc20TickModel{}.GetReadDB()
 	if err != nil {
 		return nil, err
 	}
 	queryBson := bson.D{
+		{"net", net},
 		{"pair", pair},
 		//{"state", model.STATE_EXIST},
 	}
@@ -69,13 +72,14 @@ func createBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickMode
 }
 
 func SetBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickModel, error)  {
-	entity, err := FindBrc20TickModelByPair(brc20Tick.Pair)
+	entity, err := FindBrc20TickModelByPair(brc20Tick.Net, brc20Tick.Pair)
 	if err == nil && entity != nil {
 		collection, err := model.Brc20TickModel{}.GetWriteDB()
 		if err != nil {
 			return nil, err
 		}
 		filter := bson.D{
+			{"net", brc20Tick.Net},
 			{"pair", brc20Tick.Pair},
 			//{"state", model.STATE_EXIST},
 		}
@@ -108,3 +112,52 @@ func SetBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickModel, 
 		return createBrc20TickModel(brc20Tick)
 	}
 }
+
+
+func CountBrc20TickModelList(net string) (int64, error) {
+	collection, err := model.Brc20TickModel{}.GetReadDB()
+	if err != nil {
+		return 0, err
+	}
+	find := bson.M{
+		"state":    model.STATE_EXIST,
+	}
+
+	total, err := collection.CountDocuments(context.TODO(), find)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+
+func FindBrc20TickModelList(net string, skip, limit int64) ([]*model.Brc20TickModel, error) {
+	collection, err := model.Brc20TickModel{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"state":    model.STATE_EXIST,
+	}
+
+	models := make([]*model.Brc20TickModel, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(0)
+	sort := options.Find().SetSort(bson.M{"updateTime": -1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.Brc20TickModel{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get Brc20TickModel Error")
+	}
+	return models, nil
+}
+

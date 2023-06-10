@@ -7,69 +7,95 @@ import (
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/service/oklink_service"
 	"ordbook-aggregation/tool"
+	"strconv"
 )
 
 func FetchTickers(req *request.TickBrc20FetchReq) (*respond.Brc20TickInfoResponse, error){
 	var (
+		entityList []*model.Brc20TickModel
 		list []*respond.Brc20TickItem = make([]*respond.Brc20TickItem, 0)
 	)
 
-	list = []*respond.Brc20TickItem{
-		&respond.Brc20TickItem{
-			Net:                "mainnet",
-			Pair:               "ORDI-BTC",
-			Tick:               "ordi",
-			Buy:                "0.00005470",
-			//Sell:               "",
-			//Low:                "",
-			//High:               "",
-			//Open:               "",
-			//Last:               "",
-			//Volume:             "",
-			//Amount:             "",
-			//Vol:                "",
-			//AvgPrice:           "",
-			QuoteSymbol:"+",
-			PriceChangePercent: "4.32",
-			Ut:                 0,
-		},
-		&respond.Brc20TickItem{
-			Net:                "mainnet",
-			Pair:               "PEPE-BTC",
-			Tick:               "pepe",
-			Buy:                "0.00006853",
-			QuoteSymbol:"+",
-			PriceChangePercent: "1.43",
-			Ut:                 0,
-		},
-		&respond.Brc20TickItem{
-			Net:                "mainnet",
-			Pair:               "MEME-BTC",
-			Tick:               "meme",
-			Buy:                "0.00325100",
-			QuoteSymbol:"-",
-			PriceChangePercent: "11.46",
-			Ut:                 0,
-		},
-		&respond.Brc20TickItem{
-			Net:                "mainnet",
-			Pair:               "OMNI-BTC",
-			Tick:               "omni",
-			Buy:                "0.00004056",
-			QuoteSymbol:"+",
-			PriceChangePercent: "0.21",
-			Ut:                 0,
-		},
-		&respond.Brc20TickItem{
-			Net:                "mainnet",
-			Pair:               "SATS-BTC",
-			Tick:               "sats",
-			Buy:                "0.00001300",
-			QuoteSymbol:"-",
-			PriceChangePercent: "0.35",
-			Ut:                 0,
-		},
+	//list = []*respond.Brc20TickItem{
+	//	&respond.Brc20TickItem{
+	//		Net:                "mainnet",
+	//		Pair:               "ORDI-BTC",
+	//		Tick:               "ordi",
+	//		Buy:                "0.00005470",
+	//		//Sell:               "",
+	//		//Low:                "",
+	//		//High:               "",
+	//		//Open:               "",
+	//		//Last:               "",
+	//		//Volume:             "",
+	//		//Amount:             "",
+	//		//Vol:                "",
+	//		//AvgPrice:           "",
+	//		QuoteSymbol:"+",
+	//		PriceChangePercent: "4.32",
+	//		Ut:                 0,
+	//	},
+	//	&respond.Brc20TickItem{
+	//		Net:                "mainnet",
+	//		Pair:               "PEPE-BTC",
+	//		Tick:               "pepe",
+	//		Buy:                "0.00006853",
+	//		QuoteSymbol:"+",
+	//		PriceChangePercent: "1.43",
+	//		Ut:                 0,
+	//	},
+	//	&respond.Brc20TickItem{
+	//		Net:                "mainnet",
+	//		Pair:               "MEME-BTC",
+	//		Tick:               "meme",
+	//		Buy:                "0.00325100",
+	//		QuoteSymbol:"-",
+	//		PriceChangePercent: "11.46",
+	//		Ut:                 0,
+	//	},
+	//	&respond.Brc20TickItem{
+	//		Net:                "mainnet",
+	//		Pair:               "OMNI-BTC",
+	//		Tick:               "omni",
+	//		Buy:                "0.00004056",
+	//		QuoteSymbol:"+",
+	//		PriceChangePercent: "0.21",
+	//		Ut:                 0,
+	//	},
+	//	&respond.Brc20TickItem{
+	//		Net:                "mainnet",
+	//		Pair:               "SATS-BTC",
+	//		Tick:               "sats",
+	//		Buy:                "0.00001300",
+	//		QuoteSymbol:"-",
+	//		PriceChangePercent: "0.35",
+	//		Ut:                 0,
+	//	},
+	//}
+
+	entityList, _ = mongo_service.FindBrc20TickModelList(req.Net, 0, 100)
+	for _, v := range entityList {
+		list = append(list, &respond.Brc20TickItem{
+			Net:                v.Net,
+			Tick:               v.Tick,
+			Pair:               v.Pair,
+			Buy:                strconv.FormatUint(v.Buy, 10),
+			Sell:               strconv.FormatUint(v.Sell, 10),
+			Low:                strconv.FormatUint(v.Low, 10),
+			High:               strconv.FormatUint(v.High, 10),
+			Open:               strconv.FormatUint(v.Open, 10),
+			Last:               strconv.FormatUint(v.Last, 10),
+			Volume:             strconv.FormatUint(v.Volume, 10),
+			Amount:             strconv.FormatUint(v.Amount, 10),
+			Vol:                strconv.FormatUint(v.Vol, 10),
+			AvgPrice:           strconv.FormatUint(v.AvgPrice, 10),
+			QuoteSymbol:        v.QuoteSymbol,
+			PriceChangePercent: strconv.FormatFloat(v.PriceChangePercent, 'f', 2, 64),
+			Ut:                 v.UpdateTime,
+		})
 	}
+
+
 	return &respond.Brc20TickInfoResponse{
 		Total:   5,
 		Results: list,
