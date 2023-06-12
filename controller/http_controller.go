@@ -29,6 +29,7 @@ func Run() {
 		brc20.POST("/order/push", PushOrder)
 		brc20.POST("/order/ask/push", PushOrder)
 		brc20.GET("/orders", FetchOrders)
+		brc20.GET("/orders/user/:address", FetchUserOrders)
 		brc20.GET("/tickers", FetchTicker)
 		brc20.GET("/kline", FetchKline)
 

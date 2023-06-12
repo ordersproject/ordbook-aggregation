@@ -595,8 +595,14 @@ var doc = `{
                     },
                     {
                         "type": "integer",
-                        "description": "limit",
+                        "description": "limit: Max-50",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "page",
+                        "name": "page",
                         "in": "query"
                     },
                     {
@@ -607,7 +613,90 @@ var doc = `{
                     },
                     {
                         "type": "string",
-                        "description": "sortKey",
+                        "description": "sortKey: timestamp/coinRatePrice, default:timestamp",
+                        "name": "sortKey",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "sortType",
+                        "name": "sortType",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.OrderResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/orders/user/{address}": {
+            "get": {
+                "description": "Fetch user orders",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch user orders",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "net:mainnet/signet/testnet",
+                        "name": "net",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "tick",
+                        "name": "tick",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "orderState: 1-create,2-finish,3-cancel",
+                        "name": "orderState",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "orderType: 1-sell,2-buy",
+                        "name": "orderType",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "limit: Max-50",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "flag",
+                        "name": "flag",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "sortKey: timestamp/coinRatePrice, default:timestamp",
                         "name": "sortKey",
                         "in": "query"
                     },
@@ -913,6 +1002,15 @@ var doc = `{
                     "type": "string"
                 },
                 "amount": {
+                    "description": "the purchase value of input",
+                    "type": "integer"
+                },
+                "buyerInValue": {
+                    "description": "the real value of input",
+                    "type": "integer"
+                },
+                "fee": {
+                    "description": "fee",
                     "type": "integer"
                 },
                 "net": {

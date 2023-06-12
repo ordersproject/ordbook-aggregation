@@ -13,16 +13,17 @@ type OrderBrc20PushReq struct {
 }
 
 type OrderBrc20FetchReq struct {
-	Net        string           `json:"net"` //livenet/signet/testnet
+	Net           string           `json:"net"` //livenet/signet/testnet
 	Tick          string           `json:"tick"`
 	OrderState    model.OrderState `json:"orderState"` //1-create,2-finish,3-cancel
 	OrderType     model.OrderType  `json:"orderType"`  //1-sell,2-buy
 	Limit         int64            `json:"limit"`
 	Flag          int64            `json:"flag"`
+	Page          int64            `json:"page"`
 	SellerAddress string           `json:"sellerAddress"`
 	BuyerAddress  string           `json:"buyerAddress"`
-	SortKey       string           `json:"sortKey"`//coinRatePrice/timestamp
-	SortType      int64              `json:"sortType"`//1/-1
+	SortKey       string           `json:"sortKey"`  //coinRatePrice/timestamp
+	SortType      int64            `json:"sortType"` //1/-1
 }
 
 type TickBrc20FetchReq struct {
@@ -113,4 +114,17 @@ type Brc20MarketPriceSetReq struct {
 	Tick              string `json:"tick"`
 	Pair              string `json:"pair"`
 	GuidePrice int64 `json:"guidePrice"`
+}
+
+type Brc20OrderAddressReq struct {
+	Net        string           `json:"net"` //livenet/signet/testnet
+	Tick       string           `json:"tick"`
+	Address    string           `json:"address"`
+	OrderState model.OrderState `json:"orderState"` //1-create,2-finish,3-cancel
+	OrderType  model.OrderType  `json:"orderType"`  //1-sell,2-buy
+	Flag       int64            `json:"flag"`
+	Page       int64            `json:"page"`
+	Limit      int64            `json:"limit"`
+	SortKey    string           `json:"sortKey"`  //coinRatePrice/timestamp
+	SortType   int64            `json:"sortType"` //1/-1
 }

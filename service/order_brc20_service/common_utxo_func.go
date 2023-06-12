@@ -7,6 +7,7 @@ import (
 	"ordbook-aggregation/redis"
 	"ordbook-aggregation/service/cache_service"
 	"ordbook-aggregation/service/mongo_service"
+	"ordbook-aggregation/tool"
 	"sync"
 )
 
@@ -16,6 +17,7 @@ const (
 
 var (
 	unoccupiedUtxoLock *sync.RWMutex = new(sync.RWMutex)
+	saveUtxoLock *sync.RWMutex = new(sync.RWMutex)
 )
 
 func GetUnoccupiedUtxoList(net string, limit int64, utxoType model.UtxoType) ([]*model.OrderUtxoModel, error) {
@@ -98,4 +100,20 @@ func ReleaseUtxoList(utxoList []*model.OrderUtxoModel) {
 			fmt.Printf("UnSetUtxoInfo err:%s\n", err.Error())
 		}
 	}
+}
+
+func GetSaveStartIndex(net string, utxoType model.UtxoType) int64 {
+	saveUtxoLock.RLock()
+	t1 := tool.MakeTimestamp()
+	fmt.Println("[LOCK]-Save-utxo")
+	defer func() {
+		saveUtxoLock.RUnlock()
+		fmt.Printf("[UNLOCK]-Save-utxo-%d\n", tool.MakeTimestamp()-t1)
+	}()
+	startIndex := int64(0)
+	latestUtxo, _ := mongo_service.GetLatestStartIndexUtxo(net, utxoType)
+	if latestUtxo != nil {
+		startIndex = latestUtxo.SortIndex
+	}
+	return startIndex
 }

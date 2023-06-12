@@ -10,6 +10,46 @@ import (
 	"strconv"
 )
 
+func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error) {
+	var (
+		entityList []*model.OrderBrc20Model
+		list []*respond.Brc20Item
+		total int64 = 0
+		flag int64 = 0
+	)
+	total, _ = mongo_service.CountOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress, req.OrderType, req.OrderState)
+	entityList, _ = mongo_service.FindOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress,
+		req.OrderType, req.OrderState,
+		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType)
+	list = make([]*respond.Brc20Item, len(entityList))
+	for k, v := range entityList {
+		item := &respond.Brc20Item{
+			Net:           v.Net,
+			OrderId:           v.OrderId,
+			Tick:           v.Tick,
+			Amount:         v.Amount,
+			DecimalNum:     v.DecimalNum,
+			CoinAmount:     v.CoinAmount,
+			CoinDecimalNum: v.CoinDecimalNum,
+			CoinRatePrice:  v.CoinRatePrice,
+			OrderState:     v.OrderState,
+			OrderType:      v.OrderType,
+			SellerAddress:  v.SellerAddress,
+			BuyerAddress:   v.BuyerAddress,
+			PsbtRaw:        v.PsbtRawPreAsk,
+			Timestamp:      v.Timestamp,
+		}
+		flag = v.Timestamp
+		//list = append(list, item)
+		list[k] = item
+	}
+	return &respond.OrderResponse{
+		Total:   total,
+		Results: list,
+		Flag:    flag,
+	}, nil
+}
+
 func FetchTickers(req *request.TickBrc20FetchReq) (*respond.Brc20TickInfoResponse, error){
 	var (
 		entityList []*model.Brc20TickModel
@@ -166,5 +206,45 @@ func GetBidDummyList(req *request.Brc20BidAddressDummyReq) (*respond.Brc20BidDum
 		Total:   total,
 		Results: list,
 		Flag:    0,
+	}, nil
+}
+
+func FetchUserOrders(req *request.Brc20OrderAddressReq) (*respond.OrderResponse, error){
+	var (
+		entityList []*model.OrderBrc20Model
+		list []*respond.Brc20Item
+		total int64 = 0
+		flag int64 = 0
+	)
+	total, _ = mongo_service.CountAddressOrderBrc20ModelList(req.Net, req.Tick, req.Address, req.OrderType, req.OrderState)
+	entityList, _ = mongo_service.FindAddressOrderBrc20ModelList(req.Net, req.Tick, req.Address,
+		req.OrderType, req.OrderState,
+		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType)
+	list = make([]*respond.Brc20Item, len(entityList))
+	for k, v := range entityList {
+		item := &respond.Brc20Item{
+			Net:           v.Net,
+			OrderId:           v.OrderId,
+			Tick:           v.Tick,
+			Amount:         v.Amount,
+			DecimalNum:     v.DecimalNum,
+			CoinAmount:     v.CoinAmount,
+			CoinDecimalNum: v.CoinDecimalNum,
+			CoinRatePrice:  v.CoinRatePrice,
+			OrderState:     v.OrderState,
+			OrderType:      v.OrderType,
+			SellerAddress:  v.SellerAddress,
+			BuyerAddress:   v.BuyerAddress,
+			PsbtRaw:        v.PsbtRawPreAsk,
+			Timestamp:      v.Timestamp,
+		}
+		flag = v.Timestamp
+		//list = append(list, item)
+		list[k] = item
+	}
+	return &respond.OrderResponse{
+		Total:   total,
+		Results: list,
+		Flag:    flag,
 	}, nil
 }

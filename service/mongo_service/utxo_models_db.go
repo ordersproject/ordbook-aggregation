@@ -3,9 +3,12 @@ package mongo_service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/godaddy-x/jorm/util"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"ordbook-aggregation/major"
 	"ordbook-aggregation/model"
 )
 
@@ -196,4 +199,38 @@ func GetLatestStartIndexUtxo(net string, utxoType model.UtxoType) (*model.OrderU
 		return nil, err
 	}
 	return entity, nil
+}
+
+func SetManyUtxoInSession(utxoList []interface{}, jop func()error) error {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return err
+	}
+
+	if err = mongoDB.UseSession(context.Background(), func(sessionContext mongo.SessionContext) error {
+		if err := sessionContext.StartTransaction(); err != nil {
+			return err
+		}
+
+		if _, err := mongoDB.Database(model.OrderUtxoModel{}.GetDB()).Collection(model.OrderUtxoModel{}.GetCollection()).InsertMany(sessionContext, utxoList); err != nil {
+			if err := sessionContext.AbortTransaction(context.Background()); err != nil {
+				fmt.Printf("mongo transaction rollback failed, %s\n", err.Error())
+				return err
+			}
+			return err
+		}
+
+		if err := jop(); err != nil {
+			if err := sessionContext.AbortTransaction(context.Background()); err != nil {
+				fmt.Printf("mongo transaction rollback failed, %s\n", err.Error())
+				return err
+			}
+			return err
+		}
+
+		return sessionContext.CommitTransaction(context.Background())
+	}); err != nil {
+		fmt.Printf("insert failed, err:%s\n", err.Error())
+	}
+	return nil
 }

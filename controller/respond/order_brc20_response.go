@@ -22,7 +22,7 @@ type Brc20Item struct {
 	SellerAddress  string           `json:"sellerAddress,omitempty"`  //Seller's address
 	BuyerAddress   string           `json:"buyerAddress,omitempty"`   //Buyer's address
 	PsbtRaw        string           `json:"psbtRaw,omitempty"`        //PSBT Raw
-	Timestamp      int64            `json:"timestamp,omitempty"`      //Create time
+	Timestamp      int64            `json:"timestamp"`      //Create time
 }
 
 type Brc20TickInfoResponse struct {

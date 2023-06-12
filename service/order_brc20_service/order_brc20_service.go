@@ -126,47 +126,6 @@ func PushOrder(req *request.OrderBrc20PushReq) (string, error) {
 	return "success", nil
 }
 
-func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error) {
-	var (
-		entityList []*model.OrderBrc20Model
-		list []*respond.Brc20Item
-		total int64 = 0
-		flag int64 = 0
-	)
-	total, _ = mongo_service.CountOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress, req.OrderType, req.OrderState)
-	entityList, _ = mongo_service.FindOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress,
-		req.OrderType, req.OrderState,
-		req.Limit, req.Flag, req.SortKey, req.SortType)
-	list = make([]*respond.Brc20Item, len(entityList))
-	for k, v := range entityList {
-		item := &respond.Brc20Item{
-			Net:           v.Net,
-			OrderId:           v.OrderId,
-			Tick:           v.Tick,
-			Amount:         v.Amount,
-			DecimalNum:     v.DecimalNum,
-			CoinAmount:     v.CoinAmount,
-			CoinDecimalNum: v.CoinDecimalNum,
-			CoinRatePrice:  v.CoinRatePrice,
-			OrderState:     v.OrderState,
-			OrderType:      v.OrderType,
-			SellerAddress:  v.SellerAddress,
-			BuyerAddress:   v.BuyerAddress,
-			PsbtRaw:        v.PsbtRawPreAsk,
-			Timestamp:      v.Timestamp,
-		}
-		flag = v.Timestamp
-		//list = append(list, item)
-		list[k] = item
-	}
-	return &respond.OrderResponse{
-		Total:   total,
-		Results: list,
-		Flag:    flag,
-	}, nil
-}
-
-
 
 
 //bid:
@@ -462,8 +421,8 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 	if preOutList == nil || len(preOutList) == 0 {
 		return "", errors.New("Wrong Psbt: empty inputs. ")
 	}
-	if len(preOutList) != 4 {
-		return "", errors.New("Wrong Psbt: No match inputs. ")
+	if len(preOutList) < 4 {
+		return "", errors.New("Wrong Psbt: No match inputs length. ")
 	}
 
 	//check platform brc20 utxo
@@ -471,7 +430,7 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 	if exchangeInput.PreviousOutPoint.Hash.String() != entityOrder.PlatformTx {
 		return "", errors.New("Wrong Psbt: No inscription input. ")
 	}
-	//check buyer pay utxo
+	//check buyer pay utxo //todo 2+ utxo
 	buyerInput := preOutList[3]
 	buyerInputTxId := buyerInput.PreviousOutPoint.Hash.String()
 	buyerInputIndex := buyerInput.PreviousOutPoint.Index
@@ -591,8 +550,8 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		utxoDummyList []*model.OrderUtxoModel
 		utxoBidYList []*model.OrderUtxoModel
 
-		startIndexDummy int64 = -1
-		startIndexBidY int64 = -1
+		//startIndexDummy int64 = -1
+		//startIndexBidY int64 = -1
 		newPsbtBuilder *PsbtBuilder
 		marketPrice uint64 = 0
 		inscriptionId string = ""
@@ -689,7 +648,6 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 
 
 
-	//todo lock utxo
 	//utxoDummyList, _ = mongo_service.FindUtxoList(req.Net, startIndexDummy, 2, model.UtxoTypeDummy)
 	//if len(utxoDummyList) == 0 {
 	//	return nil, errors.New("Service Upgrade for dummy. ")
@@ -704,6 +662,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 
 	//get bidY pay utxo
 	limit := (entity.SupplementaryAmount + sellerReceiveValue + entity.Fee)/platformPayPerAmount + 1
+
 	//utxoBidYList, _ = mongo_service.FindUtxoList(req.Net, startIndexBidY, int64(limit), model.UtxoTypeBidY)
 	//if len(utxoBidYList) == 0 {
 	//	return nil, errors.New("Service Upgrade for bid. ")
@@ -743,7 +702,6 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			OutTxId:  payBid.TxId,
 			OutIndex: uint32(payBid.Index),
 		})
-		//todo check pay value
 	}
 
 
@@ -883,6 +841,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 				return nil, errors.New(fmt.Sprintf("PSBT(Y): Recheck address utxo list, utxo had been spent: %s", bidInId))
 			}
 		}
+		time.Sleep(500 * time.Millisecond)
 	}
 
 

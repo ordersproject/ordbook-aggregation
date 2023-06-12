@@ -203,7 +203,7 @@ func CountOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string, ord
 
 func FindOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string,
 	orderType model.OrderType, orderState model.OrderState,
-	limit int64, flag int64, sortKey string, sortType int64) ([]*model.OrderBrc20Model, error) {
+	limit int64, flag, page int64, sortKey string, sortType int64) ([]*model.OrderBrc20Model, error) {
 	collection, err := model.OrderBrc20Model{}.GetReadDB()
 	if err != nil {
 		return nil, errors.New("db connect error")
@@ -236,7 +236,6 @@ func FindOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string,
 
 	switch sortKey {
 	case "coinRatePrice":
-
 		sortKey = "coinRatePrice"
 	default:
 		sortKey = "timestamp"
@@ -248,8 +247,115 @@ func FindOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string,
 		sortType = -1
 	}
 
+	skip := int64(0)
+	if page != 0 {
+		skip = (page-1)*limit
+	}else if flag != 0 {
+
+	}
+
 	models := make([]*model.OrderBrc20Model, 0)
-	pagination := options.Find().SetLimit(limit).SetSkip(0)
+	pagination := options.Find().SetLimit(limit).SetSkip(skip)
+	sort := options.Find().SetSort(bson.M{sortKey: sortType})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.OrderBrc20Model{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get OrderBrc20Model Error")
+	}
+	return models, nil
+}
+
+
+func CountAddressOrderBrc20ModelList(net, tick, address string, orderType model.OrderType, orderState model.OrderState) (int64, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return 0, err
+	}
+
+	buyer := bson.M{"buyerAddress": address}
+	seller := bson.M{"sellerAddress": address}
+
+	find := bson.M{
+		OR_:[]bson.M{buyer, seller},
+		"state":    model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+	if orderType != 0 {
+		find["orderType"] = orderType
+	}
+	if orderState != 0 {
+		find["orderState"] = orderState
+	}
+
+	total, err := collection.CountDocuments(context.TODO(), find)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func FindAddressOrderBrc20ModelList(net, tick, address string,
+	orderType model.OrderType, orderState model.OrderState,
+	limit int64, flag, page int64, sortKey string, sortType int64) ([]*model.OrderBrc20Model, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	buyer := bson.M{"buyerAddress": address}
+	seller := bson.M{"sellerAddress": address}
+
+	find := bson.M{
+		OR_:[]bson.M{buyer, seller},
+		"state":    model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+	if orderType != 0 {
+		find["orderType"] = orderType
+	}
+	if orderState != 0 {
+		find["orderState"] = orderState
+	}
+
+	switch sortKey {
+	case "coinRatePrice":
+		sortKey = "coinRatePrice"
+	default:
+		sortKey = "timestamp"
+	}
+
+	if sortType >= 0 {
+		sortType = 1
+	}else {
+		sortType = -1
+	}
+
+	skip := int64(0)
+	if page != 0 {
+		skip = (page-1)*limit
+	}
+
+	models := make([]*model.OrderBrc20Model, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(skip)
 	sort := options.Find().SetSort(bson.M{sortKey: sortType})
 	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
 		defer cursor.Close(context.Background())

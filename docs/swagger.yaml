@@ -137,6 +137,13 @@ definitions:
       address:
         type: string
       amount:
+        description: the purchase value of input
+        type: integer
+      buyerInValue:
+        description: the real value of input
+        type: integer
+      fee:
+        description: fee
         type: integer
       net:
         description: livenet/signet/testnet
@@ -782,15 +789,19 @@ paths:
         in: query
         name: orderType
         type: integer
-      - description: limit
+      - description: 'limit: Max-50'
         in: query
         name: limit
+        type: integer
+      - description: page
+        in: query
+        name: page
         type: integer
       - description: flag
         in: query
         name: flag
         type: integer
-      - description: sortKey
+      - description: 'sortKey: timestamp/coinRatePrice, default:timestamp'
         in: query
         name: sortKey
         type: string
@@ -806,6 +817,61 @@ paths:
           schema:
             $ref: '#/definitions/respond.OrderResponse'
       summary: Fetch orders
+      tags:
+      - brc20
+  /brc20/orders/user/{address}:
+    get:
+      description: Fetch user orders
+      parameters:
+      - description: net:mainnet/signet/testnet
+        in: query
+        name: net
+        type: string
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: 'orderState: 1-create,2-finish,3-cancel'
+        in: query
+        name: orderState
+        type: integer
+      - description: 'orderType: 1-sell,2-buy'
+        in: query
+        name: orderType
+        type: integer
+      - description: 'limit: Max-50'
+        in: query
+        name: limit
+        type: integer
+      - description: flag
+        in: query
+        name: flag
+        type: integer
+      - description: page
+        in: query
+        name: page
+        type: integer
+      - description: 'sortKey: timestamp/coinRatePrice, default:timestamp'
+        in: query
+        name: sortKey
+        type: string
+      - description: sortType
+        in: query
+        name: sortType
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.OrderResponse'
+      summary: Fetch user orders
       tags:
       - brc20
   /brc20/tickers:

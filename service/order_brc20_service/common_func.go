@@ -25,9 +25,9 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel{
 		buyPrice uint64 = 0
 		buyTotal uint64 = 0
 	)
-	askList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeSell, model.OrderStateCreate, 10, 0,
+	askList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeSell, model.OrderStateCreate, 10, 0, 0,
 		"coinRatePrice", 1)
-	bidList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeBuy, model.OrderStateCreate, 10, 0,
+	bidList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeBuy, model.OrderStateCreate, 10, 0, 0,
 		"coinRatePrice", -1)
 	for _, v := range askList{
 		if v.CoinRatePrice == 0 {
@@ -182,6 +182,13 @@ func GetPlatformKeyAndAddressReceiveDummyValue(net string) (string, string) {
 		return config.PlatformTestnetPrivateKeyReceiveDummyValue, config.PlatformTestnetAddressReceiveDummyValue
 	}
 	return config.PlatformMainnetPrivateKeyReceiveDummyValue, config.PlatformMainnetAddressReceiveDummyValue
+}
+
+func GetPlatformKeyAndAddressReceiveFee(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyReceiveFee, config.PlatformTestnetAddressReceiveFee
+	}
+	return config.PlatformMainnetPrivateKeyReceiveFee, config.PlatformMainnetAddressReceiveFee
 }
 
 func CheckBidInscriptionIdExist(inscriptionId string) bool {

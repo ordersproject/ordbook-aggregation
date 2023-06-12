@@ -26,9 +26,9 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error){
 		err error
 		fromPriKeyHex, fromSegwitAddress string = "", ""
 		txRaw string = ""
-		latestUtxo *model.OrderUtxoModel
+		//latestUtxo *model.OrderUtxoModel
 		utxoList []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
-		startIndex int64 = -1
+		startIndex int64 = GetSaveStartIndex(req.Net, req.UtxoType)
 	)
 
 	fromPriKeyHex, fromSegwitAddress, err = create_key.CreateSegwitKey(netParams)
@@ -36,10 +36,10 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error){
 		return "", err
 	}
 
-	latestUtxo, _ = mongo_service.GetLatestStartIndexUtxo(req.Net, req.UtxoType)
-	if latestUtxo != nil {
-		startIndex = latestUtxo.SortIndex
-	}
+	//latestUtxo, _ = mongo_service.GetLatestStartIndexUtxo(req.Net, req.UtxoType)
+	//if latestUtxo != nil {
+	//	startIndex = latestUtxo.SortIndex
+	//}
 
 	inputs := make([]*TxInputUtxo, 0)
 	inputs = append(inputs, &TxInputUtxo{
@@ -53,12 +53,12 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error){
 	if err != nil {
 		return "", err
 	}
-	addrHash, err := btcutil.NewAddressWitnessPubKeyHash(addr.ScriptAddress(), netParams)
-	if err != nil {
-		fmt.Printf("NewAddressWitnessPubKeyHash err: %s\n", err.Error())
-		return "", err
-	}
-	pkScriptByte, err := txscript.PayToAddrScript(addrHash)
+	//addrHash, err := btcutil.NewAddressWitnessPubKeyHash(addr.ScriptAddress(), netParams)
+	//if err != nil {
+	//	fmt.Printf("NewAddressWitnessPubKeyHash err: %s\n", err.Error())
+	//	return "", err
+	//}
+	pkScriptByte, err := txscript.PayToAddrScript(addr)
 	if err != nil {
 		return "", err
 	}
@@ -131,11 +131,12 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error){
 }
 
 func saveNewDummyFromBid(net string, out Output, priKeyHex string, index int64, txId string) error {
-	startIndex := int64(0)
-	latestUtxo, _ := mongo_service.GetLatestStartIndexUtxo(net, model.UtxoTypeDummy)
-	if latestUtxo != nil {
-		startIndex = latestUtxo.SortIndex
-	}
+	startIndex := GetSaveStartIndex(net, model.UtxoTypeDummy)
+	//startIndex := int64(0)
+	//latestUtxo, _ := mongo_service.GetLatestStartIndexUtxo(net, model.UtxoTypeDummy)
+	//if latestUtxo != nil {
+	//	startIndex = latestUtxo.SortIndex
+	//}
 	netParams := GetNetParams(net)
 	addr, err := btcutil.DecodeAddress(out.Address, netParams)
 	if err != nil {

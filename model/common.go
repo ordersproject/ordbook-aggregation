@@ -20,5 +20,5 @@ const (
 	OrderStateCancel    OrderState = 3
 	OrderStatePreCreate OrderState = 4
 	OrderStateTimeout   OrderState = 5
-	OrderStateErr   OrderState = 6
+	OrderStateErr       OrderState = 6
 )

@@ -43,11 +43,11 @@ type OrderUtxoModel struct {
 	State      int64     `json:"state" bson:"state"`
 }
 
-func (s OrderUtxoModel) getCollection() string {
+func (s OrderUtxoModel) GetCollection() string {
 	return "order_utxo_model"
 }
 
-func (s OrderUtxoModel) getDB() string {
+func (s OrderUtxoModel) GetDB() string {
 	return major.DsOrdbook
 }
 
@@ -56,7 +56,7 @@ func (s OrderUtxoModel) GetReadDB() (*mongo.Collection, error) {
 	if err != nil {
 		return nil, err
 	}
-	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	collection := mongoDB.Database(s.GetDB()).Collection(s.GetCollection())
 	if collection == nil {
 		return nil, errors.New("db connect error")
 	}
@@ -68,7 +68,7 @@ func (s OrderUtxoModel) GetWriteDB() (*mongo.Collection, error) {
 	if err != nil {
 		return nil, err
 	}
-	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	collection := mongoDB.Database(s.GetDB()).Collection(s.GetCollection())
 	if collection == nil {
 		return nil, errors.New("db connect error")
 	}

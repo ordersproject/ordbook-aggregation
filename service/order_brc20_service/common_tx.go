@@ -16,7 +16,10 @@ import (
 const (
 	// spendSize is the largest number of bytes of a sigScript
 	// which spends a p2pkh output: OP_DATA_73 <sig> OP_DATA_33 <pubkey>
-	spendSize = 1 + 73 + 1 + 33
+	SpendSize = 1 + 73 + 1 + 33
+
+	OutSize = 31
+	OtherSize = 10
 )
 
 type TxInputUtxo struct {
@@ -60,7 +63,7 @@ func BuildCommonTx(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutp
 		totalAmount = totalAmount + int64(in.Amount)
 	}
 
-	txSize := tx.SerializeSize() + spendSize*len(tx.TxIn)
+	txSize := tx.SerializeSize() + SpendSize*len(tx.TxIn)
 
 	reqFee := btcutil.Amount(txSize * int(fee))
 	if totalAmount - outAmount < int64(reqFee) {

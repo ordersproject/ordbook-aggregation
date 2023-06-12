@@ -7,5 +7,6 @@ view
 log
 *.txt
 service/order_brc20_service/order_utxo_service_test.go
+service/order_brc20_service/order_brc20_service_test.go
 service/order_brc20_service/brc20_set_service.go
 controller/brc20_set_controller.go

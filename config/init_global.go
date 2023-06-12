@@ -26,6 +26,8 @@ var (
 	PlatformMainnetAddressReceiveBidValue = ""// address for receive bid value
 	PlatformMainnetPrivateKeyReceiveDummyValue = ""
 	PlatformMainnetAddressReceiveDummyValue = ""// address for receive dummy 1200 value
+	PlatformMainnetPrivateKeyReceiveFee = ""
+	PlatformMainnetAddressReceiveFee = ""// address for receive fee
 	PlatformMainnetFeeRate int64 = 0
 
 	PlatformTestnetPrivateKeySendBrc20 = ""
@@ -36,6 +38,8 @@ var (
 	PlatformTestnetAddressReceiveBidValue = ""// address for receive bid value
 	PlatformTestnetPrivateKeyReceiveDummyValue = ""
 	PlatformTestnetAddressReceiveDummyValue = ""// address for receive dummy 1200 value
+	PlatformTestnetPrivateKeyReceiveFee = ""
+	PlatformTestnetAddressReceiveFee = ""// address for receive fee
 	PlatformTestnetFeeRate int64 = 0
 )
 
@@ -50,19 +54,23 @@ func InitConfig() {
 	PlatformTestnetPrivateKeySendBrc20, PlatformTestnetAddressSendBrc20,
 	PlatformTestnetPrivateKeyReceiveBrc20, PlatformTestnetAddressReceiveBrc20,
 		PlatformTestnetPrivateKeyReceiveBidValue, PlatformTestnetAddressReceiveBidValue,
-		PlatformTestnetPrivateKeyReceiveDummyValue, PlatformTestnetAddressReceiveDummyValue =
+		PlatformTestnetPrivateKeyReceiveDummyValue, PlatformTestnetAddressReceiveDummyValue,
+		PlatformTestnetPrivateKeyReceiveFee, PlatformTestnetAddressReceiveFee =
 		viper.GetString("platform.testnet.private_key_send_brc20"), viper.GetString("platform.testnet.address_send_brc20"),
 		viper.GetString("platform.testnet.private_key_receive_brc20"), viper.GetString("platform.testnet.address_receive_brc20"),
 		viper.GetString("platform.testnet.private_key_receive_bid_value"), viper.GetString("platform.testnet.address_receive_bid_value"),
-		viper.GetString("platform.testnet.private_key_receive_dummy_value"), viper.GetString("platform.testnet.address_receive_dummy_value")
+		viper.GetString("platform.testnet.private_key_receive_dummy_value"), viper.GetString("platform.testnet.address_receive_dummy_value"),
+		viper.GetString("platform.testnet.private_key_receive_fee"), viper.GetString("platform.testnet.address_receive_fee")
 	PlatformMainnetPrivateKeySendBrc20, PlatformMainnetAddressSendBrc20,
 	PlatformMainnetPrivateKeyReceiveBrc20, PlatformMainnetAddressReceiveBrc20,
 		PlatformMainnetPrivateKeyReceiveBidValue, PlatformMainnetAddressReceiveBidValue,
-		PlatformMainnetPrivateKeyReceiveDummyValue, PlatformMainnetAddressReceiveDummyValue =
+		PlatformMainnetPrivateKeyReceiveDummyValue, PlatformMainnetAddressReceiveDummyValue,
+		PlatformMainnetPrivateKeyReceiveFee, PlatformMainnetAddressReceiveFee =
 		viper.GetString("platform.mainnet.private_key_Send_brc20"), viper.GetString("platform.mainnet.address_Send_brc20"),
 		viper.GetString("platform.mainnet.private_key_receive_brc20"), viper.GetString("platform.mainnet.address_receive_brc20"),
 		viper.GetString("platform.mainnet.private_key_receive_bid_value"), viper.GetString("platform.mainnet.address_receive_bid_value"),
-		viper.GetString("platform.mainnet.private_key_receive_dummy_value"), viper.GetString("platform.mainnet.address_receive_dummy_value")
+		viper.GetString("platform.mainnet.private_key_receive_dummy_value"), viper.GetString("platform.mainnet.address_receive_dummy_value"),
+		viper.GetString("platform.mainnet.private_key_receive_fee"), viper.GetString("platform.mainnet.address_receive_fee")
 	PlatformMainnetFeeRate, PlatformTestnetFeeRate = viper.GetInt64("platform.mainnet.fee_rate"), viper.GetInt64("platform.testnet.fee_rate")
 		MempoolSpace = viper.GetString("mempool_space.domain")
 	WsPort = viper.GetString("ws.port")

@@ -6,8 +6,11 @@ import (
 	"ordbook-aggregation/conf"
 	"ordbook-aggregation/config"
 	"ordbook-aggregation/controller"
+	"ordbook-aggregation/logger"
 	"ordbook-aggregation/major"
+	"ordbook-aggregation/redis"
 	_ "ordbook-aggregation/service/cache_service"
+	"ordbook-aggregation/service/task"
 	"ordbook-aggregation/ws_service/ws"
 )
 
@@ -31,6 +34,8 @@ func InitAll() {
 	major.InitLogger(logName)
 	config.InitConfig()
 	major.InitMongo()
+	redis.InitRedisManager()
+	logger.InitLogger()
 }
 
 func run() {
@@ -52,7 +57,7 @@ func main() {
 	InitAll()
 
 	go ws.StartWS()
-
+	task.Run()
 	controller.Run()
 	//run()
 }

@@ -46,9 +46,10 @@ func PushOrder(c *gin.Context) {
 // @Param buyerAddress query string false "buyerAddress"
 // @Param orderState query int false "orderState: 1-create,2-finish,3-cancel"
 // @Param orderType query int false "orderType: 1-sell,2-buy"
-// @Param limit query int false "limit"
+// @Param limit query int false "limit: Max-50"
+// @Param page query int false "page"
 // @Param flag query int false "flag"
-// @Param sortKey query string false "sortKey"
+// @Param sortKey query string false "sortKey: timestamp/coinRatePrice, default:timestamp"
 // @Param sortType query int false "sortType"
 // @Success 200 {object} respond.OrderResponse ""
 // @Router /brc20/orders [get]
@@ -58,15 +59,17 @@ func FetchOrders(c *gin.Context) {
 		orderStateStr = c.DefaultQuery("orderState", "0")
 		orderTypeStr = c.DefaultQuery("orderType", "0")
 		limitStr = c.DefaultQuery("limit", "50")
+		pageStr = c.DefaultQuery("page", "0")
 		flagStr = c.DefaultQuery("flag", "0")
 		sortTypeStr = c.DefaultQuery("sortType", "0")
 		req *request.OrderBrc20FetchReq = &request.OrderBrc20FetchReq{
-			Net:          c.DefaultQuery("net", ""),
+			Net:           c.DefaultQuery("net", ""),
 			Tick:          c.DefaultQuery("tick", ""),
 			OrderState:    0,
 			OrderType:     0,
 			Limit:         0,
 			Flag:          0,
+			Page:          0,
 			SellerAddress: c.DefaultQuery("sellerAddress", ""),
 			BuyerAddress:  c.DefaultQuery("buyerAddress", ""),
 			SortKey:       c.DefaultQuery("sortKey", ""),
@@ -79,8 +82,65 @@ func FetchOrders(c *gin.Context) {
 	req.OrderType = model.OrderType(orderType)
 	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
 	req.Flag, _ = strconv.ParseInt(flagStr, 10, 64)
+	req.Page, _ = strconv.ParseInt(pageStr, 10, 64)
 	req.SortType, _ = strconv.ParseInt(sortTypeStr, 10, 64)
 	responseModel, err := order_brc20_service.FetchOrders(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}
+
+
+// @Summary Fetch user orders
+// @Description Fetch user orders
+// @Produce  json
+// @Tags brc20
+// @Param net query string false "net:mainnet/signet/testnet"
+// @Param tick query string false "tick"
+// @Param address path string true "address"
+// @Param orderState query int false "orderState: 1-create,2-finish,3-cancel"
+// @Param orderType query int false "orderType: 1-sell,2-buy"
+// @Param limit query int false "limit: Max-50"
+// @Param flag query int false "flag"
+// @Param page query int false "page"
+// @Param sortKey query string false "sortKey: timestamp/coinRatePrice, default:timestamp"
+// @Param sortType query int false "sortType"
+// @Success 200 {object} respond.OrderResponse ""
+// @Router /brc20/orders/user/{address} [get]
+func FetchUserOrders(c *gin.Context) {
+	var (
+		t             int64                         = tool.MakeTimestamp()
+		orderStateStr                               = c.DefaultQuery("orderState", "0")
+		orderTypeStr                                = c.DefaultQuery("orderType", "0")
+		limitStr                                    = c.DefaultQuery("limit", "50")
+		flagStr                                     = c.DefaultQuery("flag", "0")
+		pageStr                                     = c.DefaultQuery("page", "0")
+		sortTypeStr                                 = c.DefaultQuery("sortType", "0")
+		req           *request.Brc20OrderAddressReq = &request.Brc20OrderAddressReq{
+			Net:        c.DefaultQuery("net", ""),
+			Tick:       c.DefaultQuery("tick", ""),
+			OrderState: 0,
+			OrderType:  0,
+			Limit:      0,
+			Flag:       0,
+			Page:       0,
+			Address:    c.Param("address"),
+			SortKey:    c.DefaultQuery("sortKey", ""),
+			SortType:   0,
+		}
+	)
+	orderState, _ := strconv.ParseInt(orderStateStr, 10, 64)
+	orderType, _ := strconv.ParseInt(orderTypeStr, 10, 64)
+	req.OrderState = model.OrderState(orderState)
+	req.OrderType = model.OrderType(orderType)
+	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
+	req.Flag, _ = strconv.ParseInt(flagStr, 10, 64)
+	req.Page, _ = strconv.ParseInt(pageStr, 10, 64)
+	req.SortType, _ = strconv.ParseInt(sortTypeStr, 10, 64)
+	responseModel, err := order_brc20_service.FetchUserOrders(req)
 	if err != nil {
 		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
 		return
