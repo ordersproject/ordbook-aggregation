@@ -160,6 +160,8 @@ definitions:
     type: object
   request.OrderBrc20UpdateReq:
     properties:
+      address:
+        type: string
       net:
         description: livenet/signet/testnet
         type: string
@@ -294,6 +296,9 @@ definitions:
       buy:
         type: string
       high:
+        type: string
+      icon:
+        description: icon
         type: string
       last:
         type: string
@@ -805,7 +810,7 @@ paths:
         in: query
         name: sortKey
         type: string
-      - description: sortType
+      - description: 'sortType: 1/-1'
         in: query
         name: sortType
         type: integer
@@ -860,7 +865,7 @@ paths:
         in: query
         name: sortKey
         type: string
-      - description: sortType
+      - description: 'sortType: 1/-1'
         in: query
         name: sortType
         type: integer
@@ -878,6 +883,10 @@ paths:
     get:
       description: Fetch tick info
       parameters:
+      - description: net
+        in: query
+        name: net
+        type: string
       - description: tick
         in: query
         name: tick

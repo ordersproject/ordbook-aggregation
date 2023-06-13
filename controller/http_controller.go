@@ -65,7 +65,7 @@ func Cors() gin.HandlerFunc {
 		//if origin != "" {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		c.Header("Access-Control-Allow-Headers", "Content-Type,AccessToken,X-CSRF-Token, Authorization,X-API-KEY")
+		c.Header("Access-Control-Allow-Headers", "Content-Type,AccessToken,X-CSRF-Token, Authorization,X-API-KEY,X-signature,X-public-key")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Set("content-type", "application/json")
 		//}

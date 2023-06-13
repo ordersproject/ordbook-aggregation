@@ -3,7 +3,11 @@ package order_brc20_service
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/txscript"
 	"ordbook-aggregation/config"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/mongo_service"
@@ -226,4 +230,44 @@ func serUsedFakerInscriptionUtxo(utxoId, useTx string, useState model.UsedState)
 	if err != nil {
 		return
 	}
+}
+
+func CheckPublicKeyAddress(netParams *chaincfg.Params, publicKeyStr, checkAddress string) (bool, error) {
+	if publicKeyStr == "" {
+		return true, nil
+	}
+	publicKeyByte, err := hex.DecodeString(publicKeyStr)
+	if err != nil {
+		return false, err
+	}
+
+	publicKey, err := btcec.ParsePubKey(publicKeyByte)
+	if err != nil {
+		return false, err
+	}
+
+	legacyAddress, err := btcutil.NewAddressPubKey(publicKeyByte, netParams)
+	if err != nil {
+		return false, err
+	}
+	if legacyAddress.EncodeAddress() == checkAddress {
+		return true, nil
+	}
+
+	nativeSegwitAddress, err := btcutil.NewAddressWitnessPubKeyHash(btcutil.Hash160(publicKey.SerializeCompressed()), netParams)
+	if err != nil {
+		return false, err
+	}
+	if nativeSegwitAddress.EncodeAddress() == checkAddress {
+		return true, nil
+	}
+
+	taprootAddress, err := btcutil.NewAddressTaproot(schnorr.SerializePubKey(txscript.ComputeTaprootKeyNoScript(publicKey)), netParams)
+	if err != nil {
+		return false, err
+	}
+	if taprootAddress.EncodeAddress() == checkAddress {
+		return true, nil
+	}
+	return false, nil
 }

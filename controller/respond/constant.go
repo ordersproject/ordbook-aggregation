@@ -3,6 +3,7 @@ package respond
 const (
 	HttpsCodeSuccess int = iota
 	HttpsCodeError
+	HttpsCodeErrorAuth
 )
 
 const (

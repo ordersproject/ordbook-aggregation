@@ -23,9 +23,11 @@ func PushOrder(c *gin.Context) {
 	var (
 		t   int64            = tool.MakeTimestamp()
 		requestModel *request.OrderBrc20PushReq
+		publicKey string = ""
 	)
 	if c.ShouldBindJSON(&requestModel) == nil {
-		responseModel, err := order_brc20_service.PushOrder(requestModel)
+		publicKey = getAuthParams(c)
+		responseModel, err := order_brc20_service.PushOrder(requestModel, publicKey)
 		if err != nil {
 			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
 			return
@@ -50,7 +52,7 @@ func PushOrder(c *gin.Context) {
 // @Param page query int false "page"
 // @Param flag query int false "flag"
 // @Param sortKey query string false "sortKey: timestamp/coinRatePrice, default:timestamp"
-// @Param sortType query int false "sortType"
+// @Param sortType query int false "sortType: 1/-1"
 // @Success 200 {object} respond.OrderResponse ""
 // @Router /brc20/orders [get]
 func FetchOrders(c *gin.Context) {
@@ -107,7 +109,7 @@ func FetchOrders(c *gin.Context) {
 // @Param flag query int false "flag"
 // @Param page query int false "page"
 // @Param sortKey query string false "sortKey: timestamp/coinRatePrice, default:timestamp"
-// @Param sortType query int false "sortType"
+// @Param sortType query int false "sortType: 1/-1"
 // @Success 200 {object} respond.OrderResponse ""
 // @Router /brc20/orders/user/{address} [get]
 func FetchUserOrders(c *gin.Context) {
@@ -154,6 +156,7 @@ func FetchUserOrders(c *gin.Context) {
 // @Description Fetch tick info
 // @Produce  json
 // @Tags brc20
+// @Param net query string false "net"
 // @Param tick query string false "tick"
 // @Success 200 {object} respond.Brc20TickInfoResponse ""
 // @Router /brc20/tickers [get]
@@ -161,6 +164,7 @@ func FetchTicker(c *gin.Context) {
 	var (
 		t   int64 = tool.MakeTimestamp()
 		req *request.TickBrc20FetchReq = &request.TickBrc20FetchReq{
+			Net:c.DefaultQuery("net", ""),
 			Tick:          c.DefaultQuery("tick", ""),
 			Limit:         0,
 			Flag:          0,
@@ -214,9 +218,11 @@ func UpdateOrder(c *gin.Context) {
 	var (
 		t   int64            = tool.MakeTimestamp()
 		requestModel *request.OrderBrc20UpdateReq
+		publicKey string = ""
 	)
 	if c.ShouldBindJSON(&requestModel) == nil {
-		responseModel, err := order_brc20_service.UpdateOrder(requestModel)
+		publicKey = getAuthParams(c)
+		responseModel, err := order_brc20_service.UpdateOrder(requestModel, publicKey)
 		if err != nil {
 			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
 			return

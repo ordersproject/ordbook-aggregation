@@ -35,6 +35,7 @@ type Brc20TickItem struct {
 	Net                string `json:"net,omitempty"`                //Net env
 	Tick               string `json:"tick,omitempty"`               //tick
 	Pair               string `json:"pair,omitempty"`               //pair for trade
+	Icon               string `json:"icon,omitempty"`               //icon
 	Buy                string `json:"buy,omitempty"`                //
 	Sell               string `json:"sell,omitempty"`               //
 	Low                string `json:"low,omitempty"`                //

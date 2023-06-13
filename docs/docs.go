@@ -619,7 +619,7 @@ var doc = `{
                     },
                     {
                         "type": "integer",
-                        "description": "sortType",
+                        "description": "sortType: 1/-1",
                         "name": "sortType",
                         "in": "query"
                     }
@@ -702,7 +702,7 @@ var doc = `{
                     },
                     {
                         "type": "integer",
-                        "description": "sortType",
+                        "description": "sortType: 1/-1",
                         "name": "sortType",
                         "in": "query"
                     }
@@ -728,6 +728,12 @@ var doc = `{
                 ],
                 "summary": "Fetch tick info",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "net",
+                        "name": "net",
+                        "in": "query"
+                    },
                     {
                         "type": "string",
                         "description": "tick",
@@ -1035,6 +1041,9 @@ var doc = `{
         "request.OrderBrc20UpdateReq": {
             "type": "object",
             "properties": {
+                "address": {
+                    "type": "string"
+                },
                 "net": {
                     "description": "livenet/signet/testnet",
                     "type": "string"
@@ -1230,6 +1239,10 @@ var doc = `{
                     "type": "string"
                 },
                 "high": {
+                    "type": "string"
+                },
+                "icon": {
+                    "description": "icon",
                     "type": "string"
                 },
                 "last": {

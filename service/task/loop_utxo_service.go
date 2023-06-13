@@ -55,7 +55,7 @@ func LoopCheckPlatformAddressForBidValue(net string)  {
 		totalUtxoAmount = totalUtxoAmount + amount
 	}
 
-	if totalUtxoAmount <= 60_000 {
+	if totalUtxoAmount <= 60000 {
 		return
 	}
 
@@ -219,7 +219,7 @@ func LoopCheckPlatformAddressForDummyValue(net string)  {
 		totalUtxoAmount = totalUtxoAmount + amount
 	}
 
-	if totalUtxoAmount <= 60_000 {
+	if totalUtxoAmount <= 60000 {
 		return
 	}
 

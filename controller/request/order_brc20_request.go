@@ -70,6 +70,8 @@ type OrderBrc20UpdateReq struct {
 	OrderId    string           `json:"orderId"`
 	OrderState model.OrderState `json:"orderState"` //2-finish/3-cancel
 	PsbtRaw    string           `json:"psbtRaw"`
+
+	Address    string           `json:"address"`
 }
 
 type OrderBrc20DoBidReq struct {

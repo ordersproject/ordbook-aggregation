@@ -26,8 +26,9 @@ const (
 	inSize uint64 = 180
 )
 
-func PushOrder(req *request.OrderBrc20PushReq) (string, error) {
+func PushOrder(req *request.OrderBrc20PushReq, publicKey string) (string, error) {
 	var (
+		netParams *chaincfg.Params = GetNetParams(req.Net)
 		entity *model.OrderBrc20Model
 		err error
 		orderId string = ""
@@ -43,7 +44,7 @@ func PushOrder(req *request.OrderBrc20PushReq) (string, error) {
 	)
 
 	if req.OrderState == model.OrderStateCreate {
-		psbtBuilder, err = NewPsbtBuilder(&chaincfg.MainNetParams, req.PsbtRaw)
+		psbtBuilder, err = NewPsbtBuilder(netParams, req.PsbtRaw)
 		if err !=  nil  {
 			return "", err
 		}
@@ -74,6 +75,13 @@ func PushOrder(req *request.OrderBrc20PushReq) (string, error) {
 					return "", errors.New("Wrong Psbt: Empty inscription. ")
 				}
 				coinAmount, _ = strconv.ParseUint(inscriptionBrc20BalanceItem.Amount, 10, 64)
+			}
+			verified, err := CheckPublicKeyAddress(netParams, publicKey, sellerAddress)
+			if err != nil {
+				return "", errors.New(fmt.Sprintf("Check address err: %s. ", err.Error()))
+			}
+			if !verified {
+				return "", errors.New(fmt.Sprintf("Check address verified: %v. ", verified))
 			}
 
 			outList := psbtBuilder.GetOutputs()
@@ -958,8 +966,10 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	}, nil
 }
 
-func UpdateOrder(req *request.OrderBrc20UpdateReq) (string, error) {
+func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey string) (string, error) {
 	var (
+		finalAskPsbtBuilder *PsbtBuilder
+		netParams *chaincfg.Params = GetNetParams(req.Net)
 		entityOrder *model.OrderBrc20Model
 		err error
 	)
@@ -972,9 +982,67 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq) (string, error) {
 		entityOrder.OrderState = req.OrderState
 		switch entityOrder.OrderType {
 		case model.OrderTypeSell:
+			if req.OrderState == model.OrderStateCancel {
+				verified, err := CheckPublicKeyAddress(netParams, publicKey, entityOrder.SellerAddress)
+				if err != nil {
+					return "", errors.New(fmt.Sprintf("Check address err: %s. ", err.Error()))
+				}
+				if !verified {
+					return "", errors.New(fmt.Sprintf("Check address verified: %v. ", verified))
+				}
+			}else {
+				finalAskPsbtBuilder, err = NewPsbtBuilder(netParams, req.PsbtRaw)
+				if err !=  nil  {
+					return "", errors.New(fmt.Sprintf("PSBT: NewPsbtBuilder err:%s",err.Error()))
+				}
+				txId, err := finalAskPsbtBuilder.ExtractPsbtTransaction()
+				if err !=  nil  {
+					return "", errors.New(fmt.Sprintf("PSBT: ExtractPsbtTransaction err:%s",err.Error()))
+				}
+
+				if len(finalAskPsbtBuilder.GetInputs()) <= 4 {
+					return "", errors.New(fmt.Sprintf("PSBT: No match inputs length err"))
+				}
+				buyerAddress := ""
+				buyerInput := finalAskPsbtBuilder.GetInputs()[3]
+				buyerInputTxId := buyerInput.PreviousOutPoint.Hash.String()
+				buyerInputIndex := buyerInput.PreviousOutPoint.Index
+				if strings.ToLower(req.Net) != "testnet" {
+					buyerTx, err := oklink_service.GetTxDetail(buyerInputTxId)
+					if err != nil {
+						return "", errors.New(fmt.Sprintf("Get Buyer preTx err:%s", err.Error()))
+					}
+					buyerAddress = buyerTx.OutputDetails[buyerInputIndex].OutputHash
+				}else {
+					buyerAddress = req.Address
+				}
+
+				verified, err := CheckPublicKeyAddress(netParams, publicKey, buyerAddress)
+				if err != nil {
+					return "", errors.New(fmt.Sprintf("Check address err: %s. ", err.Error()))
+				}
+				if !verified {
+					return "", errors.New(fmt.Sprintf("Check address verified: %v. ", verified))
+				}
+				entityOrder.BuyerAddress = buyerAddress
+				entityOrder.PsbtAskTxId = txId
+			}
+
 			entityOrder.PsbtRawFinalAsk = req.PsbtRaw
 			break
 		case model.OrderTypeBuy:
+			if req.OrderState == model.OrderStateCancel {
+				verified, err := CheckPublicKeyAddress(netParams, publicKey, entityOrder.BuyerAddress)
+				if err != nil {
+					return "", errors.New(fmt.Sprintf("Check address err: %s. ", err.Error()))
+				}
+				if !verified {
+					return "", errors.New(fmt.Sprintf("Check address verified: %v. ", verified))
+				}
+			}else {
+				return "", errors.New(fmt.Sprintf("Wrong OrderState. "))
+			}
+
 			entityOrder.PsbtRawFinalBid = req.PsbtRaw
 			state := model.DummyStateFinish
 			if req.OrderState == model.OrderStateCancel {
