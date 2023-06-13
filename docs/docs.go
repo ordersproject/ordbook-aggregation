@@ -583,7 +583,7 @@ var doc = `{
                     },
                     {
                         "type": "integer",
-                        "description": "orderState: 1-create,2-finish,3-cancel",
+                        "description": "orderState: 1-create,2-finish,3-cancel,5-timeout,6-err,100-all",
                         "name": "orderState",
                         "in": "query"
                     },
@@ -666,7 +666,7 @@ var doc = `{
                     },
                     {
                         "type": "integer",
-                        "description": "orderState: 1-create,2-finish,3-cancel",
+                        "description": "orderState: 1-create,2-finish,3-cancel,5-timeout,6-err,100-all",
                         "name": "orderState",
                         "in": "query"
                     },

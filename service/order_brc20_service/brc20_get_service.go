@@ -39,7 +39,11 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 			PsbtRaw:        v.PsbtRawPreAsk,
 			Timestamp:      v.Timestamp,
 		}
-		flag = v.Timestamp
+		if req.SortKey == "coinRatePrice" {
+			flag = int64(v.CoinRatePrice)
+		}else {
+			flag = v.Timestamp
+		}
 		//list = append(list, item)
 		list[k] = item
 	}
@@ -119,6 +123,7 @@ func FetchTickers(req *request.TickBrc20FetchReq) (*respond.Brc20TickInfoRespons
 			Net:                v.Net,
 			Tick:               v.Tick,
 			Pair:               v.Pair,
+			Icon:               "empty",
 			Buy:                strconv.FormatUint(v.Buy, 10),
 			Sell:               strconv.FormatUint(v.Sell, 10),
 			Low:                strconv.FormatUint(v.Low, 10),
@@ -238,7 +243,12 @@ func FetchUserOrders(req *request.Brc20OrderAddressReq) (*respond.OrderResponse,
 			PsbtRaw:        v.PsbtRawPreAsk,
 			Timestamp:      v.Timestamp,
 		}
-		flag = v.Timestamp
+		if req.SortKey == "coinRatePrice" {
+			flag = int64(v.CoinRatePrice)
+		}else {
+			flag = v.Timestamp
+		}
+
 		//list = append(list, item)
 		list[k] = item
 	}

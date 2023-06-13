@@ -231,7 +231,16 @@ func FindOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string,
 		find["orderType"] = orderType
 	}
 	if orderState != 0 {
-		find["orderState"] = orderState
+		if orderState == model.OrderStateAll {
+			find["orderState"] = bson.M{IN_:[]model.OrderState{
+				model.OrderStateCreate,
+				model.OrderStateFinish,
+				model.OrderStateCancel,
+				model.OrderStateErr,
+			}}
+		}else {
+			find["orderState"] = orderState
+		}
 	}
 
 	switch sortKey {
@@ -241,17 +250,21 @@ func FindOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string,
 		sortKey = "timestamp"
 	}
 
+	flagKey := GT_
 	if sortType >= 0 {
 		sortType = 1
+		flagKey = GT_
 	}else {
 		sortType = -1
+		flagKey = LT_
 	}
+
 
 	skip := int64(0)
 	if page != 0 {
 		skip = (page-1)*limit
 	}else if flag != 0 {
-
+		find[sortKey] = bson.M{flagKey:flag}
 	}
 
 	models := make([]*model.OrderBrc20Model, 0)
@@ -333,7 +346,16 @@ func FindAddressOrderBrc20ModelList(net, tick, address string,
 		find["orderType"] = orderType
 	}
 	if orderState != 0 {
-		find["orderState"] = orderState
+		if orderState == model.OrderStateAll {
+			find["orderState"] = bson.M{IN_:[]model.OrderState{
+				model.OrderStateCreate,
+				model.OrderStateFinish,
+				model.OrderStateCancel,
+				model.OrderStateErr,
+			}}
+		}else {
+			find["orderState"] = orderState
+		}
 	}
 
 	switch sortKey {
@@ -343,15 +365,20 @@ func FindAddressOrderBrc20ModelList(net, tick, address string,
 		sortKey = "timestamp"
 	}
 
+	flagKey := GT_
 	if sortType >= 0 {
 		sortType = 1
+		flagKey = GT_
 	}else {
 		sortType = -1
+		flagKey = LT_
 	}
 
 	skip := int64(0)
 	if page != 0 {
 		skip = (page-1)*limit
+	}else if flag != 0 {
+		find[sortKey] = bson.M{flagKey:flag}
 	}
 
 	models := make([]*model.OrderBrc20Model, 0)

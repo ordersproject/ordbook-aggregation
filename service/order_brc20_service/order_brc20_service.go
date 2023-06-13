@@ -617,6 +617,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			return nil, errors.New("Wrong Psbt: brc20 out of preTx is empty amount. ")
 		}
 		sellerSendAddress = preSellBrc20Tx.OutputDetails[preOutList[0].PreviousOutPoint.Index].OutputHash
+		time.Sleep(1000*time.Millisecond)
 	}
 
 	sellerReceiveValue := uint64(sellOuts[0].Value)
@@ -670,6 +671,8 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 
 	//get bidY pay utxo
 	limit := (entity.SupplementaryAmount + sellerReceiveValue + entity.Fee)/platformPayPerAmount + 1
+	changeAmount := platformPayPerAmount*limit - (entity.SupplementaryAmount + sellerReceiveValue + entity.Fee)
+
 
 	//utxoBidYList, _ = mongo_service.FindUtxoList(req.Net, startIndexBidY, int64(limit), model.UtxoTypeBidY)
 	//if len(utxoBidYList) == 0 {
@@ -743,6 +746,14 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	}
 	outputs = append(outputs, newDummyOut)
 	outputs = append(outputs, newDummyOut)
+
+	if changeAmount >= 546 {
+		outputs = append(outputs, Output{
+			Address: platformAddressReceiveBidValue,
+			Amount:  changeAmount,
+		})
+	}
+
 
 	//finish PSBT(Y)
 	newPsbtBuilder, err = CreatePsbtBuilder(netParams, inputs, outputs)
@@ -825,31 +836,36 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			addressUtxoMap[entity.BuyerAddress] = append(addressUtxoMap[entity.BuyerAddress], v)
 		}
 	}
-	for address, list := range addressUtxoMap{
+	liveUtxoList := make([]*oklink_service.UtxoItem, 0)
+	for address, _ := range addressUtxoMap {
 		utxoResp, err := oklink_service.GetAddressUtxo(address, 1, 50)
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("PSBT(Y): Recheck address utxo list err:%s", err.Error()))
+			return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck address utxo list err:%s", err.Error()))
 		}
-		for _, bidIn := range list {
-			bidInId := fmt.Sprintf("%s_%d", bidIn.PreviousOutPoint.Hash.String(), bidIn.PreviousOutPoint.Index)
-			has := false
-			for _, u := range utxoResp.UtxoList {
-				uId := fmt.Sprintf("%s_%s", u.TxId, u.Index)
-				if bidInId == uId {
-					has = true
-					break
-				}
-			}
-			if !has {
-				entity.OrderState = model.OrderStateErr
-				_, err := mongo_service.SetOrderBrc20Model(entity)
-				if err != nil {
-					return nil, err
-				}
-				return nil, errors.New(fmt.Sprintf("PSBT(Y): Recheck address utxo list, utxo had been spent: %s", bidInId))
+		if utxoResp.UtxoList != nil && len(utxoResp.UtxoList) != 0 {
+			liveUtxoList = append(liveUtxoList, utxoResp.UtxoList...)
+		}
+		time.Sleep(1200 * time.Millisecond)
+	}
+
+	for _, v := range insPsbtX {
+		bidInId := fmt.Sprintf("%s_%d", v.PreviousOutPoint.Hash.String(), v.PreviousOutPoint.Index)
+		has := false
+		for _, u := range liveUtxoList {
+			uId := fmt.Sprintf("%s_%s", u.TxId, u.Index)
+			if bidInId == uId {
+				has = true
+				break
 			}
 		}
-		time.Sleep(500 * time.Millisecond)
+		if !has {
+			entity.OrderState = model.OrderStateErr
+			_, err := mongo_service.SetOrderBrc20Model(entity)
+			if err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck address utxo list, utxo had been spent: %s", bidInId))
+		}
 	}
 
 
@@ -1000,7 +1016,7 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey string) (string, er
 					return "", errors.New(fmt.Sprintf("PSBT: ExtractPsbtTransaction err:%s",err.Error()))
 				}
 
-				if len(finalAskPsbtBuilder.GetInputs()) <= 4 {
+				if len(finalAskPsbtBuilder.GetInputs()) < 4 {
 					return "", errors.New(fmt.Sprintf("PSBT: No match inputs length err"))
 				}
 				buyerAddress := ""

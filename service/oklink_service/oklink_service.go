@@ -6,6 +6,7 @@ import (
 	"ordbook-aggregation/config"
 	"ordbook-aggregation/tool"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -22,7 +23,7 @@ func GetAddressBrc20BalanceResult(address, tick string, page, limit int64) (*Okl
 		err        error
 		query map[string]string = map[string]string{
 			"address":address,
-			"token":tick,
+			"token":strings.ToUpper(tick),
 			"page":strconv.FormatInt(page, 10),
 			"limit":strconv.FormatInt(limit, 10),
 		}
@@ -36,7 +37,7 @@ func GetAddressBrc20BalanceResult(address, tick string, page, limit int64) (*Okl
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(result)
+	//fmt.Println(result)
 	if err = tool.JsonToObject(result, &resp) ; err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}

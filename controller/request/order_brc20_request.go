@@ -122,7 +122,7 @@ type Brc20OrderAddressReq struct {
 	Net        string           `json:"net"` //livenet/signet/testnet
 	Tick       string           `json:"tick"`
 	Address    string           `json:"address"`
-	OrderState model.OrderState `json:"orderState"` //1-create,2-finish,3-cancel
+	OrderState model.OrderState `json:"orderState"` //1-create,2-finish,3-cancel,5-timeout,6-err,100-all
 	OrderType  model.OrderType  `json:"orderType"`  //1-sell,2-buy
 	Flag       int64            `json:"flag"`
 	Page       int64            `json:"page"`

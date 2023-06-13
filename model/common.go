@@ -21,4 +21,7 @@ const (
 	OrderStatePreCreate OrderState = 4
 	OrderStateTimeout   OrderState = 5
 	OrderStateErr       OrderState = 6
+
+	//100 all
+	OrderStateAll       OrderState = 100
 )
