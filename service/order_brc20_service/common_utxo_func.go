@@ -108,7 +108,7 @@ func GetSaveStartIndex(net string, utxoType model.UtxoType) int64 {
 	fmt.Println("[LOCK]-Save-utxo")
 	defer func() {
 		saveUtxoLock.RUnlock()
-		fmt.Printf("[UNLOCK]-Save-utxo-%d\n", tool.MakeTimestamp()-t1)
+		fmt.Printf("[UNLOCK]-Save-utxo-timeConsuming:%d\n", tool.MakeTimestamp()-t1)
 	}()
 	startIndex := int64(0)
 	latestUtxo, _ := mongo_service.GetLatestStartIndexUtxo(net, utxoType)

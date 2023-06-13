@@ -16,6 +16,7 @@ import (
 const (
 	// spendSize is the largest number of bytes of a sigScript
 	// which spends a p2pkh output: OP_DATA_73 <sig> OP_DATA_33 <pubkey>
+	//SpendSize = 1 + 73 + 1 + 33
 	SpendSize = 1 + 73 + 1 + 33
 
 	OutSize = 31

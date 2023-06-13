@@ -21,6 +21,10 @@ import (
 //platformAddressReceiveBidValue
 //platformAddressReceiveDummyValue  - 1200
 
+const (
+	MaxTotalUtxoAmount int64 = 50000
+)
+
 func LoopCheckPlatformAddressForBidValue(net string)  {
 	var (
 		LoopName string = "BidValue"
@@ -42,10 +46,11 @@ func LoopCheckPlatformAddressForBidValue(net string)  {
 	)
 	utxoResp, err = oklink_service.GetAddressUtxo(platformAddressReceiveBidValue, 1, 50)
 	if err != nil {
-		fmt.Printf("[LOOP][%s] bid value address utxo list err:%s\n", LoopName, err.Error())
+		fmt.Printf("[LOOP][%s]address utxo list err:%s\n", LoopName, err.Error())
 		return
 	}
 	if utxoResp.UtxoList == nil || len(utxoResp.UtxoList) == 0 {
+		fmt.Printf("[LOOP][%s]address utxo list: empty, waiting for next time\n", LoopName)
 		return
 	}
 
@@ -55,7 +60,8 @@ func LoopCheckPlatformAddressForBidValue(net string)  {
 		totalUtxoAmount = totalUtxoAmount + amount
 	}
 
-	if totalUtxoAmount <= 60000 {
+	if totalUtxoAmount <= MaxTotalUtxoAmount {
+		fmt.Printf("[LOOP][%s]address utxo list: totalUtxoAmount[%d], not enough, waiting for next time\n", LoopName, totalUtxoAmount)
 		return
 	}
 
@@ -106,10 +112,15 @@ func LoopCheckPlatformAddressForBidValue(net string)  {
 	for totalSize*feeRate + count*int64(perAmount) < totalUtxoAmount {
 		count++
 		totalSize = int64(len(inputs)) * order_brc20_service.SpendSize + count * order_brc20_service.OutSize + order_brc20_service.OtherSize
-		fmt.Printf("[Cal][%s]inLen:%d, outLen:%d, totalSize:%d\n, totalFee:%d, totalOutAmount:%d, totalInAmount:%d\n", LoopName, len(inputs), count, totalSize, totalSize*feeRate, totalUtxoAmount, totalUtxoAmount)
+		fmt.Printf("[Cal][%s]inLen:%d, outLen:%d, totalSize:%d, totalFee:%d, totalOutAmount:%d, totalInAmount:%d\n", LoopName, len(inputs), count, totalSize, totalSize*feeRate, totalUtxoAmount, totalUtxoAmount)
 	}
 	count = count - 1
-	fmt.Printf("[Final][%s]inLen:%d, outLen:%d, totalSize:%d\n, totalFee:%d, totalOutAmount:%d, totalInAmount:%d\n", LoopName, len(inputs), count, totalSize, totalSize*feeRate, totalUtxoAmount, totalUtxoAmount)
+	fmt.Printf("[Final][%s]inLen:%d, outLen:%d, totalSize:%d, totalFee:%d, totalOutAmount:%d, totalInAmount:%d\n", LoopName, len(inputs), count, totalSize, totalSize*feeRate, totalUtxoAmount, totalUtxoAmount)
+
+	if count <= 0 {
+		fmt.Printf("[LOOP][%s] Count of outputs is 0, not enough, waiting for next time\n", LoopName)
+		return
+	}
 
 
 	for i := int64(0); i < count; i++ {
@@ -169,14 +180,14 @@ func LoopCheckPlatformAddressForBidValue(net string)  {
 			txResp, err := oklink_service.BroadcastTx(txRaw)
 			if err != nil {
 				fmt.Printf("[LOOP][%s] mainnet-BroadcastTx err:%s\n", LoopName, err.Error())
-				return chaincfg.ErrInvalidHDKeyID
+				return err
 			}
 			txId = txResp.TxId
 		}
 		return nil
 	}
 
-	err = mongo_service.SetManyUtxoInSession(utxoInterfaceList, sendJop)
+	err = mongo_service.SetManyUtxoInSession(utxoList, sendJop)
 	if err != nil {
 		fmt.Printf("[LOOP][%s]SetManyUtxoInSession in send err:%s\n", LoopName, err.Error())
 		return
@@ -188,7 +199,7 @@ func LoopCheckPlatformAddressForBidValue(net string)  {
 func LoopCheckPlatformAddressForDummyValue(net string)  {
 	var (
 		LoopName string = "DummyValue"
-		platformPrivateKeyReceiveBidValue, platformAddressReceiveBidValue string = order_brc20_service.GetPlatformKeyAndAddressReceiveBidValue(net)
+		platformPrivateKeyReceiveDummyValue, platformAddressReceiveDummyValue string = order_brc20_service.GetPlatformKeyAndAddressReceiveDummyValue(net)
 		err error
 		utxoResp *oklink_service.OklinkUtxoDetails
 		totalUtxoAmount int64 = 0
@@ -197,19 +208,20 @@ func LoopCheckPlatformAddressForDummyValue(net string)  {
 		txRaw string = ""
 		utxoList []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
 		startIndex int64 = order_brc20_service.GetSaveStartIndex(net, model.UtxoTypeBidY)
-		changeAddress string = platformAddressReceiveBidValue
+		changeAddress string = platformAddressReceiveDummyValue
 		count int64 = 0
 		perAmount uint64 = 10000
 		feeRate int64 = 20
 		totalSize int64 = 0
 		utxoInterfaceList []interface{} = make([]interface{}, 0)
 	)
-	utxoResp, err = oklink_service.GetAddressUtxo(platformAddressReceiveBidValue, 1, 50)
+	utxoResp, err = oklink_service.GetAddressUtxo(platformAddressReceiveDummyValue, 1, 50)
 	if err != nil {
-		fmt.Printf("[LOOP][%s] bid value address utxo list err:%s\n", LoopName, err.Error())
+		fmt.Printf("[LOOP][%s]address utxo list err:%s\n", LoopName, err.Error())
 		return
 	}
 	if utxoResp.UtxoList == nil || len(utxoResp.UtxoList) == 0 {
+		fmt.Printf("[LOOP][%s]address utxo list: empty, waiting for next time\n", LoopName)
 		return
 	}
 
@@ -219,7 +231,8 @@ func LoopCheckPlatformAddressForDummyValue(net string)  {
 		totalUtxoAmount = totalUtxoAmount + amount
 	}
 
-	if totalUtxoAmount <= 60000 {
+	if totalUtxoAmount <= MaxTotalUtxoAmount {
+		fmt.Printf("[LOOP][%s]address utxo list: totalUtxoAmount[%d], Not enough, waiting for next time\n", LoopName, totalUtxoAmount)
 		return
 	}
 
@@ -249,7 +262,7 @@ func LoopCheckPlatformAddressForDummyValue(net string)  {
 			TxIndex:  txIndex,
 			PkScript: hex.EncodeToString(pkScriptByte),
 			Amount:   uint64(amount),
-			PriHex:   platformPrivateKeyReceiveBidValue,
+			PriHex:   platformPrivateKeyReceiveDummyValue,
 		})
 	}
 
@@ -275,6 +288,10 @@ func LoopCheckPlatformAddressForDummyValue(net string)  {
 	count = count - 1
 	fmt.Printf("[Final][%s]inLen:%d, outLen:%d, totalSize:%d\n, totalFee:%d, totalOutAmount:%d, totalInAmount:%d\n", LoopName, len(inputs), count, totalSize, totalSize*feeRate, totalUtxoAmount, totalUtxoAmount)
 
+	if count <= 0 {
+		fmt.Printf("[LOOP][%s] Count of outputs is 0, not enough, waiting for next time\n", LoopName)
+		return
+	}
 
 	for i := int64(0); i < count; i++ {
 		outputs = append(outputs, &order_brc20_service.TxOutput{
@@ -333,14 +350,14 @@ func LoopCheckPlatformAddressForDummyValue(net string)  {
 			txResp, err := oklink_service.BroadcastTx(txRaw)
 			if err != nil {
 				fmt.Printf("[LOOP][%s] mainnet-BroadcastTx err:%s\n", LoopName, err.Error())
-				return chaincfg.ErrInvalidHDKeyID
+				return err
 			}
 			txId = txResp.TxId
 		}
 		return nil
 	}
 
-	err = mongo_service.SetManyUtxoInSession(utxoInterfaceList, sendJop)
+	err = mongo_service.SetManyUtxoInSession(utxoList, sendJop)
 	if err != nil {
 		fmt.Printf("[LOOP][%s]SetManyUtxoInSession in send err:%s\n", LoopName, err.Error())
 		return

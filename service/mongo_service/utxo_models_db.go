@@ -201,7 +201,7 @@ func GetLatestStartIndexUtxo(net string, utxoType model.UtxoType) (*model.OrderU
 	return entity, nil
 }
 
-func SetManyUtxoInSession(utxoList []interface{}, jop func()error) error {
+func SetManyUtxoInSession(utxoList []*model.OrderUtxoModel, jop func()error) error {
 	mongoDB, err := major.GetOrderbookDb()
 	if err != nil {
 		return err
@@ -211,14 +211,46 @@ func SetManyUtxoInSession(utxoList []interface{}, jop func()error) error {
 		if err := sessionContext.StartTransaction(); err != nil {
 			return err
 		}
+		collection := mongoDB.Database(model.OrderUtxoModel{}.GetDB()).Collection(model.OrderUtxoModel{}.GetCollection())
 
-		if _, err := mongoDB.Database(model.OrderUtxoModel{}.GetDB()).Collection(model.OrderUtxoModel{}.GetCollection()).InsertMany(sessionContext, utxoList); err != nil {
-			if err := sessionContext.AbortTransaction(context.Background()); err != nil {
-				fmt.Printf("mongo transaction rollback failed, %s\n", err.Error())
+
+		for _, orderUtxo := range utxoList {
+			entity := &model.OrderUtxoModel{
+				Id:            util.GetUUIDInt64(),
+				Net:           orderUtxo.Net,
+				UtxoId:        orderUtxo.UtxoId,
+				UtxoType:      orderUtxo.UtxoType,
+				Amount:        orderUtxo.Amount,
+				Address:       orderUtxo.Address,
+				PrivateKeyHex: orderUtxo.PrivateKeyHex,
+				TxId:          orderUtxo.TxId,
+				Index:         orderUtxo.Index,
+				PkScript:      orderUtxo.PkScript,
+				UsedState:     orderUtxo.UsedState,
+				UseTx:         orderUtxo.UseTx,
+				SortIndex:     orderUtxo.SortIndex,
+				Timestamp:     orderUtxo.Timestamp,
+				CreateTime:    util.Time(),
+				State:         model.STATE_EXIST,
+			}
+			if _, err = collection.InsertOne(context.TODO(), entity); err != nil {
+				if err := sessionContext.AbortTransaction(context.Background()); err != nil {
+					fmt.Printf("mongo transaction rollback failed, %s\n", err.Error())
+					return err
+				}
 				return err
 			}
-			return err
+			fmt.Printf("InsertOne in mongo transaction success\n")
 		}
+
+
+		//if _, err := collection.InsertMany(sessionContext, utxoList); err != nil {
+		//	if err := sessionContext.AbortTransaction(context.Background()); err != nil {
+		//		fmt.Printf("mongo transaction rollback failed, %s\n", err.Error())
+		//		return err
+		//	}
+		//	return err
+		//}
 
 		if err := jop(); err != nil {
 			if err := sessionContext.AbortTransaction(context.Background()); err != nil {
@@ -228,9 +260,15 @@ func SetManyUtxoInSession(utxoList []interface{}, jop func()error) error {
 			return err
 		}
 
-		return sessionContext.CommitTransaction(context.Background())
+
+		if err := sessionContext.CommitTransaction(context.Background()); err != nil {
+			fmt.Printf("mongo transaction commit failed, %s\n", err.Error())
+			return err
+		}
+		return nil
 	}); err != nil {
 		fmt.Printf("insert failed, err:%s\n", err.Error())
+		return err
 	}
 	return nil
 }
