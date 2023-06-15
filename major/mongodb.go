@@ -41,7 +41,6 @@ func InitMongo() {
 	})
 }
 
-// 连接设置
 func SetConnect() error {
 	mongoConfigs := []MGOConfig{}
 	if err := config.ReadJsonConfig(conf.MDBEnvironment(), &mongoConfigs); err != nil {

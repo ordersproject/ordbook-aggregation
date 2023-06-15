@@ -1,7 +1,6 @@
 package mongo_service
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -66,7 +65,6 @@ func (i IndexItemMap) Set(collectionName, indexName string)  {
 	}else {
 		i.IndexMap[collectionName] = make([]string, 0)
 	}
-	//fmt.Println(util.AddStr("*****************当前MongoIndexItems-[", len(i.IndexMap), "] 占用字节-[", unsafe.Sizeof(i.IndexMap), "]****************"))
 }
 
 
@@ -74,15 +72,12 @@ func (i IndexItemMap) Deleted(collectionName string)  {
 	i.Lock.Lock()
 	defer i.Lock.Unlock()
 	newIndexMap := make(map[string][]string)
-	fmt.Println("*********清除前：", len(i.IndexMap))
 	for m, v := range i.IndexMap {
 		if m == collectionName {
 			continue
 		}
 		newIndexMap[m] = v
 	}
-	fmt.Println("*********清除后：", len(newIndexMap))
 	i.IndexMap = nil
 	i.IndexMap = newIndexMap
-	//fmt.Println(util.AddStr("*****************当前MongoIndexItems-[", len(i.IndexMap), "] 占用字节-[", unsafe.Sizeof(i.IndexMap), "]****************"))
 }

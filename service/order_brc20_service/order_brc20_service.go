@@ -16,6 +16,7 @@ import (
 	"ordbook-aggregation/service/create_key"
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/service/oklink_service"
+	"ordbook-aggregation/service/unisat_service"
 	"ordbook-aggregation/tool"
 	"strconv"
 	"strings"
@@ -672,7 +673,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	//get bidY pay utxo
 	limit := (entity.SupplementaryAmount + sellerReceiveValue + entity.Fee)/platformPayPerAmount + 1
 	changeAmount := platformPayPerAmount*limit - (entity.SupplementaryAmount + sellerReceiveValue + entity.Fee)
-
+	fmt.Printf("changeAmount: %d\n", changeAmount)
 
 	//utxoBidYList, _ = mongo_service.FindUtxoList(req.Net, startIndexBidY, int64(limit), model.UtxoTypeBidY)
 	//if len(utxoBidYList) == 0 {
@@ -922,46 +923,97 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 
 	txPsbtXRespTxId := ""
 	txPsbtYRespTxId := ""
-	if req.Net == "mainnet" || req.Net == "livenet"  {
-		txPsbtYResp, err := oklink_service.BroadcastTx(txRawPsbtY)
+	if req.Net == "mainnet" || req.Net == "livenet" {
+		//txPsbtYResp, err := oklink_service.BroadcastTx(txRawPsbtY)
+		//if err != nil {
+		//	return nil, errors.New(fmt.Sprintf("Broadcast Psbt(Y) %s err:%s", req.Net, err.Error()))
+		//}
+		//setUsedDummyUtxo(utxoDummyList, txPsbtYResp.TxId)
+		//setUsedBidYUtxo(utxoBidYList, txPsbtYResp.TxId)
+		//
+		//
+		//time.Sleep(2 * time.Second)
+		//txPsbtXResp, err := oklink_service.BroadcastTx(txRawPsbtX)
+		//if err != nil {
+		//	return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s", req.Net, err.Error()))
+		//}
+		//
+		//txPsbtXRespTxId = txPsbtXResp.TxId
+		//txPsbtYRespTxId = txPsbtYResp.TxId
+
+
+		txPsbtYResp, err := unisat_service.BroadcastTx(req.Net, txRawPsbtY)
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("Broadcast Psbt(Y) %s err:%s", req.Net, err.Error()))
 		}
-		setUsedDummyUtxo(utxoDummyList, txPsbtYResp.TxId)
-		setUsedBidYUtxo(utxoBidYList, txPsbtYResp.TxId)
-
+		setUsedDummyUtxo(utxoDummyList, txPsbtYResp.Result)
+		setUsedBidYUtxo(utxoBidYList, txPsbtYResp.Result)
 
 		time.Sleep(2 * time.Second)
-		txPsbtXResp, err := oklink_service.BroadcastTx(txRawPsbtX)
+		txPsbtXResp, err := unisat_service.BroadcastTx(req.Net, txRawPsbtX)
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s", req.Net, err.Error()))
 		}
 
-		txPsbtXRespTxId = txPsbtXResp.TxId
-		txPsbtYRespTxId = txPsbtYResp.TxId
-	}else {
-
-		setUsedDummyUtxo(utxoDummyList, psbtYTxId)
-		setUsedBidYUtxo(utxoBidYList,psbtYTxId)
-		fmt.Println("Check first")
-		return &respond.DoBidResp{
-			TxIdX: psbtXTxId,
-			TxIdY: psbtYTxId,
-		}, nil
+		txPsbtXRespTxId = txPsbtXResp.Result
+		txPsbtYRespTxId = txPsbtYResp.Result
 
 
-		//txPsbtYResp, err := mempool_space_service.BroadcastTx(req.Net, txRawPsbtY)
+		//txPsbtYResp, err := node.BroadcastTx(req.Net, txRawPsbtY)
 		//if err != nil {
 		//	return nil, errors.New(fmt.Sprintf("Broadcast Psbt(Y) %s err:%s", req.Net, err.Error()))
 		//}
 		//setUsedDummyUtxo(utxoDummyList, txPsbtYResp)
 		//setUsedBidYUtxo(utxoBidYList, txPsbtYResp)
-		//txPsbtXResp, err := mempool_space_service.BroadcastTx(req.Net, txRawPsbtX)
+		//
+		//time.Sleep(2 * time.Second)
+		//txPsbtXResp, err := node.BroadcastTx(req.Net, txRawPsbtX)
+		//if err != nil {
+		//	return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s", req.Net, err.Error()))
+		//}
+		//
+		//txPsbtXRespTxId = txPsbtXResp
+		//txPsbtYRespTxId = txPsbtYResp
+
+	}else {
+
+		//setUsedDummyUtxo(utxoDummyList, psbtYTxId)
+		//setUsedBidYUtxo(utxoBidYList,psbtYTxId)
+		//fmt.Println("Check first")
+		//return &respond.DoBidResp{
+		//	TxIdX: psbtXTxId,
+		//	TxIdY: psbtYTxId,
+		//}, nil
+
+		txPsbtYResp, err := unisat_service.BroadcastTx(req.Net, txRawPsbtY)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Broadcast Psbt(Y) %s err:%s", req.Net, err.Error()))
+		}
+		setUsedDummyUtxo(utxoDummyList, txPsbtYResp.Result)
+		setUsedBidYUtxo(utxoBidYList, txPsbtYResp.Result)
+
+		time.Sleep(2 * time.Second)
+		txPsbtXResp, err := unisat_service.BroadcastTx(req.Net, txRawPsbtX)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s", req.Net, err.Error()))
+		}
+
+		txPsbtXRespTxId = txPsbtXResp.Result
+		txPsbtYRespTxId = txPsbtYResp.Result
+
+
+		//txPsbtYResp, err := node.BroadcastTx(req.Net, txRawPsbtY)
+		//if err != nil {
+		//	return nil, errors.New(fmt.Sprintf("Broadcast Psbt(Y) %s err:%s", req.Net, err.Error()))
+		//}
+		//setUsedDummyUtxo(utxoDummyList, txPsbtYResp)
+		//setUsedBidYUtxo(utxoBidYList, txPsbtYResp)
+		//txPsbtXResp, err := node.BroadcastTx(req.Net, txRawPsbtX)
 		//if err != nil {
 		//	return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s", req.Net, err.Error()))
 		//}
 		//serUsedFakerInscriptionUtxo(strings.ReplaceAll(entity.InscriptionId, "i", "_"), txPsbtXResp, model.UsedYes)
-
+		//
 		//txPsbtXRespTxId = txPsbtXResp
 		//txPsbtYRespTxId = txPsbtYResp
 	}

@@ -36,9 +36,7 @@ func IPRateLimitMiddleware(limiter *IPRateLimiter) gin.HandlerFunc {
 		store, ok := limiter.ips[ip]
 		now := time.Now()
 		if ok {
-			// 如果该 IP 地址之前访问过，检查访问次数和时间间隔
 			if store.AccessTimes >= limiter.maxAccessTimes && now.Sub(store.LastAccess) < limiter.interval {
-				// 如果访问次数超限，返回 429 Too Many Requests 状态码
 				c.JSON(http.StatusTooManyRequests, gin.H{"message": "Too Many Requests"})
 				c.Abort()
 				return
@@ -46,7 +44,6 @@ func IPRateLimitMiddleware(limiter *IPRateLimiter) gin.HandlerFunc {
 			store.AccessTimes++
 			store.LastAccess = now
 		} else {
-			// 如果该 IP 地址之前没有访问过，初始化访问记录
 			limiter.ips[ip] = &IPStore{
 				AccessTimes: 1,
 				LastAccess:  now,

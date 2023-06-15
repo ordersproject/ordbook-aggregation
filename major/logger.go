@@ -13,7 +13,7 @@ func InitLogger(name string) {
 	if err != nil {
 		panic(err)
 	}
-	log.SetOutput(logFile) // 将文件设置为log输出的文件
+	log.SetOutput(logFile)
 	log.SetPrefix("[LogTool]")
 	log.SetFlags(log.LstdFlags | log.Lshortfile | log.LUTC)
 	//log.SetFlags(log.LstdFlags | log.LUTC)

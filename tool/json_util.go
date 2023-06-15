@@ -7,36 +7,31 @@ import (
 	"strconv"
 )
 
-// 对象转JSON字符串
-// 对象转JSON字符串
 func ObjectToJson(src interface{}) (string, error) {
 	if result, err := json.Marshal(src); err != nil {
-		return "", errors.New("Json字符串转换对象出现异常: " + err.Error())
+		return "", errors.New("Json Str Parse Err: " + err.Error())
 	} else {
 		return string(result), nil
 	}
 }
 
-// JSON字符串转对象
 func JsonToObject(src string, target interface{}) error {
 	if err := json.Unmarshal([]byte(src), target); err != nil {
-		return errors.New("Json字符串转换对象出现异常: " + err.Error())
+		return errors.New("Json Str Parse Err: " + err.Error())
 	}
 	return nil
 }
 
-// JSON字符串转对象
 func JsonRawToObject(src string, target interface{}) error {
 	if err := json.Unmarshal([]byte(json.RawMessage(src)), target); err != nil {
-		return errors.New("Json字符串转换对象出现异常: " + err.Error())
+		return errors.New("Json Str Parse Err: " + err.Error())
 	}
 	return nil
 }
 
-// 对象转对象
 func JsonToAny(src interface{}, target interface{}) error {
 	if src == nil || target == nil {
-		return errors.New("参数不能为空")
+		return errors.New("Param is empty")
 	}
 	str, err := ObjectToJson(src)
 	if err != nil {
@@ -48,20 +43,18 @@ func JsonToAny(src interface{}, target interface{}) error {
 	return nil
 }
 
-// JSON字符串转对象
 func JsonToObject2(src string, target interface{}) error {
 	d := json.NewDecoder(bytes.NewBuffer([]byte(src)))
 	d.UseNumber()
 	if err := d.Decode(target); err != nil {
-		return errors.New("Json字符串转换对象出现异常: " + err.Error())
+		return errors.New("Json Str Parse Err: " + err.Error())
 	}
 	return nil
 }
 
-// 对象转对象
 func JsonToAny2(src interface{}, target interface{}) error {
 	if src == nil || target == nil {
-		return errors.New("参数不能为空")
+		return errors.New("Param is empty")
 	}
 	str, err := ObjectToJson(src)
 	if err != nil {

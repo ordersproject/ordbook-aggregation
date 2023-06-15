@@ -12,11 +12,19 @@ var (
 	OklinkDomain = ""
 	OklinkKey = ""
 	MempoolSpace = ""
+	UnisatDomain = ""
 
 	WsPort = ""
 	RedisEndpoint = ""
 	RedisPassword = ""
 	RedisDbUtxo int = 1
+
+	RpcUrlMainnet = ""
+	RpcUsernameMainnet = ""
+	RpcPasswordMainnet = ""
+	RpcUrlTestnet = ""
+	RpcUsernameTestnet = ""
+	RpcPasswordTestnet = ""
 
 	PlatformMainnetPrivateKeySendBrc20 = ""
 	PlatformMainnetAddressSendBrc20 = ""//address for send brc20
@@ -51,6 +59,7 @@ func InitConfig() {
 	Port = viper.GetString("port")
 	HiroDomain = viper.GetString("hiro_domain")
 	OklinkDomain, OklinkKey = viper.GetString("oklink.domain"), viper.GetString("oklink.key")
+	UnisatDomain = viper.GetString("unisat.domain")
 	PlatformTestnetPrivateKeySendBrc20, PlatformTestnetAddressSendBrc20,
 	PlatformTestnetPrivateKeyReceiveBrc20, PlatformTestnetAddressReceiveBrc20,
 		PlatformTestnetPrivateKeyReceiveBidValue, PlatformTestnetAddressReceiveBidValue,
@@ -76,4 +85,7 @@ func InitConfig() {
 	WsPort = viper.GetString("ws.port")
 	RedisEndpoint, RedisPassword = viper.GetString("redis.endpoint"), viper.GetString("redis.password")
 	RedisDbUtxo = viper.GetInt("redis.db_utxo")
+
+	RpcUrlTestnet, RpcUsernameTestnet, RpcPasswordTestnet = viper.GetString("node.testnet.url"), viper.GetString("node.testnet.username"), viper.GetString("node.testnet.password")
+	RpcUrlMainnet, RpcUsernameMainnet, RpcPasswordMainnet = viper.GetString("node.mainnet.url"), viper.GetString("node.mainnet.username"), viper.GetString("node.mainnet.password")
 }

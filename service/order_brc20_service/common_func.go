@@ -125,7 +125,6 @@ func GetNetParams(net string) *chaincfg.Params {
 
 func GetTxHash(rawTxByte []byte) string {
 	txHash := tool.DoubleSHA256(rawTxByte)
-	//翻转
 	for i := 0; i < len(txHash)/2; i++ {
 		h := txHash[len(txHash)-1-i]
 		txHash[len(txHash)-1-i] = txHash[i]

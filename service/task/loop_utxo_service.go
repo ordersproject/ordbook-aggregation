@@ -9,10 +9,10 @@ import (
 	"github.com/shopspring/decimal"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/create_key"
-	"ordbook-aggregation/service/mempool_space_service"
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/service/oklink_service"
 	"ordbook-aggregation/service/order_brc20_service"
+	"ordbook-aggregation/service/unisat_service"
 	"ordbook-aggregation/tool"
 	"strconv"
 )
@@ -169,21 +169,37 @@ func LoopCheckPlatformAddressForBidValue(net string)  {
 
 	txId := ""
 	sendJop := func() error {
-		if net == "testnet" {
-			txResp, err := mempool_space_service.BroadcastTx(net, txRaw)
-			if err != nil {
-				fmt.Printf("[LOOP][%s] testnet-BroadcastTx err:%s\n", LoopName, err.Error())
-				return err
-			}
-			txId = txResp
-		}else {
-			txResp, err := oklink_service.BroadcastTx(txRaw)
-			if err != nil {
-				fmt.Printf("[LOOP][%s] mainnet-BroadcastTx err:%s\n", LoopName, err.Error())
-				return err
-			}
-			txId = txResp.TxId
+		//if net == "testnet" {
+		//	txResp, err := mempool_space_service.BroadcastTx(net, txRaw)
+		//	if err != nil {
+		//		fmt.Printf("[LOOP][%s] testnet-BroadcastTx err:%s\n", LoopName, err.Error())
+		//		return err
+		//	}
+		//	txId = txResp
+		//}else {
+		//	txResp, err := oklink_service.BroadcastTx(txRaw)
+		//	if err != nil {
+		//		fmt.Printf("[LOOP][%s] mainnet-BroadcastTx err:%s\n", LoopName, err.Error())
+		//		return err
+		//	}
+		//	txId = txResp.
+		//}
+
+		txResp, err := unisat_service.BroadcastTx(net, txRaw)
+		if err != nil {
+			fmt.Printf("[LOOP][%s] [%s]-BroadcastTx err:%s\n", LoopName, net, err.Error())
+			return err
 		}
+		txId = txResp.Result
+
+
+		//txResp, err := node.BroadcastTx(net, txRaw)
+		//if err != nil {
+		//	fmt.Printf("[LOOP][%s] [%s]-BroadcastTx err:%s\n", LoopName, net, err.Error())
+		//	return err
+		//}
+		//txId = txResp
+
 		return nil
 	}
 
@@ -339,21 +355,35 @@ func LoopCheckPlatformAddressForDummyValue(net string)  {
 
 	txId := ""
 	sendJop := func() error {
-		if net == "testnet" {
-			txResp, err := mempool_space_service.BroadcastTx(net, txRaw)
-			if err != nil {
-				fmt.Printf("[LOOP][%s] testnet-BroadcastTx err:%s\n", LoopName, err.Error())
-				return err
-			}
-			txId = txResp
-		}else {
-			txResp, err := oklink_service.BroadcastTx(txRaw)
-			if err != nil {
-				fmt.Printf("[LOOP][%s] mainnet-BroadcastTx err:%s\n", LoopName, err.Error())
-				return err
-			}
-			txId = txResp.TxId
+		//if net == "testnet" {
+		//	txResp, err := mempool_space_service.BroadcastTx(net, txRaw)
+		//	if err != nil {
+		//		fmt.Printf("[LOOP][%s] testnet-BroadcastTx err:%s\n", LoopName, err.Error())
+		//		return err
+		//	}
+		//	txId = txResp
+		//}else {
+		//	txResp, err := oklink_service.BroadcastTx(txRaw)
+		//	if err != nil {
+		//		fmt.Printf("[LOOP][%s] mainnet-BroadcastTx err:%s\n", LoopName, err.Error())
+		//		return err
+		//	}
+		//	txId = txResp.TxId
+		//}
+
+		txResp, err := unisat_service.BroadcastTx(net, txRaw)
+		if err != nil {
+			fmt.Printf("[LOOP][%s] [%s]-BroadcastTx err:%s\n", LoopName, net, err.Error())
+			return err
 		}
+		txId = txResp.Result
+
+		//txResp, err := node.BroadcastTx(net, txRaw)
+		//if err != nil {
+		//	fmt.Printf("[LOOP][%s] [%s]-BroadcastTx err:%s\n", LoopName, net, err.Error())
+		//	return err
+		//}
+		//txId = txResp
 		return nil
 	}
 

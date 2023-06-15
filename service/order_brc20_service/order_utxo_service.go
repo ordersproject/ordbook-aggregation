@@ -13,9 +13,9 @@ import (
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/create_key"
 	"ordbook-aggregation/service/inscription_service"
-	"ordbook-aggregation/service/mempool_space_service"
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/service/oklink_service"
+	"ordbook-aggregation/service/unisat_service"
 	"ordbook-aggregation/tool"
 	"strconv"
 )
@@ -113,19 +113,31 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error){
 	}
 
 	txId := ""
-	if req.Net == "testnet" {
-		txResp, err := mempool_space_service.BroadcastTx(req.Net, txRaw)
-		if err != nil {
-			return "", err
-		}
-		txId = txResp
-	}else {
-		txResp, err := oklink_service.BroadcastTx(txRaw)
-		if err != nil {
-			return "", err
-		}
-		txId = txResp.TxId
+	//if req.Net == "testnet" {
+	//	txResp, err := mempool_space_service.BroadcastTx(req.Net, txRaw)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	txId = txResp
+	//}else {
+	//	txResp, err := oklink_service.BroadcastTx(txRaw)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	txId = txResp.TxId
+	//}
+
+	txResp, err := unisat_service.BroadcastTx(req.Net, txRaw)
+	if err != nil {
+		return "", err
 	}
+	txId = txResp.Result
+
+	//txResp, err := node.BroadcastTx(req.Net, txRaw)
+	//if err != nil {
+	//	return "", err
+	//}
+	//txId = txResp
 
 	return txId, nil
 }
@@ -195,7 +207,12 @@ func CollectionUtxo(req *request.CollectionUtxo) (string, error){
 		totalIn = totalIn + v.Amount
 	}
 
-	totalAmount = int64(totalIn - 1000)
+	totalSize := int64(len(inputs)) * SpendSize + 1 * OutSize + OtherSize
+
+
+	totalAmount = int64(totalIn)- totalSize*req.FeeRate-546
+
+	fmt.Printf("totalSize:%d, totalIn:%d, totalSize*req.FeeRate:%d, totalAmount:%d\n", totalSize, totalIn, totalSize*req.FeeRate, totalAmount)
 
 	outputs := make([]*TxOutput, 0)
 	outputs = append(outputs, &TxOutput{
@@ -213,19 +230,31 @@ func CollectionUtxo(req *request.CollectionUtxo) (string, error){
 		return "", err
 	}
 	txId := ""
-	if req.Net == "testnet" {
-		txResp, err := mempool_space_service.BroadcastTx(req.Net, txRaw)
-		if err != nil {
-			return "", err
-		}
-		txId = txResp
-	}else {
-		txResp, err := oklink_service.BroadcastTx(txRaw)
-		if err != nil {
-			return "", err
-		}
-		txId = txResp.TxId
+	//if req.Net == "testnet" {
+	//	txResp, err := mempool_space_service.BroadcastTx(req.Net, txRaw)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	txId = txResp
+	//}else {
+	//	txResp, err := oklink_service.BroadcastTx(txRaw)
+	//	if err != nil {
+	//		return "", err
+	//	}
+	//	txId = txResp.TxId
+	//}
+
+	txResp, err := unisat_service.BroadcastTx(req.Net, txRaw)
+	if err != nil {
+		return "", err
 	}
+	txId = txResp.Result
+
+	//txResp, err := node.BroadcastTx(req.Net, txRaw)
+	//if err != nil {
+	//	return "", err
+	//}
+	//txId = txResp
 
 	return txId, nil
 }

@@ -55,7 +55,6 @@ func (u InscribeItemMap) GetAndSet(fromAddress string, newInfo *InscribeInfo) (*
 	u.Lock.RLock()
 	defer u.Lock.RUnlock()
 	//u.Lock.Lock()
-	//fmt.Printf("锁住[%s]Get\n", orderInfo)
 	//defer u.Lock.Unlock()
 	if v, ok := u.InscribeInfoExist[fromAddress]; ok {
 		return v, true
