@@ -7,6 +7,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"net/http"
 	"ordbook-aggregation/config"
+	"ordbook-aggregation/controller/auth"
 	"ordbook-aggregation/controller/middleware"
 	_ "ordbook-aggregation/docs"
 )
@@ -26,8 +27,8 @@ func Run() {
 	// brc20
 	brc20 := router.Group("/brc20")
 	{
-		brc20.POST("/order/push", PushOrder)
-		brc20.POST("/order/ask/push", PushOrder)
+		brc20.POST("/order/push", auth.AuthSignMiddleware(), PushOrder)
+		brc20.POST("/order/ask/push", auth.AuthSignMiddleware(), PushOrder)
 		brc20.GET("/orders", FetchOrders)
 		brc20.GET("/orders/user/:address", FetchUserOrders)
 		brc20.GET("/tickers", FetchTicker)
@@ -35,14 +36,16 @@ func Run() {
 
 		brc20.GET("/order/bid/pre", FetchPreBid)
 		brc20.GET("/order/bid", FetchBidPsbt)
-		brc20.POST("/order/bid/push", UpdateBidPsbt)
+		brc20.POST("/order/bid/push", auth.AuthSignMiddleware(), UpdateBidPsbt)
 		brc20.POST("/order/bid/do", DoBid)
-		brc20.POST("/order/update", UpdateOrder)
+		brc20.POST("/order/update", auth.AuthSignMiddleware(), UpdateOrder)
 
 		brc20.POST("/inscribe/pre", PreInscribe)
 		brc20.POST("/inscribe/commit", CommitInscribe)
 
-		brc20.POST("/brc20/transfer/colddown", ColdDownBrc20Transfer)
+		brc20.POST("/transfer/colddown", ColdDownBrc20Transfer)
+		brc20.POST("/transfer/colddown/batch", ColdDownBrc20TransferBatch)
+		brc20.POST("/transfer/colddown/batch/ask", ColdDownBatchBrc20TransferAndMakeAsk)
 		brc20.POST("/utxo/colddown", ColdDownUtxo)
 
 		brc20.GET("/ws/uuid", GetWsUuid)
@@ -65,7 +68,7 @@ func Cors() gin.HandlerFunc {
 		//if origin != "" {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		c.Header("Access-Control-Allow-Headers", "Content-Type,AccessToken,X-CSRF-Token, Authorization,X-API-KEY,X-signature,X-public-key")
+		c.Header("Access-Control-Allow-Headers", "Content-Type,AccessToken,X-CSRF-Token, Authorization,X-API-KEY,X-Signature,X-Public-Key")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Set("content-type", "application/json")
 		//}

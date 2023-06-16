@@ -79,37 +79,6 @@ var doc = `{
                 }
             }
         },
-        "/brc20/brc20/transfer/colddown": {
-            "post": {
-                "description": "Cold down the brc20 transfer",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "Cold down the brc20 transfer",
-                "parameters": [
-                    {
-                        "description": "Request",
-                        "name": "Request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/request.ColdDownBrcTransfer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/respond.Message"
-                        }
-                    }
-                }
-            }
-        },
         "/brc20/check/info": {
             "get": {
                 "description": "Check inscription brc20 valid",
@@ -751,6 +720,99 @@ var doc = `{
                 }
             }
         },
+        "/brc20/transfer/colddown": {
+            "post": {
+                "description": "Cold down the brc20 transfer",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Cold down the brc20 transfer",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ColdDownBrcTransfer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Brc20TransferCommitResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/transfer/colddown/batch": {
+            "post": {
+                "description": "Cold down the brc20 transfer batch",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Cold down the brc20 transfer batch",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ColdDownBrcTransferBatch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Brc20TransferCommitBatchResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/transfer/colddown/batch/ask": {
+            "post": {
+                "description": "Cold down the brc20 transfer batch",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Cold down the brc20 transfer batch",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ColdDownBrcTransferBatch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Brc20TransferCommitBatchResp"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/utxo/colddown": {
             "post": {
                 "description": "Do bid order",
@@ -812,8 +874,15 @@ var doc = `{
                     "type": "string"
                 },
                 "net": {
-                    "description": "mainnet/signet/testnet",
+                    "description": "livenet/signet/testnet",
                     "type": "string"
+                },
+                "utxos": {
+                    "description": "utxo list",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/request.ReceiveUtxo"
+                    }
                 }
             }
         },
@@ -845,7 +914,7 @@ var doc = `{
                     "type": "integer"
                 },
                 "net": {
-                    "description": "mainnet/signet/testnet",
+                    "description": "livenet/signet/testnet",
                     "type": "string"
                 },
                 "receiveAddress": {
@@ -874,6 +943,53 @@ var doc = `{
                 },
                 "inscribeTransferAmount": {
                     "type": "integer"
+                },
+                "net": {
+                    "type": "string"
+                },
+                "pkScript": {
+                    "type": "string"
+                },
+                "preTxHex": {
+                    "type": "string"
+                },
+                "priKeyHex": {
+                    "type": "string"
+                },
+                "tick": {
+                    "type": "string"
+                },
+                "txId": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.ColdDownBrcTransferBatch": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "changeAddress": {
+                    "type": "string"
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "feeRate": {
+                    "type": "integer"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "inscribeTransferAmount": {
+                    "type": "integer"
+                },
+                "isOnlyCal": {
+                    "type": "boolean"
                 },
                 "net": {
                     "type": "string"
@@ -1056,6 +1172,20 @@ var doc = `{
                     "type": "integer"
                 },
                 "psbtRaw": {
+                    "type": "string"
+                }
+            }
+        },
+        "request.ReceiveUtxo": {
+            "type": "object",
+            "properties": {
+                "outAmount": {
+                    "type": "integer"
+                },
+                "outIndex": {
+                    "type": "integer"
+                },
+                "outTx": {
                     "type": "string"
                 }
             }
@@ -1281,6 +1411,43 @@ var doc = `{
                     "type": "string"
                 },
                 "volume": {
+                    "type": "string"
+                }
+            }
+        },
+        "respond.Brc20TransferCommitBatchResp": {
+            "type": "object",
+            "properties": {
+                "commitTxHash": {
+                    "type": "string"
+                },
+                "fees": {
+                    "type": "integer"
+                },
+                "inscriptionIdList": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "revealTxHashList": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "respond.Brc20TransferCommitResp": {
+            "type": "object",
+            "properties": {
+                "commitTxHash": {
+                    "type": "string"
+                },
+                "inscriptionId": {
+                    "type": "string"
+                },
+                "revealTxHash": {
                     "type": "string"
                 }
             }

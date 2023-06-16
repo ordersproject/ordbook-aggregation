@@ -12,3 +12,12 @@ func TestClientController_GetBlockHeight(t *testing.T) {
 	//fmt.Println(c.GetBlockHeight(net))
 	fmt.Println(c.BroadcastTx(net, txHex))
 }
+
+
+func TestClientController_GetRawTx(t *testing.T) {
+	net := "mainnet"
+	txId := "de888f33ceea9c317966b7b721ec436a41624514a3150d4b73b9f1f7db15a896"
+	c := NewClientController(net)
+	//fmt.Println(c.GetBlockHeight(net))
+	fmt.Println(c.GetTransactionHex(net, txId))
+}

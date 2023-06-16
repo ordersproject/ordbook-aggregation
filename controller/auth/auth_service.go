@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"ordbook-aggregation/controller/respond"
@@ -22,20 +23,20 @@ var (
 func AuthSignMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		t := tool.MakeTimestamp()
-		signatureStr := c.Request.Header.Get("X-signature")
+		signatureStr := c.Request.Header.Get("X-Signature")
 		if signatureStr == "" {
 			c.JSON(http.StatusUnauthorized, respond.RespErr(AuthErrParams1, tool.MakeTimestamp()-t, respond.HttpsCodeErrorAuth))
 			c.Abort()
 			return
 		}
-		publicKeyStr := c.Request.Header.Get("X-public-key")
+		publicKeyStr := c.Request.Header.Get("X-Public-Key")
 		if publicKeyStr == "" {
 			c.JSON(http.StatusUnauthorized, respond.RespErr(AuthErrParams2, tool.MakeTimestamp()-t, respond.HttpsCodeErrorAuth))
 			c.Abort()
 			return
 		}
 
-		verified, err := VerifySign(verifyMessage, signatureStr, publicKeyStr)
+		verified, err := VerifyTextSign(verifyMessage, signatureStr, publicKeyStr)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, respond.RespErr(AuthErrParamsVerifiedSignErr, tool.MakeTimestamp()-t, respond.HttpsCodeErrorAuth))
 			c.Abort()
@@ -48,6 +49,7 @@ func AuthSignMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		fmt.Printf("signature: %s, publicKey: %s\n", signatureStr, publicKeyStr)
 		c.Set("publicKey", publicKeyStr)
 		c.Next()
 	}

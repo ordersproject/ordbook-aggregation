@@ -8,6 +8,13 @@ type Brc20PreReq struct {
 }
 
 type Brc20CommitReq struct {
-	Net        string `json:"net"`        //livenet/signet/testnet
-	FeeAddress string `json:"feeAddress"` //platform fee address
+	Net        string         `json:"net"`        //livenet/signet/testnet
+	FeeAddress string         `json:"feeAddress"` //platform fee address
+	Utxos      []*ReceiveUtxo `json:"utxos"`//utxo list
+}
+
+type ReceiveUtxo struct {
+	OutTx     string `json:"outTx"`
+	OutIndex  int64  `json:"outIndex"`
+	OutAmount int64  `json:"outAmount"`
 }

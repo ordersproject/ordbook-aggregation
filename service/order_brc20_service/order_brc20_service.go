@@ -96,7 +96,6 @@ func PushOrder(req *request.OrderBrc20PushReq, publicKey string) (string, error)
 			outAmountDe := decimal.NewFromInt(int64(outAmount))
 			coinAmountDe := decimal.NewFromInt(int64(coinAmount))
 			coinRatePriceStr := outAmountDe.Div(coinAmountDe).StringFixed(0)
-			//coinRatePrice, _ = strconv.ParseFloat(coinRatePriceStr, 64)
 			coinRatePrice, _ = strconv.ParseUint(coinRatePriceStr, 10, 64)
 
 			orderId = fmt.Sprintf("%s_%s_%s_%s_%d_%d", req.Net, req.Tick, inscriptionId, sellerAddress, outAmount, coinAmount)
@@ -608,7 +607,6 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		if err != nil {
 			return nil, errors.New("Wrong Psbt: brc20 input is empty preTx. ")
 		}
-		//inValue, _ = strconv.ParseUint(preSellBrc20Tx.OutputDetails[preOutList[0].PreviousOutPoint.Index].Amount, 10, 64)
 		inValueDe, err := decimal.NewFromString(preSellBrc20Tx.OutputDetails[preOutList[0].PreviousOutPoint.Index].Amount)
 		if err != nil {
 			return nil, errors.New("Wrong Psbt: The value of brc20 input decimal parse err. ")
@@ -1028,6 +1026,9 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		return nil, err
 	}
 
+	UpdateMarketPrice(req.Net, req.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(req.Tick)))
+
+
 	return &respond.DoBidResp{
 		TxIdX: txPsbtXRespTxId,
 		TxIdY: txPsbtYRespTxId,
@@ -1063,7 +1064,7 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey string) (string, er
 				if err !=  nil  {
 					return "", errors.New(fmt.Sprintf("PSBT: NewPsbtBuilder err:%s",err.Error()))
 				}
-				txId, err := finalAskPsbtBuilder.ExtractPsbtTransaction()
+				txRaw, err := finalAskPsbtBuilder.ExtractPsbtTransaction()
 				if err !=  nil  {
 					return "", errors.New(fmt.Sprintf("PSBT: ExtractPsbtTransaction err:%s",err.Error()))
 				}
@@ -1093,6 +1094,17 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey string) (string, er
 					return "", errors.New(fmt.Sprintf("Check address verified: %v. ", verified))
 				}
 				entityOrder.BuyerAddress = buyerAddress
+
+
+
+				txRawByte, _ := hex.DecodeString(txRaw)
+				txAsk := wire.NewMsgTx(2)
+				err = txAsk.Deserialize(bytes.NewReader(txRawByte))
+				if err != nil {
+					return "", errors.New(fmt.Sprintf("txAsk Deserialize err: %v. ", err.Error()))
+				}
+				txId := txAsk.TxHash().String()
+
 				entityOrder.PsbtAskTxId = txId
 			}
 
@@ -1123,6 +1135,7 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey string) (string, er
 		if err != nil {
 			return "", err
 		}
+		UpdateMarketPrice(req.Net, entityOrder.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(entityOrder.Tick)))
 	}else {
 		return "", errors.New("Wrong state. ")
 	}

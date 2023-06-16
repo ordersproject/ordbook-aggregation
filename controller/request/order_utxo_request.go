@@ -50,7 +50,7 @@ type ColdDownBrcTransfer struct {
 
 type ColdDownBrcTransferBatch struct {
 	Net                    string `json:"net"`
-	Tick                    string `json:"tick"`
+	Tick                   string `json:"tick"`
 	TxId                   string `json:"txId"`
 	Index                  int64  `json:"index"`
 	Amount                 uint64 `json:"amount"`
@@ -61,4 +61,6 @@ type ColdDownBrcTransferBatch struct {
 	InscribeTransferAmount int64  `json:"inscribeTransferAmount"`
 	ChangeAddress          string `json:"changeAddress"`
 	FeeRate                int64  `json:"feeRate"`
+	Count                  int64  `json:"count"`
+	IsOnlyCal              bool   `json:"isOnlyCal"`
 }

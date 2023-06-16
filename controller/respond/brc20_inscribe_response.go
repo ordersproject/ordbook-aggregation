@@ -16,3 +16,11 @@ type Brc20TransferCommitResp struct {
 	RevealTxHash  string `json:"revealTxHash"`
 	InscriptionId string `json:"inscriptionId"`
 }
+
+
+type Brc20TransferCommitBatchResp struct {
+	Fees  int64 `json:"fees"`
+	CommitTxHash  string `json:"commitTxHash"`
+	RevealTxHashList  []string `json:"revealTxHashList"`
+	InscriptionIdList []string `json:"inscriptionIdList"`
+}

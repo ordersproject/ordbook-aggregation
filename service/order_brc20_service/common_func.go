@@ -166,6 +166,20 @@ func GetPlatformKeyAndAddressSendBrc20(net string) (string, string) {
 	return config.PlatformMainnetPrivateKeySendBrc20, config.PlatformMainnetAddressSendBrc20
 }
 
+func GetPlatformKeyAndAddressSendBrc20ForAsk(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeySendBrc20ForAsk, config.PlatformTestnetAddressSendBrc20ForAsk
+	}
+	return config.PlatformMainnetPrivateKeySendBrc20ForAsk, config.PlatformMainnetAddressSendBrc20ForAsk
+}
+
+func GetPlatformKeyAndAddressReceiveValueForAsk(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyReceiveValueForAsk, config.PlatformTestnetAddressReceiveValueForAsk
+	}
+	return config.PlatformMainnetPrivateKeyReceiveValueForAsk, config.PlatformMainnetAddressReceiveValueForAsk
+}
+
 func GetPlatformKeyAndAddressReceiveBrc20(net string) (string, string) {
 	if strings.ToLower(net) == "testnet" {
 		return config.PlatformTestnetPrivateKeyReceiveBrc20, config.PlatformTestnetAddressReceiveBrc20

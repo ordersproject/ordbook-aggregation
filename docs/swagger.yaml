@@ -6,8 +6,13 @@ definitions:
         description: platform fee address
         type: string
       net:
-        description: mainnet/signet/testnet
+        description: livenet/signet/testnet
         type: string
+      utxos:
+        description: utxo list
+        items:
+          $ref: '#/definitions/request.ReceiveUtxo'
+        type: array
     type: object
   request.Brc20MarketPriceSetReq:
     properties:
@@ -28,7 +33,7 @@ definitions:
       feeRate:
         type: integer
       net:
-        description: mainnet/signet/testnet
+        description: livenet/signet/testnet
         type: string
       receiveAddress:
         description: Address which user receive ordinals
@@ -48,6 +53,37 @@ definitions:
         type: integer
       inscribeTransferAmount:
         type: integer
+      net:
+        type: string
+      pkScript:
+        type: string
+      preTxHex:
+        type: string
+      priKeyHex:
+        type: string
+      tick:
+        type: string
+      txId:
+        type: string
+    type: object
+  request.ColdDownBrcTransferBatch:
+    properties:
+      address:
+        type: string
+      amount:
+        type: integer
+      changeAddress:
+        type: string
+      count:
+        type: integer
+      feeRate:
+        type: integer
+      index:
+        type: integer
+      inscribeTransferAmount:
+        type: integer
+      isOnlyCal:
+        type: boolean
       net:
         type: string
       pkScript:
@@ -171,6 +207,15 @@ definitions:
         description: 2-finish/3-cancel
         type: integer
       psbtRaw:
+        type: string
+    type: object
+  request.ReceiveUtxo:
+    properties:
+      outAmount:
+        type: integer
+      outIndex:
+        type: integer
+      outTx:
         type: string
     type: object
   respond.BalanceDetails:
@@ -328,6 +373,30 @@ definitions:
       volume:
         type: string
     type: object
+  respond.Brc20TransferCommitBatchResp:
+    properties:
+      commitTxHash:
+        type: string
+      fees:
+        type: integer
+      inscriptionIdList:
+        items:
+          type: string
+        type: array
+      revealTxHashList:
+        items:
+          type: string
+        type: array
+    type: object
+  respond.Brc20TransferCommitResp:
+    properties:
+      commitTxHash:
+        type: string
+      inscriptionId:
+        type: string
+      revealTxHash:
+        type: string
+    type: object
   respond.CheckBrc20InscriptionReq:
     properties:
       actionType:
@@ -463,26 +532,6 @@ paths:
       summary: Check inscription brc20 valid
       tags:
       - brc20
-  /brc20/brc20/transfer/colddown:
-    post:
-      description: Cold down the brc20 transfer
-      parameters:
-      - description: Request
-        in: body
-        name: Request
-        required: true
-        schema:
-          $ref: '#/definitions/request.ColdDownBrcTransfer'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/respond.Message'
-      summary: Cold down the brc20 transfer
-      tags:
-      - System
   /brc20/check/info:
     get:
       description: Check inscription brc20 valid
@@ -901,6 +950,66 @@ paths:
       summary: Fetch tick info
       tags:
       - brc20
+  /brc20/transfer/colddown:
+    post:
+      description: Cold down the brc20 transfer
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.ColdDownBrcTransfer'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Brc20TransferCommitResp'
+      summary: Cold down the brc20 transfer
+      tags:
+      - System
+  /brc20/transfer/colddown/batch:
+    post:
+      description: Cold down the brc20 transfer batch
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.ColdDownBrcTransferBatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Brc20TransferCommitBatchResp'
+      summary: Cold down the brc20 transfer batch
+      tags:
+      - System
+  /brc20/transfer/colddown/batch/ask:
+    post:
+      description: Cold down the brc20 transfer batch
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.ColdDownBrcTransferBatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Brc20TransferCommitBatchResp'
+      summary: Cold down the brc20 transfer batch
+      tags:
+      - System
   /brc20/utxo/colddown:
     post:
       description: Do bid order

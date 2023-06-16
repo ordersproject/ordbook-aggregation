@@ -26,6 +26,13 @@ type OrderBrc20FetchReq struct {
 	SortType      int64            `json:"sortType"` //1/-1
 }
 
+type OrderBrc20FetchOneReq struct {
+	Net          string `json:"net"` //livenet/signet/testnet
+	Tick         string `json:"tick"`
+	OrderId      string `json:"orderId"`
+	BuyerAddress string `json:"buyerAddress"`
+}
+
 type TickBrc20FetchReq struct {
 	Net        string           `json:"net"` //livenet/signet/testnet
 	Tick     string `json:"tick"`
