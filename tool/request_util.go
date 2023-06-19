@@ -77,7 +77,6 @@ func PostUrlAndCode(url string, data interface{}, headers map[string]string) (st
 	return string(result), response.StatusCode, nil
 }
 
-//GET请求
 func GetUrlForSingle(url string) (string, error) {
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {

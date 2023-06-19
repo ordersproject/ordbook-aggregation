@@ -293,6 +293,9 @@ definitions:
       decimalNum:
         description: Btc decimal
         type: integer
+      freeState:
+        description: 1-for free
+        type: integer
       net:
         description: Net env
         type: string
@@ -638,6 +641,30 @@ paths:
           schema:
             $ref: '#/definitions/respond.KlineItem'
       summary: Fetch tick kline data
+      tags:
+      - brc20
+  /brc20/order/{orderId}:
+    get:
+      description: Fetch one order
+      parameters:
+      - description: orderId
+        in: path
+        name: orderId
+        required: true
+        type: string
+      - description: buyerAddress
+        in: query
+        name: buyerAddress
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Brc20Item'
+      summary: Fetch one order
       tags:
       - brc20
   /brc20/order/ask/push:

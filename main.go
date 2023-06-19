@@ -10,6 +10,7 @@ import (
 	"ordbook-aggregation/major"
 	"ordbook-aggregation/redis"
 	_ "ordbook-aggregation/service/cache_service"
+	"ordbook-aggregation/service/order_brc20_service"
 	"ordbook-aggregation/service/task"
 	"ordbook-aggregation/ws_service/ws"
 )
@@ -56,8 +57,11 @@ func main() {
 	InitEnv()
 	InitAll()
 
+	order_brc20_service.FixAsk()
+
 	go ws.StartWS()
 	task.Run()
+	//task.RunJob()
 	controller.Run()
 	//run()
 }

@@ -515,6 +515,42 @@ var doc = `{
                 }
             }
         },
+        "/brc20/order/{orderId}": {
+            "get": {
+                "description": "Fetch one order",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch one order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "orderId",
+                        "name": "orderId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "buyerAddress",
+                        "name": "buyerAddress",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Brc20Item"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/orders": {
             "get": {
                 "description": "Fetch orders",
@@ -1299,6 +1335,10 @@ var doc = `{
                 },
                 "decimalNum": {
                     "description": "Btc decimal",
+                    "type": "integer"
+                },
+                "freeState": {
+                    "description": "1-for free",
                     "type": "integer"
                 },
                 "net": {

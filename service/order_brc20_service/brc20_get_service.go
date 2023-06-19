@@ -1,6 +1,9 @@
 package order_brc20_service
 
 import (
+	"errors"
+	"fmt"
+	"github.com/btcsuite/btcd/chaincfg"
 	"ordbook-aggregation/controller/request"
 	"ordbook-aggregation/controller/respond"
 	"ordbook-aggregation/model"
@@ -9,6 +12,64 @@ import (
 	"ordbook-aggregation/tool"
 	"strconv"
 )
+
+const (
+	dayLimit int64 = 3
+)
+
+func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*respond.Brc20Item, error) {
+	var (
+		entity *model.OrderBrc20Model
+		netParams *chaincfg.Params = GetNetParams(req.Net)
+		count int64 = 0
+		todayStartTime, todayEndTime int64 = tool.GetToday0Time(), tool.GetToday24Time()
+	)
+	entity, _ = mongo_service.FindOrderBrc20ModelByOrderId(req.OrderId)
+	if entity == nil {
+		return nil, errors.New("Order is empty. ")
+	}
+	netParams = GetNetParams(entity.Net)
+
+	verified, err := CheckPublicKeyAddress(netParams, publicKey, req.BuyerAddress)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Check address err: %s. ", err.Error()))
+	}
+	if !verified {
+		return nil, errors.New(fmt.Sprintf("Check address verified: %v. ", verified))
+	}
+
+
+	if entity.FreeState == model.FreeStateYes || entity.Net == "testnet" {
+		count, _ = mongo_service.CountBuyerOrderBrc20ModelList(entity.Net, entity.Tick, req.BuyerAddress, "", model.OrderTypeSell, model.OrderStateFinish, todayStartTime, todayEndTime)
+		if count >= dayLimit {
+			return nil, errors.New(fmt.Sprintf("The number of purchases of the day has exceeded. "))
+		}
+		count, _ = mongo_service.CountBuyerOrderBrc20ModelList(entity.Net, entity.Tick, "", ip, model.OrderTypeSell, model.OrderStateFinish, todayStartTime, todayEndTime)
+		if count >= dayLimit {
+			return nil, errors.New(fmt.Sprintf("The number of purchases of the day has exceeded. "))
+		}
+	}
+
+
+	item := &respond.Brc20Item{
+		Net:            entity.Net,
+		OrderId:        entity.OrderId,
+		Tick:           entity.Tick,
+		Amount:         entity.Amount,
+		DecimalNum:     entity.DecimalNum,
+		CoinAmount:     entity.CoinAmount,
+		CoinDecimalNum: entity.CoinDecimalNum,
+		CoinRatePrice:  entity.CoinRatePrice,
+		OrderState:     entity.OrderState,
+		OrderType:      entity.OrderType,
+		FreeState:      entity.FreeState,
+		SellerAddress:  entity.SellerAddress,
+		BuyerAddress:   entity.BuyerAddress,
+		PsbtRaw:        entity.PsbtRawPreAsk,
+		Timestamp:      entity.Timestamp,
+	}
+	return item, nil
+}
 
 func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error) {
 	var (
@@ -34,9 +95,10 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 			CoinRatePrice:  v.CoinRatePrice,
 			OrderState:     v.OrderState,
 			OrderType:      v.OrderType,
+			FreeState:      v.FreeState,
 			SellerAddress:  v.SellerAddress,
 			BuyerAddress:   v.BuyerAddress,
-			PsbtRaw:        v.PsbtRawPreAsk,
+			//PsbtRaw:        v.PsbtRawPreAsk,
 			Timestamp:      v.Timestamp,
 		}
 		if req.SortKey == "coinRatePrice" {
@@ -117,7 +179,7 @@ func FetchTickers(req *request.TickBrc20FetchReq) (*respond.Brc20TickInfoRespons
 	//	},
 	//}
 
-	entityList, _ = mongo_service.FindBrc20TickModelList(req.Net, 0, 100)
+	entityList, _ = mongo_service.FindBrc20TickModelList(req.Net, req.Tick, 0, 100)
 	for _, v := range entityList {
 		list = append(list, &respond.Brc20TickItem{
 			Net:                v.Net,
@@ -238,9 +300,10 @@ func FetchUserOrders(req *request.Brc20OrderAddressReq) (*respond.OrderResponse,
 			CoinRatePrice:  v.CoinRatePrice,
 			OrderState:     v.OrderState,
 			OrderType:      v.OrderType,
+			FreeState:      v.FreeState,
 			SellerAddress:  v.SellerAddress,
 			BuyerAddress:   v.BuyerAddress,
-			PsbtRaw:        v.PsbtRawPreAsk,
+			//PsbtRaw:        v.PsbtRawPreAsk,
 			Timestamp:      v.Timestamp,
 		}
 		if req.SortKey == "coinRatePrice" {

@@ -12,6 +12,7 @@ require (
 	github.com/gobwas/ws v1.2.1
 	github.com/godaddy-x/jorm v1.0.67
 	github.com/gomodule/redigo v1.8.9
+	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
 	github.com/imroc/req v0.3.2
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/pkg/errors v0.9.1

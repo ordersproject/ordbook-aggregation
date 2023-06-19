@@ -42,7 +42,9 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 	CreateIndex(collection, "orderType")
 	CreateIndex(collection, "sellerAddress")
 	CreateIndex(collection, "buyerAddress")
+	CreateIndex(collection, "buyerIp")
 	CreateIndex(collection, "timestamp")
+	CreateIndex(collection, "dealTime")
 
 	entity := &model.OrderBrc20Model{
 		Id:                  util.GetUUIDInt64(),
@@ -58,6 +60,7 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 		OrderType:           orderBrc20.OrderType,
 		SellerAddress:       orderBrc20.SellerAddress,
 		BuyerAddress:        orderBrc20.BuyerAddress,
+		BuyerIp:        orderBrc20.BuyerIp,
 		MarketAmount:        orderBrc20.MarketAmount,
 		PlatformFee:         orderBrc20.PlatformFee,
 		ChangeAmount:        orderBrc20.ChangeAmount,
@@ -75,6 +78,8 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 		PsbtRawFinalBid:     orderBrc20.PsbtRawFinalBid,
 		PsbtBidTxId:         orderBrc20.PsbtBidTxId,
 		Integral:            orderBrc20.Integral,
+		FreeState:           orderBrc20.FreeState,
+		DealTime:            orderBrc20.DealTime,
 		Timestamp:           orderBrc20.Timestamp,
 		CreateTime:          util.Time(),
 		State:               model.STATE_EXIST,
@@ -114,6 +119,7 @@ func SetOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20Mod
 		bsonData = append(bsonData, bson.E{Key: "orderType", Value: orderBrc20.OrderType})
 		bsonData = append(bsonData, bson.E{Key: "sellerAddress", Value: orderBrc20.SellerAddress})
 		bsonData = append(bsonData, bson.E{Key: "buyerAddress", Value: orderBrc20.BuyerAddress})
+		bsonData = append(bsonData, bson.E{Key: "buyerIp", Value: orderBrc20.BuyerIp})
 		bsonData = append(bsonData, bson.E{Key: "marketAmount", Value: orderBrc20.MarketAmount})
 		bsonData = append(bsonData, bson.E{Key: "platformFee", Value: orderBrc20.PlatformFee})
 		bsonData = append(bsonData, bson.E{Key: "changeAmount", Value: orderBrc20.ChangeAmount})
@@ -131,7 +137,8 @@ func SetOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20Mod
 		bsonData = append(bsonData, bson.E{Key: "psbtRawFinalBid", Value: orderBrc20.PsbtRawFinalBid})
 		bsonData = append(bsonData, bson.E{Key: "psbtBidTxId", Value: orderBrc20.PsbtBidTxId})
 		bsonData = append(bsonData, bson.E{Key: "integral", Value: orderBrc20.Integral})
-
+		bsonData = append(bsonData, bson.E{Key: "freeState", Value: orderBrc20.FreeState})
+		bsonData = append(bsonData, bson.E{Key: "dealTime", Value: orderBrc20.DealTime})
 		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: orderBrc20.Timestamp})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",
@@ -638,3 +645,50 @@ func SetOrderBrc20MarketPriceModel(orderBrc20MarketPrice *model.OrderBrc20Market
 		return createOrderBrc20MarketPriceModel(orderBrc20MarketPrice)
 	}
 }
+
+
+func CountBuyerOrderBrc20ModelList(net, tick, buyerAddress, buyerId string, orderType model.OrderType, orderState model.OrderState, startTime, endTime int64) (int64, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return 0, err
+	}
+	find := bson.M{
+		"state":    model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+	if buyerAddress != "" {
+		find["buyerAddress"] = buyerAddress
+	}
+	if buyerId != "" {
+		find["buyerId"] = buyerId
+	}
+	if orderType != 0 {
+		find["orderType"] = orderType
+	}
+	if orderState != 0 {
+		find["orderState"] = orderState
+	}
+
+	between := bson.M{}
+	if startTime != 0 {
+		between[GTE_] = startTime
+	}
+	if endTime != 0 {
+		between[LT_] = endTime
+	}
+	if startTime != 0 || endTime != 0 {
+		find["dealTime"] = between
+	}
+
+	total, err := collection.CountDocuments(context.TODO(), find)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+

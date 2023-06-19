@@ -22,6 +22,14 @@ const (
 	OrderStateTimeout   OrderState = 5
 	OrderStateErr       OrderState = 6
 
+	OrderStatePreAsk       OrderState = 7
+
 	//100 all
 	OrderStateAll       OrderState = 100
+)
+
+type FreeState int
+
+const (
+	FreeStateYes FreeState = 1
 )

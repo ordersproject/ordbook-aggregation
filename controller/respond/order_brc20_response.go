@@ -19,10 +19,11 @@ type Brc20Item struct {
 	CoinRatePrice  uint64           `json:"coinRatePrice,omitempty"`  //Rate for brc20-btc
 	OrderState     model.OrderState `json:"orderState,omitempty"`     //Order state：1-create,2-finish,3-cancel
 	OrderType      model.OrderType  `json:"orderType,omitempty"`      //Order type：1-sell,2-buy
+	FreeState      model.FreeState  `json:"freeState,omitempty"`      //1-for free
 	SellerAddress  string           `json:"sellerAddress,omitempty"`  //Seller's address
 	BuyerAddress   string           `json:"buyerAddress,omitempty"`   //Buyer's address
 	PsbtRaw        string           `json:"psbtRaw,omitempty"`        //PSBT Raw
-	Timestamp      int64            `json:"timestamp"`      //Create time
+	Timestamp      int64            `json:"timestamp"`                //Create time
 }
 
 type Brc20TickInfoResponse struct {

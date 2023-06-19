@@ -95,6 +95,34 @@ func FetchOrders(c *gin.Context) {
 	return
 }
 
+// @Summary Fetch one order
+// @Description Fetch one order
+// @Produce  json
+// @Tags brc20
+// @Param orderId path string true "orderId"
+// @Param buyerAddress query string true "buyerAddress"
+// @Success 200 {object} respond.Brc20Item ""
+// @Router /brc20/order/{orderId} [get]
+func FetchOneOrder(c *gin.Context) {
+	var (
+		t   int64            = tool.MakeTimestamp()
+		req *request.OrderBrc20FetchOneReq = &request.OrderBrc20FetchOneReq{
+			Net:           c.DefaultQuery("net", ""),
+			Tick:          c.DefaultQuery("tick", ""),
+			OrderId:  c.Param("orderId"),
+			BuyerAddress:  c.DefaultQuery("buyerAddress", ""),
+		}
+		publicKey = getAuthParams(c)
+	)
+	responseModel, err := order_brc20_service.FetchOneOrders(req, publicKey, c.ClientIP())
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}
+
 
 // @Summary Fetch user orders
 // @Description Fetch user orders
@@ -222,7 +250,7 @@ func UpdateOrder(c *gin.Context) {
 	)
 	if c.ShouldBindJSON(&requestModel) == nil {
 		publicKey = getAuthParams(c)
-		responseModel, err := order_brc20_service.UpdateOrder(requestModel, publicKey)
+		responseModel, err := order_brc20_service.UpdateOrder(requestModel, publicKey, c.ClientIP())
 		if err != nil {
 			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
 			return

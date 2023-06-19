@@ -131,7 +131,7 @@ func CountBrc20TickModelList(net string) (int64, error) {
 }
 
 
-func FindBrc20TickModelList(net string, skip, limit int64) ([]*model.Brc20TickModel, error) {
+func FindBrc20TickModelList(net, tick string, skip, limit int64) ([]*model.Brc20TickModel, error) {
 	collection, err := model.Brc20TickModel{}.GetReadDB()
 	if err != nil {
 		return nil, errors.New("db connect error")
@@ -141,7 +141,12 @@ func FindBrc20TickModelList(net string, skip, limit int64) ([]*model.Brc20TickMo
 	}
 
 	find := bson.M{
-		"state":    model.STATE_EXIST,
+		"net":   net,
+		"state": model.STATE_EXIST,
+	}
+
+	if tick != "" {
+		find["tick"] = tick
 	}
 
 	models := make([]*model.Brc20TickModel, 0)

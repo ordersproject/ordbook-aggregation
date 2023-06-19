@@ -319,7 +319,8 @@ func ColdDownBrc20TransferBatch(req *request.ColdDownBrcTransferBatch) (*respond
 		return nil, err
 	}
 	availableBalance, _ = strconv.ParseInt(brc20BalanceResult.AvailableBalance, 10, 64)
-	if availableBalance < req.InscribeTransferAmount {
+	fmt.Printf("availableBalance:%d, req.InscribeTransferAmount*req.Count: %d\n", availableBalance, req.InscribeTransferAmount* req.Count)
+	if availableBalance < req.InscribeTransferAmount* req.Count{
 		return nil, errors.New("AvailableBalance not enough. ")
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
@@ -350,7 +351,7 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 		fees int64 = 0
 		inscribeUtxoList []*inscription_service.InscribeUtxo = make([]*inscription_service.InscribeUtxo, 0)
 		commonCoinAmount uint64 = uint64(req.InscribeTransferAmount)
-		commonOutAmount uint64 = 2000
+		commonOutAmount uint64 = 4000
 		commonCoinRatePrice uint64 = 0
 	)
 	inscribeUtxoList = append(inscribeUtxoList, &inscription_service.InscribeUtxo{
@@ -365,7 +366,8 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 		return nil, err
 	}
 	availableBalance, _ = strconv.ParseInt(brc20BalanceResult.AvailableBalance, 10, 64)
-	if availableBalance < req.InscribeTransferAmount {
+	fmt.Printf("availableBalance:%d, req.InscribeTransferAmount*req.Count: %d\n", availableBalance, req.InscribeTransferAmount* req.Count)
+	if availableBalance < req.InscribeTransferAmount * req.Count {
 		return nil, errors.New("AvailableBalance not enough. ")
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
@@ -446,12 +448,15 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 			CoinAmount:     commonCoinAmount,
 			CoinDecimalNum: 18,
 			CoinRatePrice:  commonCoinRatePrice,
-			OrderState:     model.OrderStateCreate,
-			OrderType:      model.OrderTypeSell,
-			SellerAddress:  platformAddressSendBrc20ForAsk,
-			BuyerAddress:   "",
-			PsbtRawPreAsk:  psbtRaw,
-			Timestamp:      tool.MakeTimestamp(),
+			//OrderState:     model.OrderStateCreate,
+			InscriptionId: v,
+			OrderState:    model.OrderStatePreAsk,
+			OrderType:     model.OrderTypeSell,
+			SellerAddress: platformAddressSendBrc20ForAsk,
+			BuyerAddress:  "",
+			PsbtRawPreAsk: psbtRaw,
+			FreeState:     model.FreeStateYes,
+			Timestamp:     tool.MakeTimestamp(),
 		}
 		_, err = mongo_service.SetOrderBrc20Model(entity)
 		if err != nil {
@@ -468,3 +473,4 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 		InscriptionIdList: inscriptionIdList,
 	}, nil
 }
+

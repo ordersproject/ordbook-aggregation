@@ -20,6 +20,7 @@ type OrderBrc20Model struct {
 	OrderType           OrderType  `json:"orderType" bson:"orderType"`   //1-sell,2-buy
 	SellerAddress       string     `json:"sellerAddress" bson:"sellerAddress"`
 	BuyerAddress        string     `json:"buyerAddress" bson:"buyerAddress"`
+	BuyerIp             string     `json:"buyerIp" bson:"buyerIp"`
 	MarketAmount        uint64     `json:"marketAmount" bson:"marketAmount"`
 	PlatformFee         uint64     `json:"platformFee" bson:"platformFee"`
 	ChangeAmount        uint64     `json:"changeAmount" bson:"changeAmount"`
@@ -37,6 +38,8 @@ type OrderBrc20Model struct {
 	PsbtRawFinalBid     string     `json:"psbtRawFinalBid" bson:"psbtRawFinalBid"`
 	PsbtBidTxId         string     `json:"psbtBidTxId" bson:"psbtBidTxId"`
 	Integral            int64      `json:"integral" bson:"integral"`
+	FreeState           FreeState  `json:"freeState" bson:"freeState"`
+	DealTime            int64      `json:"dealTime" bson:"dealTime"`
 	Timestamp           int64      `json:"timestamp" bson:"timestamp"`
 	CreateTime          int64      `json:"createTime" bson:"createTime"`
 	UpdateTime          int64      `json:"updateTime" bson:"updateTime"`

@@ -124,6 +124,7 @@ func PushOrder(req *request.OrderBrc20PushReq, publicKey string) (string, error)
 		SellerAddress:  sellerAddress,
 		BuyerAddress:   buyerAddress,
 		PsbtRawPreAsk:     req.PsbtRaw,
+		InscriptionId:inscriptionId,
 		Timestamp:tool.MakeTimestamp(),
 	}
 	_, err = mongo_service.SetOrderBrc20Model(entity)
@@ -528,6 +529,9 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 	coinAmountDe := decimal.NewFromInt(int64(entityOrder.CoinAmount))
 	coinRatePriceStr := outAmountDe.Div(coinAmountDe).StringFixed(0)
 	coinRatePrice, _ = strconv.ParseUint(coinRatePriceStr, 10, 64)
+	if coinRatePrice == 0 {
+		coinRatePrice = 1
+	}
 
 
 	entityOrder.PlatformFee = platformFee
@@ -1020,6 +1024,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	saveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, 4, psbtXTxId)
 	saveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, 5, psbtXTxId)
 
+	entity.DealTime = tool.MakeTimestamp()
 	entity.OrderState = model.OrderStateFinish
 	_, err = mongo_service.SetOrderBrc20Model(entity)
 	if err != nil {
@@ -1035,7 +1040,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	}, nil
 }
 
-func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey string) (string, error) {
+func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey, ip string) (string, error) {
 	var (
 		finalAskPsbtBuilder *PsbtBuilder
 		netParams *chaincfg.Params = GetNetParams(req.Net)
@@ -1094,6 +1099,7 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey string) (string, er
 					return "", errors.New(fmt.Sprintf("Check address verified: %v. ", verified))
 				}
 				entityOrder.BuyerAddress = buyerAddress
+				entityOrder.BuyerIp = ip
 
 
 
@@ -1131,6 +1137,7 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey string) (string, er
 			UpdateForOrderBidDummy(entityOrder.OrderId, state)
 			break
 		}
+		entityOrder.DealTime = tool.MakeTimestamp()
 		_, err = mongo_service.SetOrderBrc20Model(entityOrder)
 		if err != nil {
 			return "", err

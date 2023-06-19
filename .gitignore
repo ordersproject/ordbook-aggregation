@@ -12,3 +12,8 @@ service/order_brc20_service/brc20_set_service.go
 controller/brc20_set_controller.go
 controller/auth/auth_service_test.go
 node/rpc_client_test.go
+service/order_brc20_service/fix_ask_service.go
+service/task/cron_job_manager.go
+service/task/job_ask.go
+service/task/loop_ask_service.go
+service/task/run_job.go
