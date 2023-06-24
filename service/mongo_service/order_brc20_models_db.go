@@ -647,7 +647,7 @@ func SetOrderBrc20MarketPriceModel(orderBrc20MarketPrice *model.OrderBrc20Market
 }
 
 
-func CountBuyerOrderBrc20ModelList(net, tick, buyerAddress, buyerId string, orderType model.OrderType, orderState model.OrderState, startTime, endTime int64) (int64, error) {
+func CountBuyerOrderBrc20ModelList(net, tick, buyerAddress, buyerIp string, orderType model.OrderType, orderState model.OrderState, startTime, endTime int64) (int64, error) {
 	collection, err := model.OrderBrc20Model{}.GetReadDB()
 	if err != nil {
 		return 0, err
@@ -664,8 +664,8 @@ func CountBuyerOrderBrc20ModelList(net, tick, buyerAddress, buyerId string, orde
 	if buyerAddress != "" {
 		find["buyerAddress"] = buyerAddress
 	}
-	if buyerId != "" {
-		find["buyerId"] = buyerId
+	if buyerIp != "" {
+		find["buyerIp"] = buyerIp
 	}
 	if orderType != 0 {
 		find["orderType"] = orderType

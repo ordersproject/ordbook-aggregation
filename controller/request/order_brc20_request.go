@@ -77,6 +77,7 @@ type OrderBrc20UpdateReq struct {
 	OrderId    string           `json:"orderId"`
 	OrderState model.OrderState `json:"orderState"` //2-finish/3-cancel
 	PsbtRaw    string           `json:"psbtRaw"`
+	BroadcastIndex int `json:"broadcastIndex"`//1
 
 	Address    string           `json:"address"`
 }

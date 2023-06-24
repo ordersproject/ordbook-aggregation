@@ -1030,6 +1030,9 @@ var doc = `{
                 "net": {
                     "type": "string"
                 },
+                "outAddressType": {
+                    "type": "string"
+                },
                 "pkScript": {
                     "type": "string"
                 },
@@ -1196,6 +1199,10 @@ var doc = `{
                 "address": {
                     "type": "string"
                 },
+                "broadcastIndex": {
+                    "description": "1",
+                    "type": "integer"
+                },
                 "net": {
                     "description": "livenet/signet/testnet",
                     "type": "string"
@@ -1340,6 +1347,10 @@ var doc = `{
                 "freeState": {
                     "description": "1-for free",
                     "type": "integer"
+                },
+                "inscriptionId": {
+                    "description": "InscriptionId",
+                    "type": "string"
                 },
                 "net": {
                     "description": "Net env",

@@ -21,6 +21,7 @@ const (
 	OrderStatePreCreate OrderState = 4
 	OrderStateTimeout   OrderState = 5
 	OrderStateErr       OrderState = 6
+	OrderStateFinishButErr    OrderState = 8
 
 	OrderStatePreAsk       OrderState = 7
 

@@ -21,6 +21,14 @@ import (
 	extRpcClient "ordbook-aggregation/service/inscription_service/pkg/rpcclient"
 )
 
+type UtxoAddressType string
+
+const (
+	UtxoAddressTypeTaproot UtxoAddressType = "taproot"
+	UtxoAddressTypeSegwit UtxoAddressType = "segwit"
+)
+
+
 type InscriptionData struct {
 	ContentType string
 	Body        []byte
@@ -30,6 +38,7 @@ type InscriptionData struct {
 type InscriptionRequest struct {
 	CommitTxOutPointList   []*wire.OutPoint
 	CommitTxPrivateKeyList []*btcec.PrivateKey // If used without RPC,
+	CommitTxUtxoAddressTypeList []UtxoAddressType // sign utxo type
 	// a local signature is required for committing the commit tx.
 	// Currently, CommitTxPrivateKeyList[i] sign CommitTxOutPointList[i]
 	CommitFeeRate      int64
@@ -60,6 +69,7 @@ type InscriptionTool struct {
 	client                    *blockchainClient
 	commitTxPrevOutputFetcher *txscript.MultiPrevOutFetcher
 	commitTxPrivateKeyList    []*btcec.PrivateKey
+	CommitTxUtxoAddressTypeList []UtxoAddressType
 	txCtxDataList             []*inscriptionTxCtxData
 	revealTxPrevOutputFetcher *txscript.MultiPrevOutFetcher
 	revealTx                  []*wire.MsgTx
@@ -95,10 +105,11 @@ func NewInscriptionToolWithBtcApiClient(net *chaincfg.Params, btcApiClient btcap
 		client: &blockchainClient{
 			btcApiClient: btcApiClient,
 		},
-		commitTxPrevOutputFetcher: txscript.NewMultiPrevOutFetcher(nil),
-		commitTxPrivateKeyList:    request.CommitTxPrivateKeyList,
-		txCtxDataList:             make([]*inscriptionTxCtxData, len(request.DataList)),
-		revealTxPrevOutputFetcher: txscript.NewMultiPrevOutFetcher(nil),
+		commitTxPrevOutputFetcher:   txscript.NewMultiPrevOutFetcher(nil),
+		commitTxPrivateKeyList:      request.CommitTxPrivateKeyList,
+		CommitTxUtxoAddressTypeList: request.CommitTxUtxoAddressTypeList,
+		txCtxDataList:               make([]*inscriptionTxCtxData, len(request.DataList)),
+		revealTxPrevOutputFetcher:   txscript.NewMultiPrevOutFetcher(nil),
 	}
 	return tool, tool._initTool(net, request)
 }
@@ -430,13 +441,35 @@ func (tool *InscriptionTool) signCommitTx() error {
 	} else {
 		witnessList := make([]wire.TxWitness, len(tool.commitTx.TxIn))
 		for i := range tool.commitTx.TxIn {
-			txOut := tool.commitTxPrevOutputFetcher.FetchPrevOutput(tool.commitTx.TxIn[i].PreviousOutPoint)
-			witness, err := txscript.TaprootWitnessSignature(tool.commitTx, txscript.NewTxSigHashes(tool.commitTx, tool.commitTxPrevOutputFetcher),
-				i, txOut.Value, txOut.PkScript, txscript.SigHashDefault, tool.commitTxPrivateKeyList[i])
-			if err != nil {
-				return err
+			if tool.CommitTxUtxoAddressTypeList == nil || len(tool.CommitTxUtxoAddressTypeList) == 0 || i >= len(tool.CommitTxUtxoAddressTypeList) {
+				txOut := tool.commitTxPrevOutputFetcher.FetchPrevOutput(tool.commitTx.TxIn[i].PreviousOutPoint)
+				witness, err := txscript.TaprootWitnessSignature(tool.commitTx, txscript.NewTxSigHashes(tool.commitTx, tool.commitTxPrevOutputFetcher),
+					i, txOut.Value, txOut.PkScript, txscript.SigHashDefault, tool.commitTxPrivateKeyList[i])
+				if err != nil {
+					return err
+				}
+				witnessList[i] = witness
+			}else {
+				switch tool.CommitTxUtxoAddressTypeList[i] {
+				case UtxoAddressTypeSegwit:
+					txOut := tool.commitTxPrevOutputFetcher.FetchPrevOutput(tool.commitTx.TxIn[i].PreviousOutPoint)
+					witness, err := txscript.WitnessSignature(tool.commitTx, txscript.NewTxSigHashes(tool.commitTx, tool.commitTxPrevOutputFetcher),
+						i, txOut.Value, txOut.PkScript, txscript.SigHashAll, tool.commitTxPrivateKeyList[i], true)
+					if err != nil {
+						return err
+					}
+					witnessList[i] = witness
+					break
+				default:
+					txOut := tool.commitTxPrevOutputFetcher.FetchPrevOutput(tool.commitTx.TxIn[i].PreviousOutPoint)
+					witness, err := txscript.TaprootWitnessSignature(tool.commitTx, txscript.NewTxSigHashes(tool.commitTx, tool.commitTxPrevOutputFetcher),
+						i, txOut.Value, txOut.PkScript, txscript.SigHashDefault, tool.commitTxPrivateKeyList[i])
+					if err != nil {
+						return err
+					}
+					witnessList[i] = witness
+				}
 			}
-			witnessList[i] = witness
 		}
 		for i := range witnessList {
 			tool.commitTx.TxIn[i].Witness = witnessList[i]

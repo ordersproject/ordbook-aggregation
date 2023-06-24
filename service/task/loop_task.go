@@ -29,4 +29,29 @@ func loopUtxoService() {
 			<-timeTickerChan
 		}
 	}()
+
+
+	go func() {
+		logger.Logger.Infof(" \n")
+		timeTickerChan := time.Tick(time.Minute * 60)
+		for {
+			logger.Logger.Infof("Check ask receive value \n")
+			LoopCheckAskReceiveValueChangeAsk()
+			<-timeTickerChan
+		}
+	}()
+
+
+	go func() {
+		logger.Logger.Infof(" \n")
+		timeTickerChan := time.Tick(time.Minute * 30)
+		for {
+			logger.Logger.Infof("Check ask state \n")
+			LoopForCheckAsk()
+			<-timeTickerChan
+		}
+	}()
+
+
+
 }

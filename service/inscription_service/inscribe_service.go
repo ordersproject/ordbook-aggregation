@@ -295,7 +295,7 @@ func InscribeOneDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddres
 
 
 
-func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddress, content string, feeRate int64, changeAddress string, count int64, utxoList []*InscribeUtxo, isOnlyCal bool) (string, []string, []string, int64, error) {
+func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddress, content string, feeRate int64, changeAddress string, count int64, utxoList []*InscribeUtxo, outAddressType string, isOnlyCal bool) (string, []string, []string, int64, error) {
 	//btcApiClient := mempool.NewClient(netParams)
 	btcApiClient := unisat.NewClient(netParams)
 	contentType := "text/plain;charset=utf-8"
@@ -305,6 +305,7 @@ func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddr
 
 	commitTxOutPointList := make([]*wire.OutPoint, 0)
 	commitTxPrivateKeyList := make([]*btcec.PrivateKey, 0)
+	commitTxUtxoAddressTypeList := make([]ord.UtxoAddressType, 0)
 	dataList := make([]ord.InscriptionData, 0)
 	for i := int64(0); i < count; i++ {
 		dataList = append(dataList, ord.InscriptionData{
@@ -321,10 +322,16 @@ func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddr
 		}
 		utxoPrivateKey, _ := btcec.PrivKeyFromBytes(utxoPrivateKeyBytes)
 
+
 		utxoTaprootAddress, err := btcutil.NewAddressTaproot(schnorr.SerializePubKey(txscript.ComputeTaprootKeyNoScript(utxoPrivateKey.PubKey())), netParams)
 		if err != nil {
 			return "", nil, nil, 0, err
 		}
+		nativeSegwitAddress, err := btcutil.NewAddressWitnessPubKeyHash(btcutil.Hash160(utxoPrivateKey.PubKey().SerializeCompressed()), netParams)
+		if err != nil {
+			return "", nil, nil, 0, err
+		}
+
 
 		unspentList := make([]*btcapi.UnspentOutput, 0)
 		if utxoList != nil && len(utxoList) != 0 {
@@ -333,10 +340,19 @@ func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddr
 				if err != nil {
 					return "", nil, nil, 0, err
 				}
-				addr, err := btcutil.DecodeAddress(utxoTaprootAddress.EncodeAddress(), netParams)
-				if err != nil {
-					return "", nil, nil, 0, err
+				var addr btcutil.Address
+				if ord.UtxoAddressType(outAddressType) == ord.UtxoAddressTypeSegwit {
+					addr, err = btcutil.DecodeAddress(nativeSegwitAddress.EncodeAddress(), netParams)
+					if err != nil {
+						return "", nil, nil, 0, err
+					}
+				}else {
+					addr, err = btcutil.DecodeAddress(utxoTaprootAddress.EncodeAddress(), netParams)
+					if err != nil {
+						return "", nil, nil, 0, err
+					}
 				}
+
 				pkScript, err := txscript.PayToAddrScript(addr)
 				if err != nil {
 					return "", nil, nil, 0, err
@@ -351,6 +367,10 @@ func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddr
 						PkScript: pkScript,
 					},
 				})
+				if outAddressType != "" {
+					commitTxUtxoAddressTypeList = append(commitTxUtxoAddressTypeList, ord.UtxoAddressType(outAddressType))
+				}
+
 			}
 		}else {
 			return "", nil, nil, 0, err
@@ -363,13 +383,14 @@ func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddr
 	}
 
 	request := ord.InscriptionRequest{
-		CommitTxOutPointList:   commitTxOutPointList,
-		CommitTxPrivateKeyList: commitTxPrivateKeyList,
-		CommitFeeRate:      feeRate,
-		FeeRate:            feeRate,
-		DataList:           dataList,
-		SingleRevealTxOnly: false,
-		ChangeAddress:      changeAddress,
+		CommitTxOutPointList:        commitTxOutPointList,
+		CommitTxPrivateKeyList:      commitTxPrivateKeyList,
+		CommitTxUtxoAddressTypeList: commitTxUtxoAddressTypeList,
+		CommitFeeRate:               feeRate,
+		FeeRate:                     feeRate,
+		DataList:                    dataList,
+		SingleRevealTxOnly:          false,
+		ChangeAddress:               changeAddress,
 	}
 
 	tool, err := ord.NewInscriptionToolWithBtcApiClient(netParams, btcApiClient, &request)

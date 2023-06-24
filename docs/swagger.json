@@ -1018,6 +1018,9 @@
                 "net": {
                     "type": "string"
                 },
+                "outAddressType": {
+                    "type": "string"
+                },
                 "pkScript": {
                     "type": "string"
                 },
@@ -1184,6 +1187,10 @@
                 "address": {
                     "type": "string"
                 },
+                "broadcastIndex": {
+                    "description": "1",
+                    "type": "integer"
+                },
                 "net": {
                     "description": "livenet/signet/testnet",
                     "type": "string"
@@ -1328,6 +1335,10 @@
                 "freeState": {
                     "description": "1-for free",
                     "type": "integer"
+                },
+                "inscriptionId": {
+                    "description": "InscriptionId",
+                    "type": "string"
                 },
                 "net": {
                     "description": "Net env",

@@ -10,7 +10,6 @@ import (
 	"ordbook-aggregation/major"
 	"ordbook-aggregation/redis"
 	_ "ordbook-aggregation/service/cache_service"
-	"ordbook-aggregation/service/order_brc20_service"
 	"ordbook-aggregation/service/task"
 	"ordbook-aggregation/ws_service/ws"
 )
@@ -29,7 +28,6 @@ func InitEnv() {
 	fmt.Println(fmt.Sprintf("%s%v", "Env : ", ENV))
 }
 
-
 func InitAll() {
 	logName := "ordbook-aggregation"
 	major.InitLogger(logName)
@@ -40,10 +38,10 @@ func InitAll() {
 }
 
 func run() {
-	var(
+	var (
 		endRunning = make(chan bool, 1)
 	)
-	<- endRunning
+	<-endRunning
 }
 
 // @title OrdBook API Service
@@ -57,7 +55,7 @@ func main() {
 	InitEnv()
 	InitAll()
 
-	order_brc20_service.FixAsk()
+	//order_brc20_service.FixAsk()
 
 	go ws.StartWS()
 	task.Run()

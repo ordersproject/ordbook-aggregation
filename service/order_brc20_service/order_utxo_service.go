@@ -209,10 +209,11 @@ func CollectionUtxo(req *request.CollectionUtxo) (string, error){
 		totalIn = totalIn + v.Amount
 	}
 
-	totalSize := int64(len(inputs)) * SpendSize + 1 * OutSize + OtherSize
+	totalSize := int64(len(inputs)) * SpendSize + 2 * OutSize + OtherSize
 
 
-	totalAmount = int64(totalIn)- totalSize*req.FeeRate-546
+	//totalAmount = int64(totalIn)- totalSize*req.FeeRate-546
+	totalAmount = int64(totalIn)- totalSize*req.FeeRate-140000
 
 	fmt.Printf("totalSize:%d, totalIn:%d, totalSize*req.FeeRate:%d, totalAmount:%d\n", totalSize, totalIn, totalSize*req.FeeRate, totalAmount)
 
@@ -325,7 +326,7 @@ func ColdDownBrc20TransferBatch(req *request.ColdDownBrcTransferBatch) (*respond
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
 		inscription_service.InscribeMultiDataFromUtxo(netParams, req.PriKeyHex, platformAddressSendBrc20,
-			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, req.IsOnlyCal)
+			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, "", req.IsOnlyCal)
 	if err != nil {
 		return nil, err
 	}
@@ -372,7 +373,7 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
 		inscription_service.InscribeMultiDataFromUtxo(netParams, req.PriKeyHex, platformAddressSendBrc20ForAsk,
-			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, req.IsOnlyCal)
+			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, req.OutAddressType, req.IsOnlyCal)
 	if err != nil {
 		return nil, err
 	}

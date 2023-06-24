@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	dayLimit int64 = 3
+	dayLimit int64 = 2
 )
+
+//todo whitelist
 
 func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*respond.Brc20Item, error) {
 	var (
@@ -39,12 +41,14 @@ func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*
 	}
 
 
-	if entity.FreeState == model.FreeStateYes || entity.Net == "testnet" {
+	if entity.FreeState == model.FreeStateYes {
 		count, _ = mongo_service.CountBuyerOrderBrc20ModelList(entity.Net, entity.Tick, req.BuyerAddress, "", model.OrderTypeSell, model.OrderStateFinish, todayStartTime, todayEndTime)
+		fmt.Printf("[LIMIT-address]-%s-%s-count[%d]\n\n", ip, req.BuyerAddress, count)
 		if count >= dayLimit {
 			return nil, errors.New(fmt.Sprintf("The number of purchases of the day has exceeded. "))
 		}
 		count, _ = mongo_service.CountBuyerOrderBrc20ModelList(entity.Net, entity.Tick, "", ip, model.OrderTypeSell, model.OrderStateFinish, todayStartTime, todayEndTime)
+		fmt.Printf("[LIMIT-ip]-%s-%s-count[%d]\n\n", ip, req.BuyerAddress, count)
 		if count >= dayLimit {
 			return nil, errors.New(fmt.Sprintf("The number of purchases of the day has exceeded. "))
 		}
@@ -303,6 +307,7 @@ func FetchUserOrders(req *request.Brc20OrderAddressReq) (*respond.OrderResponse,
 			FreeState:      v.FreeState,
 			SellerAddress:  v.SellerAddress,
 			BuyerAddress:   v.BuyerAddress,
+			InscriptionId:   v.InscriptionId,
 			//PsbtRaw:        v.PsbtRawPreAsk,
 			Timestamp:      v.Timestamp,
 		}

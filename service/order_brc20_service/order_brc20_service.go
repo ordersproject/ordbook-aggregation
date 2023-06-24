@@ -840,15 +840,17 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		}
 	}
 	liveUtxoList := make([]*oklink_service.UtxoItem, 0)
-	for address, _ := range addressUtxoMap {
-		utxoResp, err := oklink_service.GetAddressUtxo(address, 1, 50)
-		if err != nil {
-			return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck address utxo list err:%s", err.Error()))
+	if entity.Net != "testnet" {
+		for address, _ := range addressUtxoMap {
+			utxoResp, err := oklink_service.GetAddressUtxo(address, 1, 50)
+			if err != nil {
+				return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck address utxo list err:%s", err.Error()))
+			}
+			if utxoResp.UtxoList != nil && len(utxoResp.UtxoList) != 0 {
+				liveUtxoList = append(liveUtxoList, utxoResp.UtxoList...)
+			}
+			time.Sleep(1200 * time.Millisecond)
 		}
-		if utxoResp.UtxoList != nil && len(utxoResp.UtxoList) != 0 {
-			liveUtxoList = append(liveUtxoList, utxoResp.UtxoList...)
-		}
-		time.Sleep(1200 * time.Millisecond)
 	}
 
 	for _, v := range insPsbtX {
@@ -1091,6 +1093,7 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey, ip string) (string
 					buyerAddress = req.Address
 				}
 
+
 				verified, err := CheckPublicKeyAddress(netParams, publicKey, buyerAddress)
 				if err != nil {
 					return "", errors.New(fmt.Sprintf("Check address err: %s. ", err.Error()))
@@ -1098,9 +1101,9 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey, ip string) (string
 				if !verified {
 					return "", errors.New(fmt.Sprintf("Check address verified: %v. ", verified))
 				}
+
 				entityOrder.BuyerAddress = buyerAddress
 				entityOrder.BuyerIp = ip
-
 
 
 				txRawByte, _ := hex.DecodeString(txRaw)
@@ -1112,6 +1115,18 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey, ip string) (string
 				txId := txAsk.TxHash().String()
 
 				entityOrder.PsbtAskTxId = txId
+
+
+				if req.BroadcastIndex == 1 {
+					txPsbtResp, err := unisat_service.BroadcastTx(entityOrder.Net, txRaw)
+					if err != nil {
+						return "", errors.New(fmt.Sprintf("Broadcast Psbt %s, orderId-%s err:%s", entityOrder.Net, entityOrder.OrderId, err.Error()))
+					}
+
+					entityOrder.PsbtAskTxId = txPsbtResp.Result
+					entityOrder.OrderState = model.OrderStateFinish
+				}
+
 			}
 
 			entityOrder.PsbtRawFinalAsk = req.PsbtRaw

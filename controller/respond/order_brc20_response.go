@@ -22,6 +22,7 @@ type Brc20Item struct {
 	FreeState      model.FreeState  `json:"freeState,omitempty"`      //1-for free
 	SellerAddress  string           `json:"sellerAddress,omitempty"`  //Seller's address
 	BuyerAddress   string           `json:"buyerAddress,omitempty"`   //Buyer's address
+	InscriptionId        string           `json:"inscriptionId,omitempty"`        //InscriptionId
 	PsbtRaw        string           `json:"psbtRaw,omitempty"`        //PSBT Raw
 	Timestamp      int64            `json:"timestamp"`                //Create time
 }

@@ -67,6 +67,7 @@ func BuildCommonTx(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutp
 	txSize := tx.SerializeSize() + SpendSize*len(tx.TxIn)
 
 	reqFee := btcutil.Amount(txSize * int(fee))
+	fmt.Printf("txSize:%d, reqFee:%d, totalAmount:%d, outAmount:%d\n", txSize, reqFee, totalAmount, outAmount)
 	if totalAmount - outAmount < int64(reqFee) {
 		return nil, errors.New("Insufficient fee")
 	}

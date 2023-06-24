@@ -63,4 +63,5 @@ type ColdDownBrcTransferBatch struct {
 	FeeRate                int64  `json:"feeRate"`
 	Count                  int64  `json:"count"`
 	IsOnlyCal              bool   `json:"isOnlyCal"`
+	OutAddressType         string `json:"outAddressType"`
 }
