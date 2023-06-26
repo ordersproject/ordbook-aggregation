@@ -12,17 +12,14 @@ import (
 	_ "ordbook-aggregation/docs"
 )
 
-
 func Run() {
 	router := gin.Default()
 	router.Use(Cors())
 	router.Use(Logger())
 	router.Use(middleware.ResponseTime())
 
-
 	//limiter := middleware.NewIPRateLimiter(1 * time.Second, 120)
 	//router.Use(middleware.IPRateLimitMiddleware(limiter))
-
 
 	// brc20
 	brc20 := router.Group("/brc20")
@@ -52,6 +49,7 @@ func Run() {
 		brc20.GET("/ws/uuid", GetWsUuid)
 		brc20.GET("/check/info", CheckBrc20)
 		brc20.GET("/address/:address/:tick", GetBrc20BalanceDetail)
+		brc20.GET("/address/:address/balance/info", GetBrc20BalanceList)
 
 		brc20.GET("/order/bid/dummy/:address", GetBidDummyList)
 	}
@@ -95,4 +93,3 @@ func Handle(r *gin.Engine, httpMethods []string, relativePath string, handlers .
 	}
 	return routes
 }
-

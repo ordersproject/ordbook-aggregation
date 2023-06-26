@@ -13,22 +13,22 @@ const (
 	OklinkCodeSuccess = "0"
 )
 
-//Get brc20Balance
-func GetAddressBrc20BalanceResult(address, tick string, page, limit int64) (*OklinkBrc20BalanceDetails, error){
+// Get brc20Balance-detail
+func GetAddressBrc20BalanceResult(address, tick string, page, limit int64) (*OklinkBrc20BalanceDetails, error) {
 	var (
-		url        string
-		result        string
-		resp        *OklinkResp
-		data        []*OklinkBrc20BalanceDetails = make([]*OklinkBrc20BalanceDetails, 0)
-		err        error
-		query map[string]string = map[string]string{
-			"address":address,
-			"token":strings.ToUpper(tick),
-			"page":strconv.FormatInt(page, 10),
-			"limit":strconv.FormatInt(limit, 10),
+		url    string
+		result string
+		resp   *OklinkResp
+		data   []*OklinkBrc20BalanceDetails = make([]*OklinkBrc20BalanceDetails, 0)
+		err    error
+		query  map[string]string = map[string]string{
+			"address": address,
+			"token":   strings.ToUpper(tick),
+			"page":    strconv.FormatInt(page, 10),
+			"limit":   strconv.FormatInt(limit, 10),
 		}
 		headers map[string]string = map[string]string{
-			"Ok-Access-Key":config.OklinkKey,
+			"Ok-Access-Key": config.OklinkKey,
 		}
 	)
 
@@ -38,7 +38,7 @@ func GetAddressBrc20BalanceResult(address, tick string, page, limit int64) (*Okl
 		return nil, err
 	}
 	//fmt.Println(result)
-	if err = tool.JsonToObject(result, &resp) ; err != nil {
+	if err = tool.JsonToObject(result, &resp); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
 
@@ -46,7 +46,7 @@ func GetAddressBrc20BalanceResult(address, tick string, page, limit int64) (*Okl
 		return nil, errors.New(fmt.Sprintf("Msg:%s", resp.Msg))
 	}
 
-	if err = tool.JsonToAny(resp.Data, &data) ; err != nil {
+	if err = tool.JsonToAny(resp.Data, &data); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
 	if len(data) == 0 {
@@ -56,23 +56,66 @@ func GetAddressBrc20BalanceResult(address, tick string, page, limit int64) (*Okl
 	return data[0], nil
 }
 
-//Get Inscriptions
-func GetInscriptions(token, inscriptionId, inscriptionNumber string, page, limit int64) (*OklinkInscriptionDetails, error) {
+// Get brc20Balance-list
+func GetAddressBrc20BalanceListResult(address, tick string, page, limit int64) (*OklinkBrc20BalanceList, error) {
 	var (
-		url        string
-		result        string
-		resp        *OklinkResp
-		data        []*OklinkInscriptionDetails = make([]*OklinkInscriptionDetails, 0)
-		err        error
-		query map[string]string = map[string]string{
-			"token":token,
-			"inscriptionId":inscriptionId,
-			"inscriptionNumber":inscriptionNumber,
-			"page":strconv.FormatInt(page, 10),
-			"limit":strconv.FormatInt(limit, 10),
+		url    string
+		result string
+		resp   *OklinkResp
+		data   []*OklinkBrc20BalanceList = make([]*OklinkBrc20BalanceList, 0)
+		err    error
+		query  map[string]string = map[string]string{
+			"address": address,
+			"token":   strings.ToUpper(tick),
+			"page":    strconv.FormatInt(page, 10),
+			"limit":   strconv.FormatInt(limit, 10),
 		}
 		headers map[string]string = map[string]string{
-			"Ok-Access-Key":config.OklinkKey,
+			"Ok-Access-Key": config.OklinkKey,
+		}
+	)
+
+	url = fmt.Sprintf("%s/api/v5/explorer/btc/address-balance-list", config.OklinkDomain)
+	result, err = tool.GetUrl(url, query, headers)
+	if err != nil {
+		return nil, err
+	}
+	//fmt.Println(result)
+	if err = tool.JsonToObject(result, &resp); err != nil {
+		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
+	}
+
+	if resp.Code != OklinkCodeSuccess {
+		return nil, errors.New(fmt.Sprintf("Msg:%s", resp.Msg))
+	}
+
+	if err = tool.JsonToAny(resp.Data, &data); err != nil {
+		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
+	}
+	if len(data) == 0 {
+		return nil, errors.New("No Data. ")
+	}
+
+	return data[0], nil
+}
+
+// Get Inscriptions
+func GetInscriptions(token, inscriptionId, inscriptionNumber string, page, limit int64) (*OklinkInscriptionDetails, error) {
+	var (
+		url    string
+		result string
+		resp   *OklinkResp
+		data   []*OklinkInscriptionDetails = make([]*OklinkInscriptionDetails, 0)
+		err    error
+		query  map[string]string = map[string]string{
+			"token":             token,
+			"inscriptionId":     inscriptionId,
+			"inscriptionNumber": inscriptionNumber,
+			"page":              strconv.FormatInt(page, 10),
+			"limit":             strconv.FormatInt(limit, 10),
+		}
+		headers map[string]string = map[string]string{
+			"Ok-Access-Key": config.OklinkKey,
 		}
 	)
 
@@ -83,7 +126,7 @@ func GetInscriptions(token, inscriptionId, inscriptionNumber string, page, limit
 	}
 
 	fmt.Println(result)
-	if err = tool.JsonToObject(result, &resp) ; err != nil {
+	if err = tool.JsonToObject(result, &resp); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
 
@@ -91,7 +134,7 @@ func GetInscriptions(token, inscriptionId, inscriptionNumber string, page, limit
 		return nil, errors.New(fmt.Sprintf("Msg:%s", resp.Msg))
 	}
 
-	if err = tool.JsonToAny(resp.Data, &data) ; err != nil {
+	if err = tool.JsonToAny(resp.Data, &data); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
 	if len(data) == 0 {
@@ -101,20 +144,20 @@ func GetInscriptions(token, inscriptionId, inscriptionNumber string, page, limit
 	return data[0], nil
 }
 
-//Get TxDetail
+// Get TxDetail
 func GetTxDetail(txId string) (*TxDetail, error) {
 	var (
-		url        string
-		result        string
-		resp        *OklinkResp
-		data        []*TxDetail = make([]*TxDetail, 0)
-		err        error
-		query map[string]string = map[string]string{
-			"chainShortName":"btc",
-			"txid":txId,
+		url    string
+		result string
+		resp   *OklinkResp
+		data   []*TxDetail = make([]*TxDetail, 0)
+		err    error
+		query  map[string]string = map[string]string{
+			"chainShortName": "btc",
+			"txid":           txId,
 		}
 		headers map[string]string = map[string]string{
-			"Ok-Access-Key":config.OklinkKey,
+			"Ok-Access-Key": config.OklinkKey,
 		}
 	)
 
@@ -125,7 +168,7 @@ func GetTxDetail(txId string) (*TxDetail, error) {
 	}
 
 	fmt.Println(result)
-	if err = tool.JsonToObject(result, &resp) ; err != nil {
+	if err = tool.JsonToObject(result, &resp); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
 
@@ -133,7 +176,7 @@ func GetTxDetail(txId string) (*TxDetail, error) {
 		return nil, errors.New(fmt.Sprintf("Msg:%s", resp.Msg))
 	}
 
-	if err = tool.JsonToAny(resp.Data, &data) ; err != nil {
+	if err = tool.JsonToAny(resp.Data, &data); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
 	if len(data) == 0 {
@@ -145,17 +188,17 @@ func GetTxDetail(txId string) (*TxDetail, error) {
 
 func BroadcastTx(hex string) (*BroadcastTxResp, error) {
 	var (
-		url        string
-		result        string
-		resp        *OklinkResp
-		data        []*BroadcastTxResp = make([]*BroadcastTxResp, 0)
-		err        error
-		req map[string]string = map[string]string{
-			"chainShortName":"btc",
-			"signedTx":hex,
+		url    string
+		result string
+		resp   *OklinkResp
+		data   []*BroadcastTxResp = make([]*BroadcastTxResp, 0)
+		err    error
+		req    map[string]string = map[string]string{
+			"chainShortName": "btc",
+			"signedTx":       hex,
 		}
 		headers map[string]string = map[string]string{
-			"Ok-Access-Key":config.OklinkKey,
+			"Ok-Access-Key": config.OklinkKey,
 		}
 	)
 
@@ -167,7 +210,7 @@ func BroadcastTx(hex string) (*BroadcastTxResp, error) {
 	}
 
 	fmt.Println(result)
-	if err = tool.JsonToObject(result, &resp) ; err != nil {
+	if err = tool.JsonToObject(result, &resp); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
 
@@ -175,7 +218,7 @@ func BroadcastTx(hex string) (*BroadcastTxResp, error) {
 		return nil, errors.New(fmt.Sprintf("Msg:%s", resp.Msg))
 	}
 
-	if err = tool.JsonToAny(resp.Data, &data) ; err != nil {
+	if err = tool.JsonToAny(resp.Data, &data); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
 	if len(data) == 0 {
@@ -184,24 +227,22 @@ func BroadcastTx(hex string) (*BroadcastTxResp, error) {
 	return data[0], nil
 }
 
-
-
-//Get UTXO
+// Get UTXO
 func GetAddressUtxo(address string, page, limit int64) (*OklinkUtxoDetails, error) {
 	var (
-		url        string
-		result        string
-		resp        *OklinkResp
-		data        []*OklinkUtxoDetails = make([]*OklinkUtxoDetails, 0)
-		err        error
-		query map[string]string = map[string]string{
-			"chainShortName":"btc",
-			"address":address,
-			"page":strconv.FormatInt(page, 10),
-			"limit":strconv.FormatInt(limit, 10),
+		url    string
+		result string
+		resp   *OklinkResp
+		data   []*OklinkUtxoDetails = make([]*OklinkUtxoDetails, 0)
+		err    error
+		query  map[string]string = map[string]string{
+			"chainShortName": "btc",
+			"address":        address,
+			"page":           strconv.FormatInt(page, 10),
+			"limit":          strconv.FormatInt(limit, 10),
 		}
 		headers map[string]string = map[string]string{
-			"Ok-Access-Key":config.OklinkKey,
+			"Ok-Access-Key": config.OklinkKey,
 		}
 	)
 
@@ -212,7 +253,7 @@ func GetAddressUtxo(address string, page, limit int64) (*OklinkUtxoDetails, erro
 	}
 
 	fmt.Println(result)
-	if err = tool.JsonToObject(result, &resp) ; err != nil {
+	if err = tool.JsonToObject(result, &resp); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
 
@@ -220,7 +261,7 @@ func GetAddressUtxo(address string, page, limit int64) (*OklinkUtxoDetails, erro
 		return nil, errors.New(fmt.Sprintf("Msg:%s", resp.Msg))
 	}
 
-	if err = tool.JsonToAny(resp.Data, &data) ; err != nil {
+	if err = tool.JsonToAny(resp.Data, &data); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
 	if len(data) == 0 {

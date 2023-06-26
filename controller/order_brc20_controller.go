@@ -21,9 +21,9 @@ import (
 // @Router /brc20/order/ask/push [post]
 func PushOrder(c *gin.Context) {
 	var (
-		t   int64            = tool.MakeTimestamp()
+		t            int64 = tool.MakeTimestamp()
 		requestModel *request.OrderBrc20PushReq
-		publicKey string = ""
+		publicKey    string = ""
 	)
 	if c.ShouldBindJSON(&requestModel) == nil {
 		publicKey = getAuthParams(c)
@@ -57,14 +57,14 @@ func PushOrder(c *gin.Context) {
 // @Router /brc20/orders [get]
 func FetchOrders(c *gin.Context) {
 	var (
-		t   int64            = tool.MakeTimestamp()
-		orderStateStr = c.DefaultQuery("orderState", "0")
-		orderTypeStr = c.DefaultQuery("orderType", "0")
-		limitStr = c.DefaultQuery("limit", "50")
-		pageStr = c.DefaultQuery("page", "0")
-		flagStr = c.DefaultQuery("flag", "0")
-		sortTypeStr = c.DefaultQuery("sortType", "0")
-		req *request.OrderBrc20FetchReq = &request.OrderBrc20FetchReq{
+		t             int64                       = tool.MakeTimestamp()
+		orderStateStr                             = c.DefaultQuery("orderState", "0")
+		orderTypeStr                              = c.DefaultQuery("orderType", "0")
+		limitStr                                  = c.DefaultQuery("limit", "50")
+		pageStr                                   = c.DefaultQuery("page", "0")
+		flagStr                                   = c.DefaultQuery("flag", "0")
+		sortTypeStr                               = c.DefaultQuery("sortType", "0")
+		req           *request.OrderBrc20FetchReq = &request.OrderBrc20FetchReq{
 			Net:           c.DefaultQuery("net", ""),
 			Tick:          c.DefaultQuery("tick", ""),
 			OrderState:    0,
@@ -105,12 +105,12 @@ func FetchOrders(c *gin.Context) {
 // @Router /brc20/order/{orderId} [get]
 func FetchOneOrder(c *gin.Context) {
 	var (
-		t   int64            = tool.MakeTimestamp()
+		t   int64                          = tool.MakeTimestamp()
 		req *request.OrderBrc20FetchOneReq = &request.OrderBrc20FetchOneReq{
-			Net:           c.DefaultQuery("net", ""),
-			Tick:          c.DefaultQuery("tick", ""),
-			OrderId:  c.Param("orderId"),
-			BuyerAddress:  c.DefaultQuery("buyerAddress", ""),
+			Net:          c.DefaultQuery("net", ""),
+			Tick:         c.DefaultQuery("tick", ""),
+			OrderId:      c.Param("orderId"),
+			BuyerAddress: c.DefaultQuery("buyerAddress", ""),
 		}
 		publicKey = getAuthParams(c)
 	)
@@ -122,7 +122,6 @@ func FetchOneOrder(c *gin.Context) {
 	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
 	return
 }
-
 
 // @Summary Fetch user orders
 // @Description Fetch user orders
@@ -179,7 +178,6 @@ func FetchUserOrders(c *gin.Context) {
 	return
 }
 
-
 // @Summary Fetch tick info
 // @Description Fetch tick info
 // @Produce  json
@@ -190,14 +188,14 @@ func FetchUserOrders(c *gin.Context) {
 // @Router /brc20/tickers [get]
 func FetchTicker(c *gin.Context) {
 	var (
-		t   int64 = tool.MakeTimestamp()
+		t   int64                      = tool.MakeTimestamp()
 		req *request.TickBrc20FetchReq = &request.TickBrc20FetchReq{
-			Net:c.DefaultQuery("net", ""),
-			Tick:          c.DefaultQuery("tick", ""),
-			Limit:         0,
-			Flag:          0,
-			SortKey:       c.DefaultQuery("sortKey", ""),
-			SortType:      0,
+			Net:      c.DefaultQuery("net", ""),
+			Tick:     c.DefaultQuery("tick", ""),
+			Limit:    0,
+			Flag:     0,
+			SortKey:  c.DefaultQuery("sortKey", ""),
+			SortType: 0,
 		}
 	)
 
@@ -221,11 +219,11 @@ func FetchTicker(c *gin.Context) {
 // @Router /brc20/kline [get]
 func FetchKline(c *gin.Context) {
 	var (
-		t   int64 = tool.MakeTimestamp()
+		t   int64                      = tool.MakeTimestamp()
 		req *request.TickKlineFetchReq = &request.TickKlineFetchReq{
-			Tick:          c.DefaultQuery("tick", ""),
-			Limit:0,
-			Interval:c.DefaultQuery("interval", ""),
+			Tick:     c.DefaultQuery("tick", ""),
+			Limit:    0,
+			Interval: c.DefaultQuery("interval", ""),
 		}
 	)
 	_ = req
@@ -233,7 +231,6 @@ func FetchKline(c *gin.Context) {
 	c.JSONP(http.StatusOK, respond.RespSuccess(nil, tool.MakeTimestamp()-t))
 	return
 }
-
 
 // @Summary Update order
 // @Description Update order
@@ -244,9 +241,9 @@ func FetchKline(c *gin.Context) {
 // @Router /brc20/order/update [post]
 func UpdateOrder(c *gin.Context) {
 	var (
-		t   int64            = tool.MakeTimestamp()
+		t            int64 = tool.MakeTimestamp()
 		requestModel *request.OrderBrc20UpdateReq
-		publicKey string = ""
+		publicKey    string = ""
 	)
 	if c.ShouldBindJSON(&requestModel) == nil {
 		publicKey = getAuthParams(c)
@@ -261,7 +258,6 @@ func UpdateOrder(c *gin.Context) {
 	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
 }
 
-
 // @Summary Fetch pre bid
 // @Description Fetch pre bid
 // @Produce  json
@@ -272,10 +268,10 @@ func UpdateOrder(c *gin.Context) {
 // @Router /brc20/order/bid/pre [get]
 func FetchPreBid(c *gin.Context) {
 	var (
-		t   int64            = tool.MakeTimestamp()
+		t   int64                        = tool.MakeTimestamp()
 		req *request.OrderBrc20GetBidReq = &request.OrderBrc20GetBidReq{
-			Net:          c.DefaultQuery("net", ""),
-			Tick:          c.DefaultQuery("tick", ""),
+			Net:  c.DefaultQuery("net", ""),
+			Tick: c.DefaultQuery("tick", ""),
 		}
 	)
 	responseModel, err := order_brc20_service.FetchPreBid(req)
@@ -302,9 +298,9 @@ func FetchPreBid(c *gin.Context) {
 // @Router /brc20/order/bid [get]
 func FetchBidPsbt(c *gin.Context) {
 	var (
-		t   int64            = tool.MakeTimestamp()
-		amountStr string = c.DefaultQuery("amount", "0")
-		req *request.OrderBrc20GetBidReq = &request.OrderBrc20GetBidReq{
+		t         int64                        = tool.MakeTimestamp()
+		amountStr string                       = c.DefaultQuery("amount", "0")
+		req       *request.OrderBrc20GetBidReq = &request.OrderBrc20GetBidReq{
 			Net:               c.DefaultQuery("net", ""),
 			Tick:              c.DefaultQuery("tick", ""),
 			InscriptionId:     c.DefaultQuery("inscriptionId", ""),
@@ -332,7 +328,7 @@ func FetchBidPsbt(c *gin.Context) {
 // @Router /brc20/order/bid/push [post]
 func UpdateBidPsbt(c *gin.Context) {
 	var (
-		t   int64            = tool.MakeTimestamp()
+		t            int64 = tool.MakeTimestamp()
 		requestModel *request.OrderBrc20UpdateBidReq
 	)
 	if c.ShouldBindJSON(&requestModel) == nil {
@@ -356,7 +352,7 @@ func UpdateBidPsbt(c *gin.Context) {
 // @Router /brc20/order/bid/do [post]
 func DoBid(c *gin.Context) {
 	var (
-		t   int64            = tool.MakeTimestamp()
+		t            int64 = tool.MakeTimestamp()
 		requestModel *request.OrderBrc20DoBidReq
 	)
 	if c.ShouldBindJSON(&requestModel) == nil {
@@ -379,9 +375,8 @@ func DoBid(c *gin.Context) {
 // @Router /brc20/ws/uuid [get]
 func GetWsUuid(c *gin.Context) {
 	var (
-		t   int64 = tool.MakeTimestamp()
+		t int64 = tool.MakeTimestamp()
 	)
-
 
 	resp, err := order_brc20_service.GetWsUuid(c.ClientIP())
 	if err != nil {
@@ -391,7 +386,6 @@ func GetWsUuid(c *gin.Context) {
 	c.JSONP(http.StatusOK, respond.RespSuccess(resp, tool.MakeTimestamp()-t))
 	return
 }
-
 
 // @Summary Check inscription brc20 valid
 // @Description Check inscription brc20 valid
@@ -403,7 +397,7 @@ func GetWsUuid(c *gin.Context) {
 // @Router /brc20/check/info [get]
 func CheckBrc20(c *gin.Context) {
 	var (
-		t   int64 = tool.MakeTimestamp()
+		t   int64                             = tool.MakeTimestamp()
 		req *request.CheckBrc20InscriptionReq = &request.CheckBrc20InscriptionReq{
 			InscriptionId:     c.DefaultQuery("inscriptionId", ""),
 			InscriptionNumber: c.DefaultQuery("inscriptionNumber", ""),
@@ -431,18 +425,51 @@ func CheckBrc20(c *gin.Context) {
 // @Router /brc20/address/{address}/{tick} [get]
 func GetBrc20BalanceDetail(c *gin.Context) {
 	var (
-		t   int64 = tool.MakeTimestamp()
-		pageStr string = c.DefaultQuery("page", "1")
-		limitStr string = c.DefaultQuery("limit", "60")
-		req *request.Brc20AddressReq = &request.Brc20AddressReq{
+		t        int64                    = tool.MakeTimestamp()
+		pageStr  string                   = c.DefaultQuery("page", "1")
+		limitStr string                   = c.DefaultQuery("limit", "60")
+		req      *request.Brc20AddressReq = &request.Brc20AddressReq{
 			Net:     c.DefaultQuery("net", ""),
 			Tick:    c.Param("tick"),
-			Address:  c.Param("address"),
+			Address: c.Param("address"),
 		}
 	)
 	req.Page, _ = strconv.ParseInt(pageStr, 10, 64)
 	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
 	resp, err := order_brc20_service.GetBrc20BalanceDetail(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(resp, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary Get brc20 balance
+// @Description Get brc20 balance
+// @Produce  json
+// @Param tick query string false "tick"
+// @Param address path string true "address"
+// @Param net query string false "net"
+// @Param page query int false "page"
+// @Param limit query int false "limit"
+// @Tags brc20
+// @Success 200 {object} respond.Brc20BalanceList ""
+// @Router /brc20/address/{address}/balance/info [get]
+func GetBrc20BalanceList(c *gin.Context) {
+	var (
+		t        int64                    = tool.MakeTimestamp()
+		pageStr  string                   = c.DefaultQuery("page", "1")
+		limitStr string                   = c.DefaultQuery("limit", "60")
+		req      *request.Brc20AddressReq = &request.Brc20AddressReq{
+			Net:     c.DefaultQuery("net", ""),
+			Tick:    c.DefaultQuery("tick", ""),
+			Address: c.Param("address"),
+		}
+	)
+	req.Page, _ = strconv.ParseInt(pageStr, 10, 64)
+	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
+	resp, err := order_brc20_service.GetBrc20BalanceList(req)
 	if err != nil {
 		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
 		return
@@ -463,13 +490,13 @@ func GetBrc20BalanceDetail(c *gin.Context) {
 // @Router /brc20/order/bid/dummy/{address} [get]
 func GetBidDummyList(c *gin.Context) {
 	var (
-		t   int64 = tool.MakeTimestamp()
-		skipStr string = c.DefaultQuery("skip", "1")
-		limitStr string = c.DefaultQuery("limit", "60")
-		req *request.Brc20BidAddressDummyReq = &request.Brc20BidAddressDummyReq{
+		t        int64                            = tool.MakeTimestamp()
+		skipStr  string                           = c.DefaultQuery("skip", "1")
+		limitStr string                           = c.DefaultQuery("limit", "60")
+		req      *request.Brc20BidAddressDummyReq = &request.Brc20BidAddressDummyReq{
 			Net:     c.DefaultQuery("net", ""),
 			Tick:    c.Param("tick"),
-			Address:  c.Param("address"),
+			Address: c.Param("address"),
 		}
 	)
 	req.Skip, _ = strconv.ParseInt(skipStr, 10, 64)

@@ -21,10 +21,10 @@ const (
 
 func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*respond.Brc20Item, error) {
 	var (
-		entity *model.OrderBrc20Model
-		netParams *chaincfg.Params = GetNetParams(req.Net)
-		count int64 = 0
-		todayStartTime, todayEndTime int64 = tool.GetToday0Time(), tool.GetToday24Time()
+		entity                       *model.OrderBrc20Model
+		netParams                    *chaincfg.Params = GetNetParams(req.Net)
+		count                        int64            = 0
+		todayStartTime, todayEndTime int64            = tool.GetToday0Time(), tool.GetToday24Time()
 	)
 	entity, _ = mongo_service.FindOrderBrc20ModelByOrderId(req.OrderId)
 	if entity == nil {
@@ -40,7 +40,6 @@ func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*
 		return nil, errors.New(fmt.Sprintf("Check address verified: %v. ", verified))
 	}
 
-
 	if entity.FreeState == model.FreeStateYes {
 		count, _ = mongo_service.CountBuyerOrderBrc20ModelList(entity.Net, entity.Tick, req.BuyerAddress, "", model.OrderTypeSell, model.OrderStateFinish, todayStartTime, todayEndTime)
 		fmt.Printf("[LIMIT-address]-%s-%s-count[%d]\n\n", ip, req.BuyerAddress, count)
@@ -53,7 +52,6 @@ func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*
 			return nil, errors.New(fmt.Sprintf("The number of purchases of the day has exceeded. "))
 		}
 	}
-
 
 	item := &respond.Brc20Item{
 		Net:            entity.Net,
@@ -78,9 +76,9 @@ func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*
 func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error) {
 	var (
 		entityList []*model.OrderBrc20Model
-		list []*respond.Brc20Item
-		total int64 = 0
-		flag int64 = 0
+		list       []*respond.Brc20Item
+		total      int64 = 0
+		flag       int64 = 0
 	)
 	total, _ = mongo_service.CountOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress, req.OrderType, req.OrderState)
 	entityList, _ = mongo_service.FindOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress,
@@ -89,8 +87,8 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 	list = make([]*respond.Brc20Item, len(entityList))
 	for k, v := range entityList {
 		item := &respond.Brc20Item{
-			Net:           v.Net,
-			OrderId:           v.OrderId,
+			Net:            v.Net,
+			OrderId:        v.OrderId,
 			Tick:           v.Tick,
 			Amount:         v.Amount,
 			DecimalNum:     v.DecimalNum,
@@ -103,11 +101,11 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 			SellerAddress:  v.SellerAddress,
 			BuyerAddress:   v.BuyerAddress,
 			//PsbtRaw:        v.PsbtRawPreAsk,
-			Timestamp:      v.Timestamp,
+			Timestamp: v.Timestamp,
 		}
 		if req.SortKey == "coinRatePrice" {
 			flag = int64(v.CoinRatePrice)
-		}else {
+		} else {
 			flag = v.Timestamp
 		}
 		//list = append(list, item)
@@ -120,68 +118,11 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 	}, nil
 }
 
-func FetchTickers(req *request.TickBrc20FetchReq) (*respond.Brc20TickInfoResponse, error){
+func FetchTickers(req *request.TickBrc20FetchReq) (*respond.Brc20TickInfoResponse, error) {
 	var (
 		entityList []*model.Brc20TickModel
-		list []*respond.Brc20TickItem = make([]*respond.Brc20TickItem, 0)
+		list       []*respond.Brc20TickItem = make([]*respond.Brc20TickItem, 0)
 	)
-
-	//list = []*respond.Brc20TickItem{
-	//	&respond.Brc20TickItem{
-	//		Net:                "mainnet",
-	//		Pair:               "ORDI-BTC",
-	//		Tick:               "ordi",
-	//		Buy:                "0.00005470",
-	//		//Sell:               "",
-	//		//Low:                "",
-	//		//High:               "",
-	//		//Open:               "",
-	//		//Last:               "",
-	//		//Volume:             "",
-	//		//Amount:             "",
-	//		//Vol:                "",
-	//		//AvgPrice:           "",
-	//		QuoteSymbol:"+",
-	//		PriceChangePercent: "4.32",
-	//		Ut:                 0,
-	//	},
-	//	&respond.Brc20TickItem{
-	//		Net:                "mainnet",
-	//		Pair:               "PEPE-BTC",
-	//		Tick:               "pepe",
-	//		Buy:                "0.00006853",
-	//		QuoteSymbol:"+",
-	//		PriceChangePercent: "1.43",
-	//		Ut:                 0,
-	//	},
-	//	&respond.Brc20TickItem{
-	//		Net:                "mainnet",
-	//		Pair:               "MEME-BTC",
-	//		Tick:               "meme",
-	//		Buy:                "0.00325100",
-	//		QuoteSymbol:"-",
-	//		PriceChangePercent: "11.46",
-	//		Ut:                 0,
-	//	},
-	//	&respond.Brc20TickItem{
-	//		Net:                "mainnet",
-	//		Pair:               "OMNI-BTC",
-	//		Tick:               "omni",
-	//		Buy:                "0.00004056",
-	//		QuoteSymbol:"+",
-	//		PriceChangePercent: "0.21",
-	//		Ut:                 0,
-	//	},
-	//	&respond.Brc20TickItem{
-	//		Net:                "mainnet",
-	//		Pair:               "SATS-BTC",
-	//		Tick:               "sats",
-	//		Buy:                "0.00001300",
-	//		QuoteSymbol:"-",
-	//		PriceChangePercent: "0.35",
-	//		Ut:                 0,
-	//	},
-	//}
 
 	entityList, _ = mongo_service.FindBrc20TickModelList(req.Net, req.Tick, 0, 100)
 	for _, v := range entityList {
@@ -206,7 +147,6 @@ func FetchTickers(req *request.TickBrc20FetchReq) (*respond.Brc20TickInfoRespons
 		})
 	}
 
-
 	return &respond.Brc20TickInfoResponse{
 		Total:   5,
 		Results: list,
@@ -219,14 +159,15 @@ func GetWsUuid(ip string) (*respond.WsUuidResp, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &respond.WsUuidResp{Uuid:uuid}, nil
+	return &respond.WsUuidResp{Uuid: uuid}, nil
 }
 
-func GetBrc20BalanceDetail(req *request.Brc20AddressReq) (*respond.BalanceDetails, error)  {
+// GetBrc20BalanceDetail get brc20 token detail
+func GetBrc20BalanceDetail(req *request.Brc20AddressReq) (*respond.BalanceDetails, error) {
 	var (
 		balanceDetail *oklink_service.OklinkBrc20BalanceDetails
-		err error
-		list []*respond.BalanceItem = make([]*respond.BalanceItem, 0)
+		err           error
+		list          []*respond.BalanceItem = make([]*respond.BalanceItem, 0)
 	)
 	balanceDetail, err = oklink_service.GetAddressBrc20BalanceResult(req.Address, req.Tick, req.Page, req.Limit)
 	if err != nil {
@@ -253,16 +194,40 @@ func GetBrc20BalanceDetail(req *request.Brc20AddressReq) (*respond.BalanceDetail
 	}, nil
 }
 
+// GetBrc20BalanceList get brc20 token list
+func GetBrc20BalanceList(req *request.Brc20AddressReq) (*respond.Brc20BalanceList, error) {
+	var (
+		balanceListResp *oklink_service.OklinkBrc20BalanceList
+		err             error
+		list            []*respond.BalanceListItem = make([]*respond.BalanceListItem, 0)
+	)
+	balanceListResp, err = oklink_service.GetAddressBrc20BalanceListResult(req.Address, req.Tick, req.Page, req.Limit)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range balanceListResp.BalanceList {
+		list = append(list, &respond.BalanceListItem{
+			Token:            v.Token,
+			TokenType:        v.TokenType,
+			Balance:          v.Balance,
+			AvailableBalance: v.AvailableBalance,
+			TransferBalance:  v.TransferBalance,
+		})
+	}
 
-func GetInscriptionOut() {
-
+	return &respond.Brc20BalanceList{
+		Page:        balanceListResp.Page,
+		Limit:       balanceListResp.Limit,
+		TotalPage:   balanceListResp.TotalPage,
+		BalanceList: list,
+	}, nil
 }
 
 func GetBidDummyList(req *request.Brc20BidAddressDummyReq) (*respond.Brc20BidDummyResponse, error) {
-	var(
+	var (
 		entityList []*model.OrderBrc20BidDummyModel
-		list []*respond.DummyItem = make([]*respond.DummyItem, 0)
-		total int64 = 0
+		list       []*respond.DummyItem = make([]*respond.DummyItem, 0)
+		total      int64                = 0
 	)
 	total, _ = mongo_service.CountOrderBrc20BidDummyModelList("", req.Address, model.DummyStateLive)
 	entityList, _ = mongo_service.FindOrderBrc20BidDummyModelList("", req.Address, model.DummyStateLive, req.Skip, req.Limit)
@@ -280,12 +245,12 @@ func GetBidDummyList(req *request.Brc20BidAddressDummyReq) (*respond.Brc20BidDum
 	}, nil
 }
 
-func FetchUserOrders(req *request.Brc20OrderAddressReq) (*respond.OrderResponse, error){
+func FetchUserOrders(req *request.Brc20OrderAddressReq) (*respond.OrderResponse, error) {
 	var (
 		entityList []*model.OrderBrc20Model
-		list []*respond.Brc20Item
-		total int64 = 0
-		flag int64 = 0
+		list       []*respond.Brc20Item
+		total      int64 = 0
+		flag       int64 = 0
 	)
 	total, _ = mongo_service.CountAddressOrderBrc20ModelList(req.Net, req.Tick, req.Address, req.OrderType, req.OrderState)
 	entityList, _ = mongo_service.FindAddressOrderBrc20ModelList(req.Net, req.Tick, req.Address,
@@ -294,8 +259,8 @@ func FetchUserOrders(req *request.Brc20OrderAddressReq) (*respond.OrderResponse,
 	list = make([]*respond.Brc20Item, len(entityList))
 	for k, v := range entityList {
 		item := &respond.Brc20Item{
-			Net:           v.Net,
-			OrderId:           v.OrderId,
+			Net:            v.Net,
+			OrderId:        v.OrderId,
 			Tick:           v.Tick,
 			Amount:         v.Amount,
 			DecimalNum:     v.DecimalNum,
@@ -307,17 +272,16 @@ func FetchUserOrders(req *request.Brc20OrderAddressReq) (*respond.OrderResponse,
 			FreeState:      v.FreeState,
 			SellerAddress:  v.SellerAddress,
 			BuyerAddress:   v.BuyerAddress,
-			InscriptionId:   v.InscriptionId,
+			InscriptionId:  v.InscriptionId,
 			//PsbtRaw:        v.PsbtRawPreAsk,
-			Timestamp:      v.Timestamp,
+			Timestamp: v.Timestamp,
 		}
 		if req.SortKey == "coinRatePrice" {
 			flag = int64(v.CoinRatePrice)
-		}else {
+		} else {
 			flag = v.Timestamp
 		}
 
-		//list = append(list, item)
 		list[k] = item
 	}
 	return &respond.OrderResponse{
@@ -325,4 +289,8 @@ func FetchUserOrders(req *request.Brc20OrderAddressReq) (*respond.OrderResponse,
 		Results: list,
 		Flag:    flag,
 	}, nil
+}
+
+func FetchTickerInfo(req *request.TickBrc20FetchReq) {
+
 }

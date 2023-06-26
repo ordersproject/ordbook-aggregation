@@ -1,5 +1,51 @@
 basePath: /book
 definitions:
+  model.FreeState:
+    enum:
+    - 1
+    type: integer
+    x-enum-varnames:
+    - FreeStateYes
+  model.OrderState:
+    enum:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 8
+    - 7
+    - 100
+    type: integer
+    x-enum-varnames:
+    - OrderStateCreate
+    - OrderStateFinish
+    - OrderStateCancel
+    - OrderStatePreCreate
+    - OrderStateTimeout
+    - OrderStateErr
+    - OrderStateFinishButErr
+    - OrderStatePreAsk
+    - OrderStateAll
+  model.OrderType:
+    enum:
+    - 1
+    - 2
+    type: integer
+    x-enum-varnames:
+    - OrderTypeSell
+    - OrderTypeBuy
+  model.UtxoType:
+    enum:
+    - 1
+    - 2
+    - 6
+    type: integer
+    x-enum-varnames:
+    - UtxoTypeDummy
+    - UtxoTypeBidY
+    - UtxoTypeFakerInscription
   request.Brc20CommitReq:
     properties:
       feeAddress:
@@ -126,7 +172,7 @@ definitions:
       txId:
         type: string
       utxoType:
-        type: integer
+        $ref: '#/definitions/model.UtxoType'
     type: object
   request.OrderBrc20DoBidReq:
     properties:
@@ -160,11 +206,13 @@ definitions:
         description: livenet/signet/testnet
         type: string
       orderState:
+        allOf:
+        - $ref: '#/definitions/model.OrderState'
         description: 1-create
-        type: integer
       orderType:
+        allOf:
+        - $ref: '#/definitions/model.OrderType'
         description: 1-sell,2-buy
-        type: integer
       psbtRaw:
         type: string
       tick:
@@ -209,8 +257,9 @@ definitions:
       orderId:
         type: string
       orderState:
+        allOf:
+        - $ref: '#/definitions/model.OrderState'
         description: 2-finish/3-cancel
-        type: integer
       psbtRaw:
         type: string
     type: object
@@ -255,6 +304,19 @@ definitions:
       inscriptionNumber:
         type: string
     type: object
+  respond.BalanceListItem:
+    properties:
+      availableBalance:
+        type: string
+      balance:
+        type: string
+      token:
+        type: string
+      tokenType:
+        type: string
+      transferBalance:
+        type: string
+    type: object
   respond.BidPsbt:
     properties:
       net:
@@ -265,6 +327,19 @@ definitions:
         description: PSBT Raw
         type: string
       tick:
+        type: string
+    type: object
+  respond.Brc20BalanceList:
+    properties:
+      balanceList:
+        items:
+          $ref: '#/definitions/respond.BalanceListItem'
+        type: array
+      limit:
+        type: string
+      page:
+        type: string
+      totalPage:
         type: string
     type: object
   respond.Brc20BidDummyResponse:
@@ -299,8 +374,9 @@ definitions:
         description: Btc decimal
         type: integer
       freeState:
+        allOf:
+        - $ref: '#/definitions/model.FreeState'
         description: 1-for free
-        type: integer
       inscriptionId:
         description: InscriptionId
         type: string
@@ -311,11 +387,13 @@ definitions:
         description: Order ID
         type: string
       orderState:
+        allOf:
+        - $ref: '#/definitions/model.OrderState'
         description: Order state：1-create,2-finish,3-cancel
-        type: integer
       orderType:
+        allOf:
+        - $ref: '#/definitions/model.OrderType'
         description: Order type：1-sell,2-buy
-        type: integer
       psbtRaw:
         description: PSBT Raw
         type: string
@@ -541,6 +619,41 @@ paths:
           schema:
             $ref: '#/definitions/respond.BalanceDetails'
       summary: Check inscription brc20 valid
+      tags:
+      - brc20
+  /brc20/address/{address}/balance/info:
+    get:
+      description: Get brc20 balance
+      parameters:
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: address
+        in: path
+        name: address
+        required: true
+        type: string
+      - description: net
+        in: query
+        name: net
+        type: string
+      - description: page
+        in: query
+        name: page
+        type: integer
+      - description: limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Brc20BalanceList'
+      summary: Get brc20 balance
       tags:
       - brc20
   /brc20/check/info:

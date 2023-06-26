@@ -13,6 +13,59 @@
     },
     "basePath": "/book",
     "paths": {
+        "/brc20/address/{address}/balance/info": {
+            "get": {
+                "description": "Get brc20 balance",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Get brc20 balance",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "tick",
+                        "name": "tick",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "net",
+                        "name": "net",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "limit",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Brc20BalanceList"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/address/{address}/{tick}": {
             "get": {
                 "description": "Check inscription brc20 valid",
@@ -890,6 +943,64 @@
         }
     },
     "definitions": {
+        "model.FreeState": {
+            "type": "integer",
+            "enum": [
+                1
+            ],
+            "x-enum-varnames": [
+                "FreeStateYes"
+            ]
+        },
+        "model.OrderState": {
+            "type": "integer",
+            "enum": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                8,
+                7,
+                100
+            ],
+            "x-enum-varnames": [
+                "OrderStateCreate",
+                "OrderStateFinish",
+                "OrderStateCancel",
+                "OrderStatePreCreate",
+                "OrderStateTimeout",
+                "OrderStateErr",
+                "OrderStateFinishButErr",
+                "OrderStatePreAsk",
+                "OrderStateAll"
+            ]
+        },
+        "model.OrderType": {
+            "type": "integer",
+            "enum": [
+                1,
+                2
+            ],
+            "x-enum-varnames": [
+                "OrderTypeSell",
+                "OrderTypeBuy"
+            ]
+        },
+        "model.UtxoType": {
+            "type": "integer",
+            "enum": [
+                1,
+                2,
+                6
+            ],
+            "x-enum-varnames": [
+                "UtxoTypeDummy",
+                "UtxoTypeBidY",
+                "UtxoTypeFakerInscription"
+            ]
+        },
         "request.Brc20CommitReq": {
             "type": "object",
             "properties": {
@@ -1078,7 +1189,7 @@
                     "type": "string"
                 },
                 "utxoType": {
-                    "type": "integer"
+                    "$ref": "#/definitions/model.UtxoType"
                 }
             }
         },
@@ -1130,11 +1241,19 @@
                 },
                 "orderState": {
                     "description": "1-create",
-                    "type": "integer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.OrderState"
+                        }
+                    ]
                 },
                 "orderType": {
                     "description": "1-sell,2-buy",
-                    "type": "integer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.OrderType"
+                        }
+                    ]
                 },
                 "psbtRaw": {
                     "type": "string"
@@ -1200,7 +1319,11 @@
                 },
                 "orderState": {
                     "description": "2-finish/3-cancel",
-                    "type": "integer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.OrderState"
+                        }
+                    ]
                 },
                 "psbtRaw": {
                     "type": "string"
@@ -1270,6 +1393,26 @@
                 }
             }
         },
+        "respond.BalanceListItem": {
+            "type": "object",
+            "properties": {
+                "availableBalance": {
+                    "type": "string"
+                },
+                "balance": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "tokenType": {
+                    "type": "string"
+                },
+                "transferBalance": {
+                    "type": "string"
+                }
+            }
+        },
         "respond.BidPsbt": {
             "type": "object",
             "properties": {
@@ -1284,6 +1427,26 @@
                     "type": "string"
                 },
                 "tick": {
+                    "type": "string"
+                }
+            }
+        },
+        "respond.Brc20BalanceList": {
+            "type": "object",
+            "properties": {
+                "balanceList": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/respond.BalanceListItem"
+                    }
+                },
+                "limit": {
+                    "type": "string"
+                },
+                "page": {
+                    "type": "string"
+                },
+                "totalPage": {
                     "type": "string"
                 }
             }
@@ -1334,7 +1497,11 @@
                 },
                 "freeState": {
                     "description": "1-for free",
-                    "type": "integer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.FreeState"
+                        }
+                    ]
                 },
                 "inscriptionId": {
                     "description": "InscriptionId",
@@ -1350,11 +1517,19 @@
                 },
                 "orderState": {
                     "description": "Order state：1-create,2-finish,3-cancel",
-                    "type": "integer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.OrderState"
+                        }
+                    ]
                 },
                 "orderType": {
                     "description": "Order type：1-sell,2-buy",
-                    "type": "integer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.OrderType"
+                        }
+                    ]
                 },
                 "psbtRaw": {
                     "description": "PSBT Raw",

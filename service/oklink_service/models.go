@@ -1,8 +1,8 @@
 package oklink_service
 
 type OklinkResp struct {
-	Code string `json:"code"`
-	Msg string `json:"msg"`
+	Code string      `json:"code"`
+	Msg  string      `json:"msg"`
 	Data interface{} `json:"data"`
 }
 
@@ -24,11 +24,26 @@ type BalanceItem struct {
 	Amount            string `json:"amount"`
 }
 
+type OklinkBrc20BalanceList struct {
+	Page        string             `json:"page"`
+	Limit       string             `json:"limit"`
+	TotalPage   string             `json:"totalPage"`
+	BalanceList []*BalanceListItem `json:"balanceList"`
+}
+
+type BalanceListItem struct {
+	Token            string `json:"token"`
+	TokenType        string `json:"tokenType"`
+	Balance          string `json:"balance"`
+	AvailableBalance string `json:"availableBalance"`
+	TransferBalance  string `json:"transferBalance"`
+}
+
 type OklinkInscriptionDetails struct {
-	Page             string         `json:"page"`
-	Limit            string         `json:"limit"`
-	TotalPage        string         `json:"totalPage"`
-	TotalInscription string         `json:"totalInscription"`
+	Page             string             `json:"page"`
+	Limit            string             `json:"limit"`
+	TotalPage        string             `json:"totalPage"`
+	TotalInscription string             `json:"totalInscription"`
 	InscriptionsList []*InscriptionItem `json:"inscriptionsList"`
 }
 
@@ -61,18 +76,16 @@ type OutputItem struct {
 }
 
 type BroadcastTxResp struct {
-	ChainFullName string `json:"chainFullName"`
+	ChainFullName  string `json:"chainFullName"`
 	ChainShortName string `json:"chainShortName"`
-	TxId string `json:"txid"`
+	TxId           string `json:"txid"`
 }
 
-
-
 type OklinkUtxoDetails struct {
-	Page             string         `json:"page"`
-	Limit            string         `json:"limit"`
-	TotalPage        string         `json:"totalPage"`
-	UtxoList []*UtxoItem `json:"utxoList"`
+	Page      string      `json:"page"`
+	Limit     string      `json:"limit"`
+	TotalPage string      `json:"totalPage"`
+	UtxoList  []*UtxoItem `json:"utxoList"`
 }
 
 type UtxoItem struct {

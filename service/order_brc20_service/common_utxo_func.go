@@ -17,17 +17,17 @@ const (
 
 var (
 	unoccupiedUtxoLock *sync.RWMutex = new(sync.RWMutex)
-	saveUtxoLock *sync.RWMutex = new(sync.RWMutex)
+	saveUtxoLock       *sync.RWMutex = new(sync.RWMutex)
 )
 
 func GetUnoccupiedUtxoList(net string, limit int64, utxoType model.UtxoType) ([]*model.OrderUtxoModel, error) {
 	var (
-		cacheType string = cache_service.CacheLockUtxoTypeDummy
-		redisKeyPrefix string = ""
-		sortIndexList []int = make([]int , 0)
-		utxoIdKeyList []string = make([]string , 0)
-		startIndex int64 = -1
-		utxoList []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
+		cacheType          string                  = cache_service.CacheLockUtxoTypeDummy
+		redisKeyPrefix     string                  = ""
+		sortIndexList      []int                   = make([]int, 0)
+		utxoIdKeyList      []string                = make([]string, 0)
+		startIndex         int64                   = -1
+		utxoList           []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
 		unoccupiedUtxoList []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
 	)
 	switch utxoType {
@@ -51,7 +51,7 @@ func GetUnoccupiedUtxoList(net string, limit int64, utxoType model.UtxoType) ([]
 	for _, v := range sortIndexList {
 		if startIndex == -1 {
 			startIndex = int64(v)
-		}else if startIndex > int64(v) {
+		} else if startIndex > int64(v) {
 			startIndex = int64(v)
 		}
 	}
@@ -79,6 +79,7 @@ func GetUnoccupiedUtxoList(net string, limit int64, utxoType model.UtxoType) ([]
 		return nil, errors.New("Unoccupied-Utxo: Not enough")
 	}
 	unoccupiedUtxoList = unoccupiedUtxoList[:limit]
+	cacheUtxoList(unoccupiedUtxoList)
 	return unoccupiedUtxoList, nil
 }
 
@@ -98,6 +99,26 @@ func ReleaseUtxoList(utxoList []*model.OrderUtxoModel) {
 		err := redis.UnSetUtxoInfo(cacheUtxoType, v.UtxoId)
 		if err != nil {
 			fmt.Printf("UnSetUtxoInfo err:%s\n", err.Error())
+		}
+	}
+}
+
+func cacheUtxoList(utxoList []*model.OrderUtxoModel) {
+	for _, v := range utxoList {
+		cacheUtxoType := redis.UtxoTypeDummy_
+		switch v.UtxoType {
+		case model.UtxoTypeDummy:
+			cacheUtxoType = redis.UtxoTypeDummy_
+			break
+		case model.UtxoTypeBidY:
+			cacheUtxoType = redis.UtxoTypeBidY_
+			break
+		default:
+			continue
+		}
+		_, err := redis.SetRedisUtxoInfo(cacheUtxoType, v.UtxoId, int(v.SortIndex))
+		if err != nil {
+			fmt.Printf("SetRedisUtxoInfo err:%s\n", err.Error())
 		}
 	}
 }

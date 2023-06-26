@@ -22,15 +22,15 @@ type Brc20Item struct {
 	FreeState      model.FreeState  `json:"freeState,omitempty"`      //1-for free
 	SellerAddress  string           `json:"sellerAddress,omitempty"`  //Seller's address
 	BuyerAddress   string           `json:"buyerAddress,omitempty"`   //Buyer's address
-	InscriptionId        string           `json:"inscriptionId,omitempty"`        //InscriptionId
+	InscriptionId  string           `json:"inscriptionId,omitempty"`  //InscriptionId
 	PsbtRaw        string           `json:"psbtRaw,omitempty"`        //PSBT Raw
 	Timestamp      int64            `json:"timestamp"`                //Create time
 }
 
 type Brc20TickInfoResponse struct {
-	Total   int64             `json:"total,omitempty"`
+	Total   int64            `json:"total,omitempty"`
 	Results []*Brc20TickItem `json:"results,omitempty"`
-	Flag    int64             `json:"flag,omitempty"`
+	Flag    int64            `json:"flag,omitempty"`
 }
 
 type Brc20TickItem struct {
@@ -54,7 +54,7 @@ type Brc20TickItem struct {
 }
 
 type KlineItem struct {
-	Net           string           `json:"net,omitempty"`
+	Net   string `json:"net,omitempty"`
 	Data0 string `json:"0"`
 	Data1 string `json:"1"`
 	Data2 string `json:"2"`
@@ -123,16 +123,30 @@ type BalanceItem struct {
 	Amount            string `json:"amount"`
 }
 
+type Brc20BalanceList struct {
+	Page        string             `json:"page"`
+	Limit       string             `json:"limit"`
+	TotalPage   string             `json:"totalPage"`
+	BalanceList []*BalanceListItem `json:"balanceList"`
+}
+
+type BalanceListItem struct {
+	Token            string `json:"token"`
+	TokenType        string `json:"tokenType"`
+	Balance          string `json:"balance"`
+	AvailableBalance string `json:"availableBalance"`
+	TransferBalance  string `json:"transferBalance"`
+}
+
 type DoBidResp struct {
 	TxIdX string `json:"txIdX"`
 	TxIdY string `json:"txIdY"`
 }
 
-
 type Brc20BidDummyResponse struct {
-	Total   int64             `json:"total,omitempty"`
+	Total   int64        `json:"total,omitempty"`
 	Results []*DummyItem `json:"results,omitempty"`
-	Flag    int64             `json:"flag,omitempty"`
+	Flag    int64        `json:"flag,omitempty"`
 }
 
 type DummyItem struct {

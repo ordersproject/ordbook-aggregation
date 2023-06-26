@@ -1,7 +1,7 @@
 package model
 
 const (
-	STATE_EXIST = 1
+	STATE_EXIST   = 1
 	STATE_DELETED = 2
 )
 
@@ -15,22 +15,24 @@ const (
 type OrderState int
 
 const (
-	OrderStateCreate    OrderState = 1
-	OrderStateFinish    OrderState = 2
-	OrderStateCancel    OrderState = 3
-	OrderStatePreCreate OrderState = 4
-	OrderStateTimeout   OrderState = 5
-	OrderStateErr       OrderState = 6
-	OrderStateFinishButErr    OrderState = 8
+	OrderStateCreate       OrderState = 1
+	OrderStateFinish       OrderState = 2
+	OrderStateCancel       OrderState = 3
+	OrderStatePreCreate    OrderState = 4
+	OrderStateTimeout      OrderState = 5
+	OrderStateErr          OrderState = 6
+	OrderStateFinishButErr OrderState = 8
 
-	OrderStatePreAsk       OrderState = 7
+	OrderStatePreAsk   OrderState = 7
+	OrderStatePreClaim OrderState = 9
 
 	//100 all
-	OrderStateAll       OrderState = 100
+	OrderStateAll OrderState = 100
 )
 
 type FreeState int
 
 const (
-	FreeStateYes FreeState = 1
+	FreeStateYes   FreeState = 1
+	FreeStateClaim FreeState = 2
 )

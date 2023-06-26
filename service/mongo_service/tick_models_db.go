@@ -10,7 +10,7 @@ import (
 )
 
 func FindBrc20TickModelByPair(net, pair string) (*model.Brc20TickModel, error) {
-	collection, err :=  model.Brc20TickModel{}.GetReadDB()
+	collection, err := model.Brc20TickModel{}.GetReadDB()
 	if err != nil {
 		return nil, err
 	}
@@ -27,8 +27,7 @@ func FindBrc20TickModelByPair(net, pair string) (*model.Brc20TickModel, error) {
 	return entity, nil
 }
 
-
-func createBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickModel, error)  {
+func createBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickModel, error) {
 	collection, err := model.Brc20TickModel{}.GetWriteDB()
 	if err != nil {
 		return nil, err
@@ -71,7 +70,7 @@ func createBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickMode
 	}
 }
 
-func SetBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickModel, error)  {
+func SetBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickModel, error) {
 	entity, err := FindBrc20TickModelByPair(brc20Tick.Net, brc20Tick.Pair)
 	if err == nil && entity != nil {
 		collection, err := model.Brc20TickModel{}.GetWriteDB()
@@ -113,14 +112,13 @@ func SetBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickModel, 
 	}
 }
 
-
 func CountBrc20TickModelList(net string) (int64, error) {
 	collection, err := model.Brc20TickModel{}.GetReadDB()
 	if err != nil {
 		return 0, err
 	}
 	find := bson.M{
-		"state":    model.STATE_EXIST,
+		"state": model.STATE_EXIST,
 	}
 
 	total, err := collection.CountDocuments(context.TODO(), find)
@@ -129,7 +127,6 @@ func CountBrc20TickModelList(net string) (int64, error) {
 	}
 	return total, nil
 }
-
 
 func FindBrc20TickModelList(net, tick string, skip, limit int64) ([]*model.Brc20TickModel, error) {
 	collection, err := model.Brc20TickModel{}.GetReadDB()
@@ -166,3 +163,95 @@ func FindBrc20TickModelList(net, tick string, skip, limit int64) ([]*model.Brc20
 	return models, nil
 }
 
+func FindBrc20TickInfoModelByTick(net, tick string) (*model.Brc20TickInfoModel, error) {
+	collection, err := model.Brc20TickInfoModel{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.D{
+		{"net", net},
+		{"tick", tick},
+		//{"state", model.STATE_EXIST},
+	}
+	entity := &model.Brc20TickInfoModel{}
+	err = collection.FindOne(context.TODO(), queryBson).Decode(entity)
+	if err != nil {
+		return nil, err
+	}
+	return entity, nil
+}
+
+func createBrc20TickInfoModel(brc20Tick *model.Brc20TickInfoModel) (*model.Brc20TickInfoModel, error) {
+	collection, err := model.Brc20TickInfoModel{}.GetWriteDB()
+	if err != nil {
+		return nil, err
+	}
+
+	CreateUniqueIndex(collection, "tick")
+	CreateIndex(collection, "net")
+	CreateIndex(collection, "timestamp")
+
+	entity := &model.Brc20TickInfoModel{
+		Id:             util.GetUUIDInt64(),
+		Net:            brc20Tick.Net,
+		Tick:           brc20Tick.Tick,
+		Name:           brc20Tick.Name,
+		Decimal:        brc20Tick.Decimal,
+		Supply:         brc20Tick.Supply,
+		Icon:           brc20Tick.Icon,
+		DefaultLimit:   brc20Tick.DefaultLimit,
+		Deployer:       brc20Tick.Deployer,
+		DeployTime:     brc20Tick.DeployTime,
+		DeployContract: brc20Tick.DeployContract,
+		Description:    brc20Tick.Description,
+		CreateTime:     util.Time(),
+		State:          model.STATE_EXIST,
+	}
+
+	_, err = collection.InsertOne(context.TODO(), entity)
+	if err != nil {
+		return nil, err
+	} else {
+		//id := res.InsertedID
+		//fmt.Println("insert id :", id)
+		return entity, nil
+	}
+}
+
+func SetBrc20TickInfoModel(brc20Tick *model.Brc20TickInfoModel) (*model.Brc20TickInfoModel, error) {
+	entity, err := FindBrc20TickInfoModelByTick(brc20Tick.Net, brc20Tick.Tick)
+	if err == nil && entity != nil {
+		collection, err := model.Brc20TickInfoModel{}.GetWriteDB()
+		if err != nil {
+			return nil, err
+		}
+		filter := bson.D{
+			{"net", brc20Tick.Net},
+			{"tick", brc20Tick.Tick},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "net", Value: brc20Tick.Net})
+		bsonData = append(bsonData, bson.E{Key: "tick", Value: brc20Tick.Tick})
+		bsonData = append(bsonData, bson.E{Key: "name", Value: brc20Tick.Name})
+		bsonData = append(bsonData, bson.E{Key: "decimal", Value: brc20Tick.Decimal})
+		bsonData = append(bsonData, bson.E{Key: "supply", Value: brc20Tick.Supply})
+		bsonData = append(bsonData, bson.E{Key: "icon", Value: brc20Tick.Icon})
+		bsonData = append(bsonData, bson.E{Key: "defaultLimit", Value: brc20Tick.DefaultLimit})
+		bsonData = append(bsonData, bson.E{Key: "deployer", Value: brc20Tick.Deployer})
+		bsonData = append(bsonData, bson.E{Key: "deployTime", Value: brc20Tick.DeployTime})
+		bsonData = append(bsonData, bson.E{Key: "deployContract", Value: brc20Tick.DeployContract})
+		bsonData = append(bsonData, bson.E{Key: "description", Value: brc20Tick.Description})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return nil, err
+		}
+		return brc20Tick, nil
+	} else {
+		return createBrc20TickInfoModel(brc20Tick)
+	}
+}

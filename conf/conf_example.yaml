@@ -10,3 +10,57 @@ mempool_space:
 
 ws:
   port: "0001"
+
+
+platform:
+  testnet:
+    private_key_receive_brc20: ""
+    address_receive_brc20: ""
+    private_key_send_brc20: ""
+    address_send_brc20: ""
+    private_key_receive_bid_value: ""
+    address_receive_bid_value: ""
+    private_key_receive_dummy_value: ""
+    address_receive_dummy_value: ""
+    private_key_receive_fee: ""
+    address_receive_fee: ""
+    private_key_send_brc20_for_ask: ""
+    address_send_brc20_for_ask: ""
+    private_key_receive_value_for_ask: ""
+    address_receive_value_for_ask: ""
+    fee_rate: 2
+  mainnet:
+    private_key_receive_brc20: ""
+    address_receive_brc20: ""
+    private_key_send_brc20: ""
+    address_send_brc20: ""
+    private_key_receive_bid_value: ""
+    address_receive_bid_value: ""
+    private_key_receive_dummy_value: ""
+    address_receive_dummy_value: ""
+    private_key_receive_fee: ""
+    address_receive_fee: ""
+    private_key_send_brc20_for_ask: ""
+    address_send_brc20_for_ask: ""
+    private_key_receive_value_for_ask: ""
+    address_receive_value_for_ask: ""
+    fee_rate: 25
+
+redis:
+  endpoint: "127.0.0.1:1234"
+  password: ""
+  db_utxo: 0
+
+node:
+  testnet:
+    url: "http://127.0.0.1:12345"
+    username: ""
+    password: ""
+  mainnet:
+    url: "http://127.0.0.1:1234"
+    username: ""
+    password: ""
+
+testnet:
+  pri_key: ""
+  taproot_address: ""

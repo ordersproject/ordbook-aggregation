@@ -10,17 +10,19 @@ import (
 )
 
 const (
-	ex = "86400"
-	CacheGetUtxo_ = "cache_get_utxo_"
-	UtxoTypeDummy_ = "dummy_"
-	UtxoTypeBidY_ = "bid_y_"
+	ex                  = "86400"
+	CacheGetUtxo_       = "cache_get_utxo_"
+	UtxoTypeDummy_      = "dummy_"
+	UtxoTypeBidY_       = "bid_y_"
+	CacheGetClaimOrder_ = "cache_get_claim_order_"
 )
 
 var addressEndpoint = ""
 var redisPassword = ""
+
 //var redisDb int = 3
 
-var(
+var (
 	redisDbUtxo int = 3
 )
 
@@ -131,7 +133,6 @@ func (r *RedisManager) Get(db int, key string) (interface{}, error) {
 	}
 	return nil, errors.New("error ")
 }
-
 
 func (r *RedisManager) GetList(db int, keyRegex string) (interface{}, error) {
 	c := r.pools[db].Get()
