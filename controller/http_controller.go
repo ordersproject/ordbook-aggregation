@@ -52,6 +52,9 @@ func Run() {
 		brc20.GET("/address/:address/balance/info", GetBrc20BalanceList)
 
 		brc20.GET("/order/bid/dummy/:address", GetBidDummyList)
+
+		brc20.GET("/claim/order", FetchClaimOrder)
+		brc20.POST("/claim/order/update", UpdateClaimOrder)
 	}
 
 	url := ginSwagger.URL("/swagger/doc.json")

@@ -23,8 +23,9 @@ const (
 	OrderStateErr          OrderState = 6
 	OrderStateFinishButErr OrderState = 8
 
-	OrderStatePreAsk   OrderState = 7
-	OrderStatePreClaim OrderState = 9
+	OrderStatePreAsk      OrderState = 7
+	OrderStatePreClaim    OrderState = 9
+	OrderStateFinishClaim OrderState = 10
 
 	//100 all
 	OrderStateAll OrderState = 100

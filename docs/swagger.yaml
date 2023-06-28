@@ -3,9 +3,11 @@ definitions:
   model.FreeState:
     enum:
     - 1
+    - 2
     type: integer
     x-enum-varnames:
     - FreeStateYes
+    - FreeStateClaim
   model.OrderState:
     enum:
     - 1
@@ -16,6 +18,8 @@ definitions:
     - 6
     - 8
     - 7
+    - 9
+    - 10
     - 100
     type: integer
     x-enum-varnames:
@@ -27,6 +31,8 @@ definitions:
     - OrderStateErr
     - OrderStateFinishButErr
     - OrderStatePreAsk
+    - OrderStatePreClaim
+    - OrderStateFinishClaim
     - OrderStateAll
   model.OrderType:
     enum:
@@ -173,6 +179,18 @@ definitions:
         type: string
       utxoType:
         $ref: '#/definitions/model.UtxoType'
+    type: object
+  request.OrderBrc20ClaimUpdateReq:
+    properties:
+      address:
+        type: string
+      net:
+        description: livenet/signet/testnet
+        type: string
+      orderId:
+        type: string
+      psbtRaw:
+        type: string
     type: object
   request.OrderBrc20DoBidReq:
     properties:
@@ -352,6 +370,30 @@ definitions:
         type: array
       total:
         type: integer
+    type: object
+  respond.Brc20ClaimItem:
+    properties:
+      coinAmount:
+        description: Brc20 amount
+        type: integer
+      fee:
+        description: claim fee
+        type: integer
+      inscriptionId:
+        description: InscriptionId
+        type: string
+      net:
+        description: Net env
+        type: string
+      orderId:
+        description: Order ID
+        type: string
+      psbtRaw:
+        description: PSBT Raw
+        type: string
+      tick:
+        description: Brc20 symbol
+        type: string
     type: object
   respond.Brc20Item:
     properties:
@@ -676,6 +718,55 @@ paths:
           schema:
             $ref: '#/definitions/respond.CheckBrc20InscriptionReq'
       summary: Check inscription brc20 valid
+      tags:
+      - brc20
+  /brc20/claim/order:
+    get:
+      description: Fetch one claim order
+      parameters:
+      - description: net
+        in: query
+        name: net
+        required: true
+        type: string
+      - description: tick
+        in: query
+        name: tick
+        required: true
+        type: string
+      - description: address
+        in: query
+        name: address
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Brc20ClaimItem'
+      summary: Fetch one claim order
+      tags:
+      - brc20
+  /brc20/claim/order/update:
+    post:
+      description: Update claim order
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.OrderBrc20ClaimUpdateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Message'
+      summary: Update claim order
       tags:
       - brc20
   /brc20/guide/price/set:

@@ -18,9 +18,9 @@ var (
 )
 
 // GetUnoccupiedClaimBrc20PsbtList get psbt order for claim
-func GetUnoccupiedClaimBrc20PsbtList(tick string, count int64) (*model.OrderBrc20Model, error) {
+func GetUnoccupiedClaimBrc20PsbtList(net, tick string, count int64) (*model.OrderBrc20Model, error) {
 	var (
-		net                      string = "livenet"
+		//net                      string = "livenet"
 		claimOrder               *model.OrderBrc20Model
 		claimOrderIdKeyList      []string                 = make([]string, 0)
 		unoccupiedClaimOrderList []*model.OrderBrc20Model = make([]*model.OrderBrc20Model, 0)

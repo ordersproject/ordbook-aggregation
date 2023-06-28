@@ -159,6 +159,80 @@ const docTemplate = `{
                 }
             }
         },
+        "/brc20/claim/order": {
+            "get": {
+                "description": "Fetch one claim order",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch one claim order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "net",
+                        "name": "net",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "tick",
+                        "name": "tick",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Brc20ClaimItem"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/claim/order/update": {
+            "post": {
+                "description": "Update claim order",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Update claim order",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OrderBrc20ClaimUpdateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/guide/price/set": {
             "post": {
                 "description": "Set guide price",
@@ -951,10 +1025,12 @@ const docTemplate = `{
         "model.FreeState": {
             "type": "integer",
             "enum": [
-                1
+                1,
+                2
             ],
             "x-enum-varnames": [
-                "FreeStateYes"
+                "FreeStateYes",
+                "FreeStateClaim"
             ]
         },
         "model.OrderState": {
@@ -968,6 +1044,8 @@ const docTemplate = `{
                 6,
                 8,
                 7,
+                9,
+                10,
                 100
             ],
             "x-enum-varnames": [
@@ -979,6 +1057,8 @@ const docTemplate = `{
                 "OrderStateErr",
                 "OrderStateFinishButErr",
                 "OrderStatePreAsk",
+                "OrderStatePreClaim",
+                "OrderStateFinishClaim",
                 "OrderStateAll"
             ]
         },
@@ -1195,6 +1275,24 @@ const docTemplate = `{
                 },
                 "utxoType": {
                     "$ref": "#/definitions/model.UtxoType"
+                }
+            }
+        },
+        "request.OrderBrc20ClaimUpdateReq": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "net": {
+                    "description": "livenet/signet/testnet",
+                    "type": "string"
+                },
+                "orderId": {
+                    "type": "string"
+                },
+                "psbtRaw": {
+                    "type": "string"
                 }
             }
         },
@@ -1470,6 +1568,39 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "respond.Brc20ClaimItem": {
+            "type": "object",
+            "properties": {
+                "coinAmount": {
+                    "description": "Brc20 amount",
+                    "type": "integer"
+                },
+                "fee": {
+                    "description": "claim fee",
+                    "type": "integer"
+                },
+                "inscriptionId": {
+                    "description": "InscriptionId",
+                    "type": "string"
+                },
+                "net": {
+                    "description": "Net env",
+                    "type": "string"
+                },
+                "orderId": {
+                    "description": "Order ID",
+                    "type": "string"
+                },
+                "psbtRaw": {
+                    "description": "PSBT Raw",
+                    "type": "string"
+                },
+                "tick": {
+                    "description": "Brc20 symbol",
+                    "type": "string"
                 }
             }
         },

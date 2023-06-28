@@ -59,7 +59,7 @@ func main() {
 
 	go ws.StartWS()
 	task.Run()
-	//task.RunJob()
+	task.RunJob()
 	controller.Run()
 	//run()
 }
