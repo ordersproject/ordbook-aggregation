@@ -76,7 +76,8 @@ func GetUnoccupiedUtxoList(net string, limit int64, utxoType model.UtxoType) ([]
 		unoccupiedUtxoList = append(unoccupiedUtxoList, v)
 	}
 	if int64(len(unoccupiedUtxoList)) < limit {
-		return nil, errors.New("Unoccupied-Utxo: Not enough")
+		fmt.Printf("Unoccupied-Utxo[%d]: Not enough - have[%d], need[%d]", utxoType, len(unoccupiedUtxoList), limit)
+		return nil, errors.New(fmt.Sprintf("Unoccupied-Utxo[%d]: Not enough - have[%d], need[%d]", utxoType, len(unoccupiedUtxoList), limit))
 	}
 	unoccupiedUtxoList = unoccupiedUtxoList[:limit]
 	cacheUtxoList(unoccupiedUtxoList)

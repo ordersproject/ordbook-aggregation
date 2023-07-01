@@ -28,12 +28,16 @@ func FetchClaimOrder(req *request.OrderBrc20ClaimFetchOneReq, publicKey, ip stri
 		netParams                    *chaincfg.Params = GetNetParams(req.Net)
 		count                        int64            = 0
 		todayStartTime, todayEndTime int64            = tool.GetToday0Time(), tool.GetToday24Time()
+		err                          error
 	)
 	_ = count
 	_ = todayStartTime
 	_ = todayEndTime
 
-	entity, _ = GetUnoccupiedClaimBrc20PsbtList(req.Net, req.Tick, claimFetchLimit)
+	entity, err = GetUnoccupiedClaimBrc20PsbtList(req.Net, req.Tick, claimFetchLimit)
+	if err != nil {
+		return nil, err
+	}
 	//defer ReleaseClaimOrderList([]*model.OrderBrc20Model{entity})
 	if entity == nil {
 		return nil, errors.New("Claim Order is empty. ")
@@ -51,6 +55,7 @@ func FetchClaimOrder(req *request.OrderBrc20ClaimFetchOneReq, publicKey, ip stri
 
 	if entity.FreeState == model.FreeStateClaim {
 
+		//return nil, errors.New("Claim Not Yet. ")
 		//todo
 		//if count >= claimDayLimit {
 		//	return nil, errors.New(fmt.Sprintf("The number of purchases of the day has exceeded. "))

@@ -53,8 +53,11 @@ func GetUnoccupiedClaimBrc20PsbtList(net, tick string, count int64) (*model.Orde
 	if int64(len(unoccupiedClaimOrderList)) < count {
 		return nil, errors.New("Unoccupied-ClaimOrder: Not enough")
 	}
+
 	unoccupiedClaimOrderList = unoccupiedClaimOrderList[:count]
+	fmt.Printf("[Cache][ClaimOrder]-count:%d\n", len(unoccupiedClaimOrderList))
 	cacheClaimOrderList(unoccupiedClaimOrderList)
+	claimOrder = unoccupiedClaimOrderList[0]
 
 	return claimOrder, nil
 }
