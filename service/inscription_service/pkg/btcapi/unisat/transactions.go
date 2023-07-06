@@ -4,24 +4,30 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/pkg/errors"
 	"ordbook-aggregation/node"
+	"ordbook-aggregation/service/inscription_service/pkg/btcapi/mempool"
 	"ordbook-aggregation/service/unisat_service"
 	"strings"
 )
 
 func (c *UniSatClient) GetRawTransaction(txHash *chainhash.Hash) (*wire.MsgTx, error) {
 
-
 	net := "livenet"
+	netParams := &chaincfg.MainNetParams
+
 	if strings.Contains(c.baseURL, "testnet") {
 		net = "testnet"
+		netParams = &chaincfg.TestNet3Params
 	}
 	txHex, err := node.GetRawTx(net, txHash.String())
 	if err != nil {
-		return nil, err
+		btcApiClient := mempool.NewClient(netParams)
+		return btcApiClient.GetRawTransaction(txHash)
+		//return nil, err
 	}
 	txByte, err := hex.DecodeString(txHex)
 	if err != nil {
