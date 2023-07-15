@@ -22,15 +22,15 @@ import (
 	"strings"
 )
 
-func ColdDownUtxo(req *request.ColdDownUtxo) (string, error){
+func ColdDownUtxo(req *request.ColdDownUtxo) (string, error) {
 	var (
-		netParams *chaincfg.Params = GetNetParams(req.Net)
-		err error
+		netParams                        *chaincfg.Params = GetNetParams(req.Net)
+		err                              error
 		fromPriKeyHex, fromSegwitAddress string = "", ""
-		txRaw string = ""
+		txRaw                            string = ""
 		//latestUtxo *model.OrderUtxoModel
-		utxoList []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
-		startIndex int64 = GetSaveStartIndex(req.Net, req.UtxoType)
+		utxoList   []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
+		startIndex int64                   = GetSaveStartIndex(req.Net, req.UtxoType)
 	)
 
 	fromPriKeyHex, fromSegwitAddress, err = create_key.CreateSegwitKey(netParams)
@@ -85,11 +85,10 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error){
 			PkScript:      pkScript,
 			UsedState:     model.UsedNo,
 			//UseTx:      "",
-			SortIndex: startIndex + i+1,
+			SortIndex: startIndex + i + 1,
 			Timestamp: tool.MakeTimestamp(),
 		})
 	}
-
 
 	if req.ChangeAddress == "" {
 		req.ChangeAddress = req.Address
@@ -189,13 +188,13 @@ func saveNewDummyFromBid(net string, out Output, priKeyHex string, index int64, 
 	return nil
 }
 
-func CollectionUtxo(req *request.CollectionUtxo) (string, error){
+func CollectionUtxo(req *request.CollectionUtxo) (string, error) {
 	var (
-		netParams *chaincfg.Params = GetNetParams(req.Net)
-		err error
-		txRaw string = ""
-		totalIn uint64 = 0
-		totalAmount int64 = 0
+		netParams   *chaincfg.Params = GetNetParams(req.Net)
+		err         error
+		txRaw       string = ""
+		totalIn     uint64 = 0
+		totalAmount int64  = 0
 	)
 	inputs := make([]*TxInputUtxo, 0)
 	for _, v := range req.UtxoList {
@@ -209,11 +208,10 @@ func CollectionUtxo(req *request.CollectionUtxo) (string, error){
 		totalIn = totalIn + v.Amount
 	}
 
-	totalSize := int64(len(inputs)) * SpendSize + 2 * OutSize + OtherSize
-
+	totalSize := int64(len(inputs))*SpendSize + 2*OutSize + OtherSize
 
 	//totalAmount = int64(totalIn)- totalSize*req.FeeRate-546
-	totalAmount = int64(totalIn)- totalSize*req.FeeRate-140000
+	totalAmount = int64(totalIn) - totalSize*req.FeeRate - 140000
 
 	fmt.Printf("totalSize:%d, totalIn:%d, totalSize*req.FeeRate:%d, totalAmount:%d\n", totalSize, totalIn, totalSize*req.FeeRate, totalAmount)
 
@@ -262,22 +260,21 @@ func CollectionUtxo(req *request.CollectionUtxo) (string, error){
 	return txId, nil
 }
 
-
-//cold down the brc20 transfer
-func ColdDownBrc20Transfer(req *request.ColdDownBrcTransfer) (*respond.Brc20TransferCommitResp, error){
+// cold down the brc20 transfer
+func ColdDownBrc20Transfer(req *request.ColdDownBrcTransfer) (*respond.Brc20TransferCommitResp, error) {
 	var (
-		netParams *chaincfg.Params = GetNetParams(req.Net)
-		_, platformAddressSendBrc20 string = GetPlatformKeyAndAddressSendBrc20(req.Net)
-		transferContent string = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, req.Tick, req.InscribeTransferAmount)
-		commitTxHash, revealTxHash, inscriptionId string = "", "", ""
-		err error
-		brc20BalanceResult *oklink_service.OklinkBrc20BalanceDetails
-		availableBalance int64 = 0
+		netParams                                 *chaincfg.Params = GetNetParams(req.Net)
+		_, platformAddressSendBrc20               string           = GetPlatformKeyAndAddressSendBrc20(req.Net)
+		transferContent                           string           = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, req.Tick, req.InscribeTransferAmount)
+		commitTxHash, revealTxHash, inscriptionId string           = "", "", ""
+		err                                       error
+		brc20BalanceResult                        *oklink_service.OklinkBrc20BalanceDetails
+		availableBalance                          int64 = 0
 	)
 
 	fmt.Println(transferContent)
 	brc20BalanceResult, err = oklink_service.GetAddressBrc20BalanceResult(platformAddressSendBrc20, req.Tick, 1, 50)
-	if err != nil  {
+	if err != nil {
 		return nil, err
 	}
 	availableBalance, _ = strconv.ParseInt(brc20BalanceResult.AvailableBalance, 10, 64)
@@ -295,18 +292,18 @@ func ColdDownBrc20Transfer(req *request.ColdDownBrcTransfer) (*respond.Brc20Tran
 	}, nil
 }
 
-func ColdDownBrc20TransferBatch(req *request.ColdDownBrcTransferBatch) (*respond.Brc20TransferCommitBatchResp, error){
+func ColdDownBrc20TransferBatch(req *request.ColdDownBrcTransferBatch) (*respond.Brc20TransferCommitBatchResp, error) {
 	var (
-		netParams *chaincfg.Params = GetNetParams(req.Net)
-		_, platformAddressSendBrc20 string = GetPlatformKeyAndAddressSendBrc20(req.Net)
-		transferContent string = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, req.Tick, req.InscribeTransferAmount)
-		commitTxHash string = ""
-		revealTxHashList, inscriptionIdList []string = make([]string, 0), make([]string, 0)
-		err error
-		brc20BalanceResult *oklink_service.OklinkBrc20BalanceDetails
-		availableBalance int64 = 0
-		fees int64 = 0
-		inscribeUtxoList []*inscription_service.InscribeUtxo = make([]*inscription_service.InscribeUtxo, 0)
+		netParams                           *chaincfg.Params = GetNetParams(req.Net)
+		_, platformAddressSendBrc20         string           = GetPlatformKeyAndAddressSendBrc20(req.Net)
+		transferContent                     string           = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, req.Tick, req.InscribeTransferAmount)
+		commitTxHash                        string           = ""
+		revealTxHashList, inscriptionIdList []string         = make([]string, 0), make([]string, 0)
+		err                                 error
+		brc20BalanceResult                  *oklink_service.OklinkBrc20BalanceDetails
+		availableBalance                    int64                               = 0
+		fees                                int64                               = 0
+		inscribeUtxoList                    []*inscription_service.InscribeUtxo = make([]*inscription_service.InscribeUtxo, 0)
 	)
 	inscribeUtxoList = append(inscribeUtxoList, &inscription_service.InscribeUtxo{
 		OutTx:     req.TxId,
@@ -316,12 +313,12 @@ func ColdDownBrc20TransferBatch(req *request.ColdDownBrcTransferBatch) (*respond
 
 	fmt.Println(transferContent)
 	brc20BalanceResult, err = oklink_service.GetAddressBrc20BalanceResult(platformAddressSendBrc20, req.Tick, 1, 50)
-	if err != nil  {
+	if err != nil {
 		return nil, err
 	}
 	availableBalance, _ = strconv.ParseInt(brc20BalanceResult.AvailableBalance, 10, 64)
-	fmt.Printf("availableBalance:%d, req.InscribeTransferAmount*req.Count: %d\n", availableBalance, req.InscribeTransferAmount* req.Count)
-	if availableBalance < req.InscribeTransferAmount* req.Count{
+	fmt.Printf("availableBalance:%d, req.InscribeTransferAmount*req.Count: %d\n", availableBalance, req.InscribeTransferAmount*req.Count)
+	if availableBalance < req.InscribeTransferAmount*req.Count {
 		return nil, errors.New("AvailableBalance not enough. ")
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
@@ -340,20 +337,20 @@ func ColdDownBrc20TransferBatch(req *request.ColdDownBrcTransferBatch) (*respond
 
 func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch) (*respond.Brc20TransferCommitBatchResp, error) {
 	var (
-		netParams *chaincfg.Params = GetNetParams(req.Net)
-		platformPrivateKeySendBrc20ForAsk, platformAddressSendBrc20ForAsk string = GetPlatformKeyAndAddressSendBrc20ForAsk(req.Net)
-		_, platformAddressReceiveValueForAsk string = GetPlatformKeyAndAddressReceiveValueForAsk(req.Net)
-		transferContent string = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, req.Tick, req.InscribeTransferAmount)
-		commitTxHash string = ""
-		revealTxHashList, inscriptionIdList []string = make([]string, 0), make([]string, 0)
-		err error
-		brc20BalanceResult *oklink_service.OklinkBrc20BalanceDetails
-		availableBalance int64 = 0
-		fees int64 = 0
-		inscribeUtxoList []*inscription_service.InscribeUtxo = make([]*inscription_service.InscribeUtxo, 0)
-		commonCoinAmount uint64 = uint64(req.InscribeTransferAmount)
-		commonOutAmount uint64 = 4000
-		commonCoinRatePrice uint64 = 0
+		netParams                                                         *chaincfg.Params = GetNetParams(req.Net)
+		platformPrivateKeySendBrc20ForAsk, platformAddressSendBrc20ForAsk string           = GetPlatformKeyAndAddressSendBrc20ForAsk(req.Net)
+		_, platformAddressReceiveValueForAsk                              string           = GetPlatformKeyAndAddressReceiveValueForAsk(req.Net)
+		transferContent                                                   string           = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, req.Tick, req.InscribeTransferAmount)
+		commitTxHash                                                      string           = ""
+		revealTxHashList, inscriptionIdList                               []string         = make([]string, 0), make([]string, 0)
+		err                                                               error
+		brc20BalanceResult                                                *oklink_service.OklinkBrc20BalanceDetails
+		availableBalance                                                  int64                               = 0
+		fees                                                              int64                               = 0
+		inscribeUtxoList                                                  []*inscription_service.InscribeUtxo = make([]*inscription_service.InscribeUtxo, 0)
+		commonCoinAmount                                                  uint64                              = uint64(req.InscribeTransferAmount)
+		commonOutAmount                                                   uint64                              = 4000
+		commonCoinRatePrice                                               uint64                              = 0
 	)
 	inscribeUtxoList = append(inscribeUtxoList, &inscription_service.InscribeUtxo{
 		OutTx:     req.TxId,
@@ -363,12 +360,12 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 
 	fmt.Println(transferContent)
 	brc20BalanceResult, err = oklink_service.GetAddressBrc20BalanceResult(platformAddressSendBrc20ForAsk, req.Tick, 1, 50)
-	if err != nil  {
+	if err != nil {
 		return nil, err
 	}
 	availableBalance, _ = strconv.ParseInt(brc20BalanceResult.AvailableBalance, 10, 64)
-	fmt.Printf("availableBalance:%d, req.InscribeTransferAmount*req.Count: %d\n", availableBalance, req.InscribeTransferAmount* req.Count)
-	if availableBalance < req.InscribeTransferAmount * req.Count {
+	fmt.Printf("availableBalance:%d, req.InscribeTransferAmount*req.Count: %d\n", availableBalance, req.InscribeTransferAmount*req.Count)
+	if availableBalance < req.InscribeTransferAmount*req.Count {
 		return nil, errors.New("AvailableBalance not enough. ")
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
@@ -377,8 +374,6 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 	if err != nil {
 		return nil, err
 	}
-
-
 
 	//make ask order
 	outAmountDe := decimal.NewFromInt(int64(commonOutAmount))
@@ -412,7 +407,6 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 		})
 		inputSigns := make([]*InputSign, 0)
 
-
 		inputSigns = append(inputSigns, &InputSign{
 			Index:       0,
 			OutRaw:      "",
@@ -436,8 +430,6 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 			return nil, err
 		}
 
-
-
 		orderId := fmt.Sprintf("%s_%s_%s_%s_%d_%d", req.Net, req.Tick, v, platformAddressSendBrc20ForAsk, commonOutAmount, commonCoinAmount)
 		orderId = hex.EncodeToString(tool.SHA256([]byte(orderId)))
 		entity := &model.OrderBrc20Model{
@@ -451,12 +443,13 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 			CoinRatePrice:  commonCoinRatePrice,
 			//OrderState:     model.OrderStateCreate,
 			InscriptionId: v,
-			OrderState:    model.OrderStatePreAsk,
+			//OrderState:    model.OrderStatePreAsk,
+			OrderState:    model.OrderStatePreClaim,
 			OrderType:     model.OrderTypeSell,
 			SellerAddress: platformAddressSendBrc20ForAsk,
 			BuyerAddress:  "",
 			PsbtRawPreAsk: psbtRaw,
-			FreeState:     model.FreeStateYes,
+			FreeState:     model.FreeStateClaim,
 			Timestamp:     tool.MakeTimestamp(),
 		}
 		_, err = mongo_service.SetOrderBrc20Model(entity)
@@ -466,7 +459,6 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 		UpdateMarketPrice(req.Net, req.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(req.Tick)))
 	}
 
-
 	return &respond.Brc20TransferCommitBatchResp{
 		Fees:              fees,
 		CommitTxHash:      commitTxHash,
@@ -474,4 +466,3 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 		InscriptionIdList: inscriptionIdList,
 	}, nil
 }
-

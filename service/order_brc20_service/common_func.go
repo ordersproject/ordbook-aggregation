@@ -16,24 +16,24 @@ import (
 	"strings"
 )
 
-func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel{
-	var(
-		askList []*model.OrderBrc20Model
-		bidList []*model.OrderBrc20Model
+func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel {
+	var (
+		askList     []*model.OrderBrc20Model
+		bidList     []*model.OrderBrc20Model
 		marketPrice uint64 = 0
-		totalPrice uint64 = 0
-		total uint64 = 0
-		tickInfo *model.Brc20TickModel
-		sellPrice uint64 = 0
-		sellTotal uint64 = 0
-		buyPrice uint64 = 0
-		buyTotal uint64 = 0
+		totalPrice  uint64 = 0
+		total       uint64 = 0
+		tickInfo    *model.Brc20TickModel
+		sellPrice   uint64 = 0
+		sellTotal   uint64 = 0
+		buyPrice    uint64 = 0
+		buyTotal    uint64 = 0
 	)
 	askList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeSell, model.OrderStateCreate, 10, 0, 0,
-		"coinRatePrice", 1)
+		"coinRatePrice", 1, 0)
 	bidList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeBuy, model.OrderStateCreate, 10, 0, 0,
-		"coinRatePrice", -1)
-	for _, v := range askList{
+		"coinRatePrice", -1, 0)
+	for _, v := range askList {
 		if v.CoinRatePrice == 0 {
 			continue
 		}
@@ -43,10 +43,10 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel{
 		sellTotal++
 	}
 	if sellTotal != 0 {
-		sellPrice = sellPrice/sellTotal
+		sellPrice = sellPrice / sellTotal
 	}
 
-	for _, v := range bidList{
+	for _, v := range bidList {
 		if v.CoinRatePrice == 0 {
 			continue
 		}
@@ -56,22 +56,21 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel{
 		buyTotal++
 	}
 	if buyTotal != 0 {
-		buyPrice = buyPrice/buyTotal
+		buyPrice = buyPrice / buyTotal
 	}
 	if total != 0 {
-		marketPrice = totalPrice/total
+		marketPrice = totalPrice / total
 	}
-
 
 	tickInfo, _ = mongo_service.FindBrc20TickModelByPair(net, pair)
 	if tickInfo == nil {
 		tickInfo = &model.Brc20TickModel{
-			Net:                net,
-			Tick:               tick,
-			Pair:               pair,
-			Buy:                buyPrice,
-			Sell:               sellPrice,
-			AvgPrice:           marketPrice,
+			Net:      net,
+			Tick:     tick,
+			Pair:     pair,
+			Buy:      buyPrice,
+			Sell:     sellPrice,
+			AvgPrice: marketPrice,
 		}
 	}
 	tickInfo.Buy = buyPrice
@@ -96,14 +95,13 @@ func GetMarketPrice(net, tick, pair string) uint64 {
 			return 0
 		}
 		return uint64(guideEntity.Price)
-	}else {
+	} else {
 		if guideEntity != nil && guideEntity.Price > int64(tickInfo.AvgPrice) {
 			return uint64(guideEntity.Price)
 		}
 	}
 	return tickInfo.AvgPrice
 }
-
 
 func GetNetParams(net string) *chaincfg.Params {
 	var (
@@ -138,7 +136,7 @@ func GetTestFakerInscription(net string) []*model.OrderUtxoModel {
 	return utxoMockInscriptionList
 }
 
-func SaveForUserBidDummy(net, tick, address, orderId, dummyPreTxId string, dummyPreIndex int64, state model.DummyState)  {
+func SaveForUserBidDummy(net, tick, address, orderId, dummyPreTxId string, dummyPreIndex int64, state model.DummyState) {
 	dummyEntity := &model.OrderBrc20BidDummyModel{
 		Net:        net,
 		DummyId:    fmt.Sprintf("%s:%d", dummyPreTxId, dummyPreIndex),
@@ -151,7 +149,7 @@ func SaveForUserBidDummy(net, tick, address, orderId, dummyPreTxId string, dummy
 	mongo_service.SetOrderBrc20BidDummyModel(dummyEntity)
 }
 
-func UpdateForOrderBidDummy(orderId string, state model.DummyState)  {
+func UpdateForOrderBidDummy(orderId string, state model.DummyState) {
 	dummyList, _ := mongo_service.FindOrderBrc20BidDummyModelList(orderId, "", model.DummyStateLive, 0, 10)
 	for _, v := range dummyList {
 		v.DummyState = state
@@ -216,7 +214,7 @@ func CheckBidInscriptionIdExist(inscriptionId string) bool {
 	return true
 }
 
-func setUsedDummyUtxo(utxoDummyList []*model.OrderUtxoModel, useTx string)  {
+func setUsedDummyUtxo(utxoDummyList []*model.OrderUtxoModel, useTx string) {
 	for _, v := range utxoDummyList {
 		v.UseTx = useTx
 		v.UsedState = model.UsedYes
@@ -227,7 +225,7 @@ func setUsedDummyUtxo(utxoDummyList []*model.OrderUtxoModel, useTx string)  {
 	}
 }
 
-func setUsedBidYUtxo(utxoBidYList []*model.OrderUtxoModel, useTx string)  {
+func setUsedBidYUtxo(utxoBidYList []*model.OrderUtxoModel, useTx string) {
 	for _, v := range utxoBidYList {
 		v.UseTx = useTx
 		v.UsedState = model.UsedYes
@@ -238,7 +236,7 @@ func setUsedBidYUtxo(utxoBidYList []*model.OrderUtxoModel, useTx string)  {
 	}
 }
 
-func serUsedFakerInscriptionUtxo(utxoId, useTx string, useState model.UsedState)  {
+func serUsedFakerInscriptionUtxo(utxoId, useTx string, useState model.UsedState) {
 	err := mongo_service.UpdateOrderUtxoModelForUsed(utxoId, useTx, useState)
 	if err != nil {
 		return

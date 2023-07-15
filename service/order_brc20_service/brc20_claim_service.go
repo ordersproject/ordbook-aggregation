@@ -34,6 +34,14 @@ func FetchClaimOrder(req *request.OrderBrc20ClaimFetchOneReq, publicKey, ip stri
 	_ = todayStartTime
 	_ = todayEndTime
 
+	canCount, err := getWhitelistCount(req.Address, ip, model.WhitelistTypeClaim)
+	if err != nil {
+		return nil, err
+	}
+	if canCount <= 0 {
+		return nil, errors.New("already had claimed")
+	}
+
 	entity, err = GetUnoccupiedClaimBrc20PsbtList(req.Net, req.Tick, claimFetchLimit)
 	if err != nil {
 		return nil, err

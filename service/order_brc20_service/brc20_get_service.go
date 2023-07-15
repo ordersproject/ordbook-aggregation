@@ -83,7 +83,7 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 	total, _ = mongo_service.CountOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress, req.OrderType, req.OrderState)
 	entityList, _ = mongo_service.FindOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress,
 		req.OrderType, req.OrderState,
-		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType)
+		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType, 0)
 	list = make([]*respond.Brc20Item, len(entityList))
 	for k, v := range entityList {
 		item := &respond.Brc20Item{

@@ -12,25 +12,23 @@ import (
 	"time"
 )
 
-func LoopForCheckAsk()  {
+func LoopForCheckAsk() {
 	var (
-		t = tool.MakeTimestamp()
-		net string = "livenet"
-		tick string = "rdex"
-		limit int64 = 20
-		utxoList []*oklink_service.UtxoItem = make([]*oklink_service.UtxoItem, 0)
-		_, platformAddressSendBrc20ForAsk string = order_brc20_service.GetPlatformKeyAndAddressSendBrc20ForAsk(net)
+		t                                                            = tool.MakeTimestamp()
+		net                               string                     = "livenet"
+		tick                              string                     = "rdex"
+		limit                             int64                      = 20
+		utxoList                          []*oklink_service.UtxoItem = make([]*oklink_service.UtxoItem, 0)
+		_, platformAddressSendBrc20ForAsk string                     = order_brc20_service.GetPlatformKeyAndAddressSendBrc20ForAsk(net)
 	)
 	entityList, _ := mongo_service.FindOrderBrc20ModelList(net, tick, "", "",
 		model.OrderTypeSell, model.OrderStateCreate,
-		limit, 0, 0, "timestamp", 1)
+		limit, 0, 0, "timestamp", 1, 0)
 	if entityList == nil || len(entityList) == 0 {
 		return
 	}
 
-	time.Sleep(15* time.Second)
-
-
+	time.Sleep(15 * time.Second)
 
 	for i := int64(0); i < 10; i++ {
 		utxoResp, err := oklink_service.GetAddressUtxo(platformAddressSendBrc20ForAsk, i+1, 50)
@@ -40,12 +38,11 @@ func LoopForCheckAsk()  {
 		}
 		if utxoResp.UtxoList != nil && len(utxoResp.UtxoList) != 0 {
 			utxoList = append(utxoList, utxoResp.UtxoList...)
-		}else {
+		} else {
 			break
 		}
 		time.Sleep(10 * time.Second)
 	}
-
 
 	for _, v := range entityList {
 		inscriptionIdStrs := strings.Split(v.InscriptionId, "i")
