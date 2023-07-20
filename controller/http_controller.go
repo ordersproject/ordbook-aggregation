@@ -56,6 +56,12 @@ func Run() {
 		brc20.GET("/claim/order", FetchClaimOrder)
 		brc20.POST("/claim/order/update", UpdateClaimOrder)
 
+		brc20.GET("/pool/pair/key", FetchPoolPlatformPublicKey)
+		brc20.POST("/pool/order/push", auth.AuthSignMiddleware(), PushPoolOrder)
+		brc20.GET("/pool/orders", FetchPoolOrders)
+		brc20.GET("/pool/order/:orderId", auth.AuthSignMiddleware(), FetchOnePoolOrder)
+		brc20.GET("/pool/pair/info", FetchPoolPairInfo)
+
 		brc20.GET("/tool/orders/download", DownloadOrdersData)
 	}
 

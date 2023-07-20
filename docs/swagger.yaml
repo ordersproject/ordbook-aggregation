@@ -42,6 +42,28 @@ definitions:
     x-enum-varnames:
     - OrderTypeSell
     - OrderTypeBuy
+  model.PoolState:
+    enum:
+    - 1
+    - 2
+    - 3
+    - 4
+    type: integer
+    x-enum-varnames:
+    - PoolStateAdd
+    - PoolStateRemove
+    - PoolStateUsed
+    - PoolStateClaim
+  model.PoolType:
+    enum:
+    - 1
+    - 2
+    - 3
+    type: integer
+    x-enum-varnames:
+    - PoolTypeTick
+    - PoolTypeBtc
+    - PoolTypeBoth
   model.UtxoType:
     enum:
     - 1
@@ -279,6 +301,34 @@ definitions:
         - $ref: '#/definitions/model.OrderState'
         description: 2-finish/3-cancel
       psbtRaw:
+        type: string
+    type: object
+  request.PoolBrc20PushReq:
+    properties:
+      address:
+        type: string
+      amount:
+        type: integer
+      coinAmount:
+        type: integer
+      coinPsbtRaw:
+        type: string
+      net:
+        description: livenet/signet/testnet
+        type: string
+      pair:
+        type: string
+      poolState:
+        allOf:
+        - $ref: '#/definitions/model.PoolState'
+        description: 1-add,2-remove,3-used,4-claim
+      poolType:
+        allOf:
+        - $ref: '#/definitions/model.PoolType'
+        description: 1-tick,2-btc,3-both
+      psbtRaw:
+        type: string
+      tick:
         type: string
     type: object
   request.ReceiveUtxo:
@@ -611,6 +661,99 @@ definitions:
       results:
         items:
           $ref: '#/definitions/respond.Brc20Item'
+        type: array
+      total:
+        type: integer
+    type: object
+  respond.PoolBrc20Item:
+    properties:
+      address:
+        description: address
+        type: string
+      amount:
+        type: integer
+      decimalNum:
+        type: integer
+      inscriptionId:
+        description: InscriptionId
+        type: string
+      net:
+        description: Net env
+        type: string
+      orderId:
+        description: Order ID
+        type: string
+      pair:
+        description: Brc20 pair
+        type: string
+      poolState:
+        allOf:
+        - $ref: '#/definitions/model.PoolState'
+        description: pool state：1-add,2-remove,3-used,4-claim
+      poolType:
+        allOf:
+        - $ref: '#/definitions/model.PoolType'
+        description: pool type：1-tick,2-btc
+      psbtRaw:
+        description: PSBT Raw
+        type: string
+      tick:
+        description: Brc20 symbol
+        type: string
+      timestamp:
+        description: Create time
+        type: integer
+    type: object
+  respond.PoolInfoItem:
+    properties:
+      amount:
+        description: 'Btc: sat'
+        type: integer
+      coinAmount:
+        type: integer
+      coinDecimalNum:
+        description: omitempty
+        type: integer
+      decimalNum:
+        description: Btc decimal
+        type: integer
+      net:
+        description: Net env
+        type: string
+      pair:
+        description: Brc20 pair
+        type: string
+      tick:
+        description: Brc20 symbol
+        type: string
+    type: object
+  respond.PoolInfoResponse:
+    properties:
+      flag:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/respond.PoolInfoItem'
+        type: array
+      total:
+        type: integer
+    type: object
+  respond.PoolKeyInfoResp:
+    properties:
+      net:
+        description: Net env
+        type: string
+      publicKey:
+        description: key
+        type: string
+    type: object
+  respond.PoolResponse:
+    properties:
+      flag:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/respond.PoolBrc20Item'
         type: array
       total:
         type: integer
@@ -1165,6 +1308,149 @@ paths:
           schema:
             $ref: '#/definitions/respond.OrderResponse'
       summary: Fetch user orders
+      tags:
+      - brc20
+  /brc20/pool/order/{orderId}:
+    get:
+      description: Fetch one pool order
+      parameters:
+      - description: orderId
+        in: path
+        name: orderId
+        required: true
+        type: string
+      - description: address
+        in: query
+        name: address
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolBrc20Item'
+      summary: Fetch one pool order
+      tags:
+      - brc20
+  /brc20/pool/order/push:
+    post:
+      description: Push pool order
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.PoolBrc20PushReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Message'
+      summary: Push pool order
+      tags:
+      - brc20
+  /brc20/pool/orders:
+    get:
+      description: Fetch pool orders
+      parameters:
+      - description: net:mainnet/signet/testnet
+        in: query
+        name: net
+        type: string
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: address
+        in: query
+        name: address
+        type: string
+      - description: 'poolState: 1-add,2-remove,3-used,4-claim'
+        in: query
+        name: poolState
+        type: integer
+      - description: 'poolType: 1-tick,2-btc'
+        in: query
+        name: poolType
+        type: integer
+      - description: 'limit: Max-50'
+        in: query
+        name: limit
+        type: integer
+      - description: page
+        in: query
+        name: page
+        type: integer
+      - description: flag
+        in: query
+        name: flag
+        type: integer
+      - description: 'sortKey: timestamp/coinRatePrice, default:timestamp'
+        in: query
+        name: sortKey
+        type: string
+      - description: 'sortType: 1/-1'
+        in: query
+        name: sortType
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolResponse'
+      summary: Fetch pool orders
+      tags:
+      - brc20
+  /brc20/pool/pair/info:
+    get:
+      description: Fetch pool pair info
+      parameters:
+      - description: net
+        in: query
+        name: net
+        type: string
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: pair
+        in: query
+        name: pair
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolInfoResponse'
+      summary: Fetch pool pair info
+      tags:
+      - brc20
+  /brc20/pool/pair/key:
+    get:
+      description: Fetch pool key
+      parameters:
+      - description: net
+        in: query
+        name: net
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolKeyInfoResp'
+      summary: Fetch pool key
       tags:
       - brc20
   /brc20/tickers:

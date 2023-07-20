@@ -206,6 +206,13 @@ func GetPlatformKeyAndAddressReceiveFee(net string) (string, string) {
 	return config.PlatformMainnetPrivateKeyReceiveFee, config.PlatformMainnetAddressReceiveFee
 }
 
+func GetPlatformKeyMultiSig(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyMultiSig, config.PlatformTestnetPublicKeyMultiSig
+	}
+	return config.PlatformMainnetPrivateKeyMultiSig, config.PlatformMainnetPublicKeyMultiSig
+}
+
 func CheckBidInscriptionIdExist(inscriptionId string) bool {
 	entity, _ := mongo_service.FindOrderBrc20ModelByInscriptionId(inscriptionId, model.OrderStateCreate)
 	if entity == nil || entity.Id == 0 {

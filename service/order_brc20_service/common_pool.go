@@ -1,6 +1,7 @@
 package order_brc20_service
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -48,40 +49,45 @@ func mkGetScript(scripts map[string][]byte) txscript.ScriptDB {
 	})
 }
 
-func createMultiSigAddress(net *chaincfg.Params, pubKey ...string) (string, error) {
+func createMultiSigAddress(net *chaincfg.Params, pubKey ...string) (string, string, error) {
 	var (
 		pubKeys = make([]*btcutil.AddressPubKey, 0)
 	)
 	for _, v := range pubKey {
 		pubByte, err := hex.DecodeString(v)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		pub, err := btcutil.NewAddressPubKey(pubByte, net)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		pubKeys = append(pubKeys, pub)
 	}
 
-	requiredSigs := 2
-
-	// 构建多签脚本
+	requiredSigs := len(pubKey)
 	script, err := txscript.MultiSigScript(pubKeys, requiredSigs)
 	if err != nil {
 		fmt.Println("Failed to create multi-sig script:", err)
-		return "", err
+		return "", "", err
 	}
-
-	// 从脚本中获取多签地址
 	address, err := btcutil.NewAddressScriptHash(script, net)
 	if err != nil {
-		fmt.Println("Failed to create address:", err)
-		return "", err
+		fmt.Println("Failed to create  native address:", err)
+		return "", "", err
+	}
+
+	h := sha256.New()
+	h.Write(script)
+
+	nativeSegwitAddress, err := btcutil.NewAddressWitnessScriptHash(h.Sum(nil), net)
+	if err != nil {
+		fmt.Println("Failed to create native SegWit address:", err)
+		return "", "", err
 	}
 
 	fmt.Println("Multi-Sig Address:", address)
-	return address.EncodeAddress(), nil
+	return address.EncodeAddress(), nativeSegwitAddress.EncodeAddress(), nil
 }
 
 func signMultiSigScript(net *chaincfg.Params, tx *wire.MsgTx, i int, pkScript []byte, hashType txscript.SigHashType, priKey string, preSigScript []byte) ([]byte, error) {
