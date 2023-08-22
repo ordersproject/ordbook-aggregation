@@ -10,39 +10,40 @@ import (
 	"log"
 )
 
-func CreateTaprootKey(netParams *chaincfg.Params) (string, string, error){
+func CreateTaprootKey(netParams *chaincfg.Params) (string, string, error) {
 	privateKey, err := btcec.NewPrivateKey()
 	if err != nil {
 		return "", "", err
 	}
 	privateKeyHex := hex.EncodeToString(privateKey.Serialize())
-	log.Printf("new priviate key %s \n", privateKeyHex)
+	//log.Printf("new priviate key %s \n", privateKeyHex)
 
 	publicKey := hex.EncodeToString(privateKey.PubKey().SerializeCompressed())
-	log.Printf("new public key %s \n", publicKey)
+	_ = publicKey
+	//log.Printf("new public key %s \n", publicKey)
 	taprootAddress, err := btcutil.NewAddressTaproot(schnorr.SerializePubKey(txscript.ComputeTaprootKeyNoScript(privateKey.PubKey())), netParams)
 	if err != nil {
 		return "", "", err
 	}
-	log.Printf("new taproot address %s \n", taprootAddress.EncodeAddress())
+	//log.Printf("new taproot address %s \n", taprootAddress.EncodeAddress())
 	return privateKeyHex, taprootAddress.EncodeAddress(), nil
 }
 
-
-func CreateSegwitKey(netParams *chaincfg.Params) (string, string, error){
+func CreateSegwitKey(netParams *chaincfg.Params) (string, string, error) {
 	privateKey, err := btcec.NewPrivateKey()
 	if err != nil {
 		return "", "", err
 	}
 	privateKeyHex := hex.EncodeToString(privateKey.Serialize())
-	log.Printf("new priviate key %s \n", privateKeyHex)
+	//log.Printf("new priviate key %s \n", privateKeyHex)
 
 	publicKey := hex.EncodeToString(privateKey.PubKey().SerializeCompressed())
-	log.Printf("new public key %s \n", publicKey)
+	//log.Printf("new public key %s \n", publicKey)
+	_ = publicKey
 	nativeSegwitAddress, err := btcutil.NewAddressWitnessPubKeyHash(btcutil.Hash160(privateKey.PubKey().SerializeCompressed()), netParams)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("new native segwit address %s \n", nativeSegwitAddress.EncodeAddress())
+	//log.Printf("new native segwit address %s \n", nativeSegwitAddress.EncodeAddress())
 	return privateKeyHex, nativeSegwitAddress.EncodeAddress(), nil
 }

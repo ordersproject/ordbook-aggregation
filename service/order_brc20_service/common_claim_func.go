@@ -18,7 +18,7 @@ var (
 )
 
 // GetUnoccupiedClaimBrc20PsbtList get psbt order for claim
-func GetUnoccupiedClaimBrc20PsbtList(net, tick string, count int64) (*model.OrderBrc20Model, error) {
+func GetUnoccupiedClaimBrc20PsbtList(net, tick string, count int64, coinAmount int64) (*model.OrderBrc20Model, error) {
 	var (
 		//net                      string = "livenet"
 		claimOrder               *model.OrderBrc20Model
@@ -27,7 +27,7 @@ func GetUnoccupiedClaimBrc20PsbtList(net, tick string, count int64) (*model.Orde
 	)
 	entityList, _ := mongo_service.FindOrderBrc20ModelList(net, tick, "", "",
 		model.OrderTypeSell, model.OrderStatePreClaim,
-		maxOrderLimit, 0, 0, "timestamp", 1, 0)
+		maxOrderLimit, 0, 0, "timestamp", 1, 0, coinAmount)
 	if entityList == nil || len(entityList) == 0 {
 		return nil, errors.New("no Claim order")
 	}

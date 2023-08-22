@@ -23,7 +23,7 @@ func LoopForCheckAsk() {
 	)
 	entityList, _ := mongo_service.FindOrderBrc20ModelList(net, tick, "", "",
 		model.OrderTypeSell, model.OrderStateCreate,
-		limit, 0, 0, "timestamp", 1, 0)
+		limit, 0, 0, "timestamp", 1, 0, 0)
 	if entityList == nil || len(entityList) == 0 {
 		return
 	}

@@ -30,9 +30,9 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel {
 		buyTotal    uint64 = 0
 	)
 	askList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeSell, model.OrderStateCreate, 10, 0, 0,
-		"coinRatePrice", 1, 0)
+		"coinRatePrice", 1, 0, 0)
 	bidList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeBuy, model.OrderStateCreate, 10, 0, 0,
-		"coinRatePrice", -1, 0)
+		"coinRatePrice", -1, 0, 0)
 	for _, v := range askList {
 		if v.CoinRatePrice == 0 {
 			continue

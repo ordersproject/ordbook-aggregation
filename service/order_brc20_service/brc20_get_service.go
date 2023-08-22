@@ -41,12 +41,12 @@ func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*
 	}
 
 	if entity.FreeState == model.FreeStateYes {
-		count, _ = mongo_service.CountBuyerOrderBrc20ModelList(entity.Net, entity.Tick, req.BuyerAddress, "", model.OrderTypeSell, model.OrderStateFinish, todayStartTime, todayEndTime)
+		count, _ = mongo_service.CountBuyerOrderBrc20ModelList(entity.Net, entity.Tick, req.BuyerAddress, "", model.OrderTypeSell, model.OrderStateFinish, todayStartTime, todayEndTime, 0)
 		fmt.Printf("[LIMIT-address]-%s-%s-count[%d]\n\n", ip, req.BuyerAddress, count)
 		if count >= dayLimit {
 			return nil, errors.New(fmt.Sprintf("The number of purchases of the day has exceeded. "))
 		}
-		count, _ = mongo_service.CountBuyerOrderBrc20ModelList(entity.Net, entity.Tick, "", ip, model.OrderTypeSell, model.OrderStateFinish, todayStartTime, todayEndTime)
+		count, _ = mongo_service.CountBuyerOrderBrc20ModelList(entity.Net, entity.Tick, "", ip, model.OrderTypeSell, model.OrderStateFinish, todayStartTime, todayEndTime, 0)
 		fmt.Printf("[LIMIT-ip]-%s-%s-count[%d]\n\n", ip, req.BuyerAddress, count)
 		if count >= dayLimit {
 			return nil, errors.New(fmt.Sprintf("The number of purchases of the day has exceeded. "))
@@ -83,7 +83,7 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 	total, _ = mongo_service.CountOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress, req.OrderType, req.OrderState)
 	entityList, _ = mongo_service.FindOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress,
 		req.OrderType, req.OrderState,
-		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType, 0)
+		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType, 0, 0)
 	list = make([]*respond.Brc20Item, len(entityList))
 	for k, v := range entityList {
 		item := &respond.Brc20Item{
@@ -293,4 +293,58 @@ func FetchUserOrders(req *request.Brc20OrderAddressReq) (*respond.OrderResponse,
 
 func FetchTickerInfo(req *request.TickBrc20FetchReq) {
 
+}
+
+func FetchTickKline(req *request.TickKlineFetchReq) (*respond.Brc20KlineInfo, error) {
+	var (
+		entityList         []*model.Brc20TickKlineModel
+		list               []*respond.KlineItem = make([]*respond.KlineItem, 0)
+		startTime, endTime int64                = 0, tool.MakeTimestamp() //1m/1s/15m/1h/4h/1d/1w/
+		limit              int64                = req.Limit
+		dis                int64                = 1000 * 60 * 15
+	)
+	if req.Flag != 0 {
+		endTime = req.Flag
+	}
+	if req.Limit == 0 {
+		limit = 100
+	}
+	switch req.Interval {
+	case "15m":
+		startTime = endTime - limit*dis
+		break
+	case "1h":
+		startTime = endTime - limit*dis*4
+		break
+	case "4h":
+		startTime = endTime - limit*dis*4*4
+		break
+	case "1d":
+		startTime = endTime - limit*dis*4*24
+		break
+	case "1w":
+		startTime = endTime - limit*dis*4*24*7
+		break
+	default:
+		startTime = endTime - limit*dis
+	}
+	//fmt.Printf("%s-%s, %s-%s\n", req.Net, req.Tick, tool.MakeDate(startTime), tool.MakeDate(endTime))
+
+	entityList, _ = mongo_service.FindBrc20TickKlineModelList(req.Net, req.Tick, startTime, endTime)
+	for _, v := range entityList {
+		list = append(list, &respond.KlineItem{
+			Timestamp: v.Timestamp,
+			Open:      v.Open,
+			High:      v.High,
+			Low:       v.Low,
+			Close:     v.Close,
+			Volume:    v.Volume,
+		})
+	}
+	return &respond.Brc20KlineInfo{
+		Net:      req.Net,
+		Tick:     req.Tick,
+		Interval: req.Interval,
+		List:     list,
+	}, nil
 }

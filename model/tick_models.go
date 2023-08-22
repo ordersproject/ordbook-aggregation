@@ -109,3 +109,51 @@ func (s Brc20TickInfoModel) GetWriteDB() (*mongo.Collection, error) {
 	}
 	return collection, nil
 }
+
+type Brc20TickKlineModel struct {
+	Id         int64  `json:"id" bson:"_id" tb:"brc20_tick_kline_model" mg:"true"`
+	TickId     string `json:"tickId" bson:"tickId"` //net_tick_timestamp
+	Net        string `json:"net" bson:"net"`
+	Tick       string `json:"tick" bson:"tick"`
+	Open       string `json:"open" bson:"open"`
+	High       string `json:"high" bson:"high"`
+	Low        string `json:"low" bson:"low"`
+	Close      string `json:"close" bson:"close"`
+	Volume     int64  `json:"volume" bson:"volume"`
+	Timestamp  int64  `json:"timestamp" bson:"timestamp"`
+	CreateTime int64  `json:"createTime" bson:"createTime"`
+	UpdateTime int64  `json:"updateTime" bson:"updateTime"`
+	State      int64  `json:"state" bson:"state"`
+}
+
+func (s Brc20TickKlineModel) getCollection() string {
+	return "brc20_tick_kline_model"
+}
+
+func (s Brc20TickKlineModel) getDB() string {
+	return major.DsOrdbook
+}
+
+func (s Brc20TickKlineModel) GetReadDB() (*mongo.Collection, error) {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return nil, err
+	}
+	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+	return collection, nil
+}
+
+func (s Brc20TickKlineModel) GetWriteDB() (*mongo.Collection, error) {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return nil, err
+	}
+	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+	return collection, nil
+}

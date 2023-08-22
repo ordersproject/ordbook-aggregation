@@ -255,3 +255,146 @@ func SetBrc20TickInfoModel(brc20Tick *model.Brc20TickInfoModel) (*model.Brc20Tic
 		return createBrc20TickInfoModel(brc20Tick)
 	}
 }
+
+func FindBrc20TickKlineModelByTickId(tickId string) (*model.Brc20TickKlineModel, error) {
+	collection, err := model.Brc20TickKlineModel{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.D{
+		{"tickId", tickId},
+		//{"state", model.STATE_EXIST},
+	}
+	entity := &model.Brc20TickKlineModel{}
+	err = collection.FindOne(context.TODO(), queryBson).Decode(entity)
+	if err != nil {
+		return nil, err
+	}
+	return entity, nil
+}
+
+func createBrc20TickKlineModel(brc20TickKline *model.Brc20TickKlineModel) (*model.Brc20TickKlineModel, error) {
+	collection, err := model.Brc20TickKlineModel{}.GetWriteDB()
+	if err != nil {
+		return nil, err
+	}
+
+	CreateUniqueIndex(collection, "tickId")
+	CreateIndex(collection, "net")
+	CreateIndex(collection, "tick")
+	CreateIndex(collection, "volume")
+	CreateIndex(collection, "timestamp")
+
+	entity := &model.Brc20TickKlineModel{
+		Id:         util.GetUUIDInt64(),
+		TickId:     brc20TickKline.TickId,
+		Net:        brc20TickKline.Net,
+		Tick:       brc20TickKline.Tick,
+		Open:       brc20TickKline.Open,
+		High:       brc20TickKline.High,
+		Low:        brc20TickKline.Low,
+		Close:      brc20TickKline.Close,
+		Volume:     brc20TickKline.Volume,
+		Timestamp:  brc20TickKline.Timestamp,
+		CreateTime: util.Time(),
+		State:      model.STATE_EXIST,
+	}
+
+	_, err = collection.InsertOne(context.TODO(), entity)
+	if err != nil {
+		return nil, err
+	} else {
+		//id := res.InsertedID
+		//fmt.Println("insert id :", id)
+		return entity, nil
+	}
+}
+
+func SetBrc20TickKlineModel(brc20TickKline *model.Brc20TickKlineModel) (*model.Brc20TickKlineModel, error) {
+	entity, err := FindBrc20TickKlineModelByTickId(brc20TickKline.TickId)
+	if err == nil && entity != nil {
+		collection, err := model.Brc20TickKlineModel{}.GetWriteDB()
+		if err != nil {
+			return nil, err
+		}
+		filter := bson.D{
+			{"tickId", brc20TickKline.TickId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "tickId", Value: brc20TickKline.TickId})
+		bsonData = append(bsonData, bson.E{Key: "net", Value: brc20TickKline.Net})
+		bsonData = append(bsonData, bson.E{Key: "tick", Value: brc20TickKline.Tick})
+		bsonData = append(bsonData, bson.E{Key: "open", Value: brc20TickKline.Open})
+		bsonData = append(bsonData, bson.E{Key: "high", Value: brc20TickKline.High})
+		bsonData = append(bsonData, bson.E{Key: "low", Value: brc20TickKline.Low})
+		bsonData = append(bsonData, bson.E{Key: "close", Value: brc20TickKline.Close})
+		bsonData = append(bsonData, bson.E{Key: "volume", Value: brc20TickKline.Volume})
+		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: brc20TickKline.Timestamp})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return nil, err
+		}
+		return brc20TickKline, nil
+	} else {
+		return createBrc20TickKlineModel(brc20TickKline)
+	}
+}
+
+func FindNewestBrc20TickKlineModel(net, tick string) (*model.Brc20TickKlineModel, error) {
+	collection, err := model.Brc20TickKlineModel{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.D{
+		{"net", net},
+		{"tick", tick},
+		//{"state", model.STATE_EXIST},
+	}
+	entity := &model.Brc20TickKlineModel{}
+	sort := options.FindOne().SetSort(bson.M{"timestamp": -1})
+	err = collection.FindOne(context.TODO(), queryBson, sort).Decode(entity)
+	if err != nil {
+		return nil, err
+	}
+	return entity, nil
+}
+
+func FindBrc20TickKlineModelList(net, tick string, startTime, endTime int64) ([]*model.Brc20TickKlineModel, error) {
+	collection, err := model.Brc20TickKlineModel{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"net":   net,
+		"tick":  tick,
+		"state": model.STATE_EXIST,
+	}
+
+	between := bson.M{GTE_: startTime, LTE_: endTime}
+	find["timestamp"] = between
+
+	models := make([]*model.Brc20TickKlineModel, 0)
+	pagination := options.Find().SetLimit(5000).SetSkip(0)
+	sort := options.Find().SetSort(bson.M{"timestamp": -1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.Brc20TickKlineModel{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get Brc20TickKlineModel Error")
+	}
+	return models, nil
+}

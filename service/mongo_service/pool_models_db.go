@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/godaddy-x/jorm/util"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"ordbook-aggregation/model"
 )
@@ -47,28 +48,33 @@ func createPoolBrc20Model(poolBrc20 *model.PoolBrc20Model) (*model.PoolBrc20Mode
 	CreateIndex(collection, "dealTime")
 
 	entity := &model.PoolBrc20Model{
-		Id:             util.GetUUIDInt64(),
-		Net:            poolBrc20.Net,
-		OrderId:        poolBrc20.OrderId,
-		Tick:           poolBrc20.Tick,
-		Pair:           poolBrc20.Pair,
-		CoinAmount:     poolBrc20.CoinAmount,
-		CoinDecimalNum: poolBrc20.CoinDecimalNum,
-		Amount:         poolBrc20.Amount,
-		DecimalNum:     poolBrc20.DecimalNum,
-		CoinRatePrice:  poolBrc20.CoinRatePrice,
-		CoinAddress:    poolBrc20.CoinAddress,
-		Address:        poolBrc20.Address,
-		CoinPsbtRaw:    poolBrc20.CoinPsbtRaw,
-		PsbtRaw:        poolBrc20.PsbtRaw,
-		InscriptionId:  poolBrc20.InscriptionId,
-		UtxoId:         poolBrc20.UtxoId,
-		PoolType:       poolBrc20.PoolType,
-		PoolState:      poolBrc20.PoolState,
-		DealTime:       poolBrc20.DealTime,
-		Timestamp:      poolBrc20.Timestamp,
-		CreateTime:     util.Time(),
-		State:          model.STATE_EXIST,
+		Id:                    util.GetUUIDInt64(),
+		Net:                   poolBrc20.Net,
+		OrderId:               poolBrc20.OrderId,
+		Tick:                  poolBrc20.Tick,
+		Pair:                  poolBrc20.Pair,
+		CoinAmount:            poolBrc20.CoinAmount,
+		CoinDecimalNum:        poolBrc20.CoinDecimalNum,
+		Amount:                poolBrc20.Amount,
+		DecimalNum:            poolBrc20.DecimalNum,
+		CoinRatePrice:         poolBrc20.CoinRatePrice,
+		CoinAddress:           poolBrc20.CoinAddress,
+		CoinPublicKey:         poolBrc20.CoinPublicKey,
+		CoinInputValue:        poolBrc20.CoinInputValue,
+		Address:               poolBrc20.Address,
+		MultiSigScript:        poolBrc20.MultiSigScript,
+		MultiSigScriptAddress: poolBrc20.MultiSigScriptAddress,
+		CoinPsbtRaw:           poolBrc20.CoinPsbtRaw,
+		PsbtRaw:               poolBrc20.PsbtRaw,
+		InscriptionId:         poolBrc20.InscriptionId,
+		InscriptionNumber:     poolBrc20.InscriptionNumber,
+		UtxoId:                poolBrc20.UtxoId,
+		PoolType:              poolBrc20.PoolType,
+		PoolState:             poolBrc20.PoolState,
+		DealTime:              poolBrc20.DealTime,
+		Timestamp:             poolBrc20.Timestamp,
+		CreateTime:            util.Time(),
+		State:                 model.STATE_EXIST,
 	}
 
 	_, err = collection.InsertOne(context.TODO(), entity)
@@ -103,10 +109,15 @@ func SetPoolBrc20Model(poolBrc20 *model.PoolBrc20Model) (*model.PoolBrc20Model, 
 		bsonData = append(bsonData, bson.E{Key: "decimalNum", Value: poolBrc20.DecimalNum})
 		bsonData = append(bsonData, bson.E{Key: "coinRatePrice", Value: poolBrc20.CoinRatePrice})
 		bsonData = append(bsonData, bson.E{Key: "coinAddress", Value: poolBrc20.CoinAddress})
+		bsonData = append(bsonData, bson.E{Key: "coinPublicKey", Value: poolBrc20.CoinPublicKey})
+		bsonData = append(bsonData, bson.E{Key: "coinInputValue", Value: poolBrc20.CoinInputValue})
 		bsonData = append(bsonData, bson.E{Key: "address", Value: poolBrc20.Address})
+		bsonData = append(bsonData, bson.E{Key: "multiSigScript", Value: poolBrc20.MultiSigScript})
+		bsonData = append(bsonData, bson.E{Key: "multiSigScriptAddress", Value: poolBrc20.MultiSigScriptAddress})
 		bsonData = append(bsonData, bson.E{Key: "coinPsbtRaw", Value: poolBrc20.CoinPsbtRaw})
 		bsonData = append(bsonData, bson.E{Key: "psbtRaw", Value: poolBrc20.PsbtRaw})
 		bsonData = append(bsonData, bson.E{Key: "inscriptionId", Value: poolBrc20.InscriptionId})
+		bsonData = append(bsonData, bson.E{Key: "inscriptionNumber", Value: poolBrc20.InscriptionNumber})
 		bsonData = append(bsonData, bson.E{Key: "utxoId", Value: poolBrc20.UtxoId})
 		bsonData = append(bsonData, bson.E{Key: "poolType", Value: poolBrc20.PoolType})
 		bsonData = append(bsonData, bson.E{Key: "poolState", Value: poolBrc20.PoolState})
@@ -124,6 +135,120 @@ func SetPoolBrc20Model(poolBrc20 *model.PoolBrc20Model) (*model.PoolBrc20Model, 
 	} else {
 		return createPoolBrc20Model(poolBrc20)
 	}
+}
+
+func SetPoolBrc20ModelForStatus(orderId string, status model.PoolState, dealTx string, dealTxIndex, dealTxOutValue, dealTime int64) error {
+	entity, err := FindPoolBrc20ModelByOrderId(orderId)
+	if err == nil && entity != nil {
+		collection, err := model.PoolBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", orderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "poolState", Value: status})
+		bsonData = append(bsonData, bson.E{Key: "dealTx", Value: dealTx})
+		bsonData = append(bsonData, bson.E{Key: "dealTxIndex", Value: dealTxIndex})
+		bsonData = append(bsonData, bson.E{Key: "dealTxOutValue", Value: dealTxOutValue})
+		bsonData = append(bsonData, bson.E{Key: "dealTime", Value: dealTime})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func SetPoolBrc20ModelForCoinStatus(orderId string, coinStatus model.PoolState, dealCoinTx string, dealCoinTxIndex, dealCoinTxOutValue, dealCoinTime int64) error {
+	entity, err := FindPoolBrc20ModelByOrderId(orderId)
+	if err == nil && entity != nil {
+		collection, err := model.PoolBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", orderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "poolCoinState", Value: coinStatus})
+		bsonData = append(bsonData, bson.E{Key: "dealCoinTx", Value: dealCoinTx})
+		bsonData = append(bsonData, bson.E{Key: "dealCoinTxIndex", Value: dealCoinTxIndex})
+		bsonData = append(bsonData, bson.E{Key: "dealCoinTxOutValue", Value: dealCoinTxOutValue})
+		bsonData = append(bsonData, bson.E{Key: "dealCoinTime", Value: dealCoinTime})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func SetPoolBrc20ModelForDealInscription(orderId string, dealInscriptionId, dealInscriptionTx string, dealInscriptionTxIndex, dealInscriptionTxOutValue, dealInscriptionTime int64) error {
+	entity, err := FindPoolBrc20ModelByOrderId(orderId)
+	if err == nil && entity != nil {
+		collection, err := model.PoolBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", orderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "dealInscriptionId", Value: dealInscriptionId})
+		bsonData = append(bsonData, bson.E{Key: "dealInscriptionTx", Value: dealInscriptionTx})
+		bsonData = append(bsonData, bson.E{Key: "dealInscriptionTxIndex", Value: dealInscriptionTxIndex})
+		bsonData = append(bsonData, bson.E{Key: "dealInscriptionTxOutValue", Value: dealInscriptionTxOutValue})
+		bsonData = append(bsonData, bson.E{Key: "dealInscriptionTime", Value: dealInscriptionTime})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func SetPoolBrc20ModelForClaim(poolBrc20 *model.PoolBrc20Model) error {
+	entity, err := FindPoolBrc20ModelByOrderId(poolBrc20.OrderId)
+	if err == nil && entity != nil {
+		collection, err := model.PoolBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", poolBrc20.OrderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "claimTx", Value: poolBrc20.ClaimTx})
+		bsonData = append(bsonData, bson.E{Key: "poolState", Value: poolBrc20.PoolState})
+		bsonData = append(bsonData, bson.E{Key: "poolCoinState", Value: poolBrc20.PoolCoinState})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func CountPoolBrc20ModelList(net, tick, pair, address string, poolType model.PoolType, poolState model.PoolState) (int64, error) {
@@ -162,7 +287,7 @@ func CountPoolBrc20ModelList(net, tick, pair, address string, poolType model.Poo
 
 func FindPoolBrc20ModelList(net, tick, pair, address string,
 	poolType model.PoolType, poolState model.PoolState,
-	limit int64, flag, page int64, sortKey string, sortType int64) ([]*model.PoolBrc20Model, error) {
+	limit, flag, page int64, sortKey string, sortType int64) ([]*model.PoolBrc20Model, error) {
 	collection, err := model.PoolBrc20Model{}.GetReadDB()
 	if err != nil {
 		return nil, errors.New("db connect error")
@@ -184,7 +309,7 @@ func FindPoolBrc20ModelList(net, tick, pair, address string,
 		find["pair"] = pair
 	}
 	if address != "" {
-		find["address"] = address
+		find["coinAddress"] = address
 	}
 	if poolType != 0 {
 		find["poolType"] = poolType
@@ -381,4 +506,64 @@ func FindPoolInfoModelList(net, tick, pair string) ([]*model.PoolInfoModel, erro
 		return nil, errors.New("Get PoolInfoModel Error")
 	}
 	return models, nil
+}
+
+func CountOwnPoolPair(net, tick, pair, address string, poolType model.PoolType) (*model.PoolOrderCount, error) {
+	collection, err := model.PoolBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	countInfo := &model.PoolOrderCount{
+		Id:              address,
+		CoinAmountTotal: 0,
+		AmountTotal:     0,
+	}
+	countInfoList := make([]model.PoolOrderCount, 0)
+
+	pipeline := mongo.Pipeline{
+		{
+			{"$match", bson.D{
+				{"net", net},
+				{"tick", tick},
+				{"pair", pair},
+				{"coinAddress", address},
+				{"poolState", model.PoolStateAdd},
+				{"poolType", poolType},
+			}},
+		},
+		{
+			{"$group", bson.D{
+				{"_id", "$coinAddress"},
+				{"coinAmountTotal", bson.D{
+					{"$sum", "$coinAmount"},
+				}},
+				{"amountTotal", bson.D{
+					{"$sum", "$amount"},
+				}},
+				{"orderCounts", bson.D{
+					{"$sum", 1},
+				}},
+			}},
+		},
+	}
+	if cursor, err := collection.Aggregate(context.Background(), pipeline); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			var entity model.PoolOrderCount
+			if err = cursor.Decode(&entity); err == nil {
+				countInfoList = append(countInfoList, entity)
+			}
+		}
+		if countInfoList != nil && len(countInfoList) != 0 {
+			for _, v := range countInfoList {
+				if v.Id == address {
+					countInfo = &v
+					break
+				}
+			}
+		}
+		return countInfo, nil
+	} else {
+		return nil, errors.New("db get records error")
+	}
 }

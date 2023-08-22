@@ -12,6 +12,7 @@ import (
 	_ "ordbook-aggregation/service/cache_service"
 	"ordbook-aggregation/service/order_brc20_service"
 	"ordbook-aggregation/service/task"
+	"ordbook-aggregation/service/tool_service"
 	"ordbook-aggregation/ws_service/ws"
 )
 
@@ -56,12 +57,19 @@ func main() {
 	InitEnv()
 	InitAll()
 
-	//order_brc20_service.FixAsk()
 	order_brc20_service.InitCommon()
+	order_brc20_service.AddWhiteList2()
+	//order_brc20_service.AddWhiteListForSnapshot()
 
 	go ws.StartWS()
 	task.Run()
-	//task.RunJob()
+	tool_service.RunAllJob()
+	task.RunJob()
+	//go task.Fix()
 	controller.Run()
 	//run()
+
+	//tool_service.CheckWlClaim()
+	//tool_service.ToolSnapshotHolder()
+	//tool_service.DownloadSnapshotHolderData()
 }

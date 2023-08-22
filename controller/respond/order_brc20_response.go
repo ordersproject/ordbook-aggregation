@@ -53,18 +53,20 @@ type Brc20TickItem struct {
 	Ut                 int64  `json:"at,omitempty"`                 //updateTime
 }
 
+type Brc20KlineInfo struct {
+	Net      string       `json:"net,omitempty"`
+	Tick     string       `json:"tick"`
+	Interval string       `json:"interval"` //1m/1s/15m/1h/4h/1d/1w/
+	List     []*KlineItem `json:"list"`
+	flag     int64        `json:"flag"`
+}
 type KlineItem struct {
-	Net   string `json:"net,omitempty"`
-	Data0 string `json:"0"`
-	Data1 string `json:"1"`
-	Data2 string `json:"2"`
-	Data3 string `json:"3"`
-	Data4 string `json:"4"`
-	Data5 string `json:"5"`
-	Data6 string `json:"6"`
-	Data7 string `json:"7"`
-	Data8 string `json:"8"`
-	Data9 string `json:"9"`
+	Timestamp int64  `json:"timestamp"`
+	Open      string `json:"open"`
+	High      string `json:"high"`
+	Low       string `json:"low"`
+	Close     string `json:"close"`
+	Volume    int64  `json:"volume"`
 }
 
 type BidPsbt struct {
@@ -78,12 +80,14 @@ type BidPre struct {
 	Net           string           `json:"net,omitempty"`
 	Tick          string           `json:"tick,omitempty"` //
 	AvailableList []*AvailableItem `json:"availableList,omitempty"`
+	Total         int64            `json:"total,omitempty"`
 }
 
 type AvailableItem struct {
 	InscriptionId     string `json:"inscriptionId,omitempty"`
 	InscriptionNumber string `json:"inscriptionNumber,omitempty"`
 	CoinAmount        string `json:"coinAmount,omitempty"`
+	PoolOrderId       string `json:"poolOrderId,omitempty"`
 }
 
 type WsUuidResp struct {

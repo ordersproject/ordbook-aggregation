@@ -37,6 +37,7 @@ type OrderBrc20Model struct {
 	PsbtRawMidBid       string     `json:"psbtRawMidBid" bson:"psbtRawMidBid"`
 	PsbtRawFinalBid     string     `json:"psbtRawFinalBid" bson:"psbtRawFinalBid"`
 	PsbtBidTxId         string     `json:"psbtBidTxId" bson:"psbtBidTxId"`
+	PoolOrderId         string     `json:"poolOrderId" bson:"poolOrderId"`
 	Integral            int64      `json:"integral" bson:"integral"`
 	FreeState           FreeState  `json:"freeState" bson:"freeState"`
 	DealTime            int64      `json:"dealTime" bson:"dealTime"`
@@ -81,7 +82,7 @@ func (s OrderBrc20Model) GetWriteDB() (*mongo.Collection, error) {
 type DummyState int
 
 const (
-	DummyStateLive DummyState = 1
+	DummyStateLive   DummyState = 1
 	DummyStateCancel DummyState = 2
 	DummyStateFinish DummyState = 3
 )
@@ -132,7 +133,7 @@ func (s OrderBrc20BidDummyModel) GetWriteDB() (*mongo.Collection, error) {
 	return collection, nil
 }
 
-//marketPrice  model
+// marketPrice  model
 type OrderBrc20MarketPriceModel struct {
 	Id         int64  `json:"id" bson:"_id" tb:"order_brc20_market_price_model" mg:"true"`
 	Net        string `json:"net" bson:"net"`

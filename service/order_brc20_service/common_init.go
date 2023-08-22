@@ -33,14 +33,14 @@ func initPoolPair() {
 				continue
 			}
 			entity = &model.PoolInfoModel{
-				Net:            net,
-				Tick:           tick,
-				Pair:           pair,
-				CoinAmount:     0,
+				Net:  net,
+				Tick: tick,
+				Pair: pair,
+				//CoinAmount:     0,
 				CoinDecimalNum: 18,
-				Amount:         0,
-				DecimalNum:     8,
-				Timestamp:      tool.MakeTimestamp(),
+				//Amount:         0,
+				DecimalNum: 8,
+				Timestamp:  tool.MakeTimestamp(),
 			}
 			_, err := mongo_service.SetPoolInfoModel(entity)
 			if err != nil {
@@ -49,5 +49,5 @@ func initPoolPair() {
 			}
 		}
 	}
-	fmt.Printf("[INIT]Init pool pair info completed")
+	fmt.Printf("[INIT]Init pool pair info completed\n")
 }

@@ -212,23 +212,29 @@ func FetchTicker(c *gin.Context) {
 // @Description Fetch tick kline data
 // @Produce  json
 // @Tags brc20
-// @Param tick query string false "tick"
+// @Param net query string true "net"
+// @Param tick query string true "tick"
 // @Param interval query string false "interval：1m/1s/15m/1h/4h/1d/1w/"
-// @Param Limit query int false "Limit"
+// @Param limit query int false "limit"
+// @Param flag query int false "flag"
 // @Success 200 {object} respond.KlineItem ""
 // @Router /brc20/kline [get]
 func FetchKline(c *gin.Context) {
 	var (
 		t   int64                      = tool.MakeTimestamp()
 		req *request.TickKlineFetchReq = &request.TickKlineFetchReq{
+			Net:      c.DefaultQuery("net", "livenet"),
 			Tick:     c.DefaultQuery("tick", ""),
 			Limit:    0,
-			Interval: c.DefaultQuery("interval", ""),
+			Interval: c.DefaultQuery("interval", "15m"),
 		}
 	)
-	_ = req
-
-	c.JSONP(http.StatusOK, respond.RespSuccess(nil, tool.MakeTimestamp()-t))
+	resp, err := order_brc20_service.FetchTickKline(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(resp, tool.MakeTimestamp()-t))
 	return
 }
 
@@ -264,16 +270,25 @@ func UpdateOrder(c *gin.Context) {
 // @Tags brc20
 // @Param net query string false "net:mainnet/signet/testnet"
 // @Param tick query string false "tick"
+// @Param limit query int false "limit: Max-50"
+// @Param flag query int false "flag"
+// @Param isPool query bool false "isPool"
 // @Success 200 {object} respond.OrderResponse ""
 // @Router /brc20/order/bid/pre [get]
 func FetchPreBid(c *gin.Context) {
 	var (
-		t   int64                        = tool.MakeTimestamp()
-		req *request.OrderBrc20GetBidReq = &request.OrderBrc20GetBidReq{
+		t         int64                        = tool.MakeTimestamp()
+		limitStr                               = c.DefaultQuery("limit", "50")
+		pageStr                                = c.DefaultQuery("page", "0")
+		isPoolStr                              = c.DefaultQuery("isPool", "false")
+		req       *request.OrderBrc20GetBidReq = &request.OrderBrc20GetBidReq{
 			Net:  c.DefaultQuery("net", ""),
 			Tick: c.DefaultQuery("tick", ""),
 		}
 	)
+	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
+	req.Page, _ = strconv.ParseInt(pageStr, 10, 64)
+	req.IsPool, _ = strconv.ParseBool(isPoolStr)
 	responseModel, err := order_brc20_service.FetchPreBid(req)
 	if err != nil {
 		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
@@ -294,12 +309,15 @@ func FetchPreBid(c *gin.Context) {
 // @Param coinAmount query string false "coinAmount"
 // @Param address query string false "address"
 // @Param amount query int false "amount"
+// @Param isPool query bool false "isPool for pool"
+// @Param orderId query string false "orderId of pool"
 // @Success 200 {object} respond.BidPsbt ""
 // @Router /brc20/order/bid [get]
 func FetchBidPsbt(c *gin.Context) {
 	var (
 		t         int64                        = tool.MakeTimestamp()
 		amountStr string                       = c.DefaultQuery("amount", "0")
+		isPoolStr                              = c.DefaultQuery("isPool", "false")
 		req       *request.OrderBrc20GetBidReq = &request.OrderBrc20GetBidReq{
 			Net:               c.DefaultQuery("net", ""),
 			Tick:              c.DefaultQuery("tick", ""),
@@ -307,9 +325,11 @@ func FetchBidPsbt(c *gin.Context) {
 			InscriptionNumber: c.DefaultQuery("inscriptionNumber", ""),
 			CoinAmount:        c.DefaultQuery("coinAmount", "0"),
 			Address:           c.DefaultQuery("address", ""),
+			PoolOrderId:       c.DefaultQuery("poolOrderId", ""),
 		}
 	)
 	req.Amount, _ = strconv.ParseUint(amountStr, 10, 64)
+	req.IsPool, _ = strconv.ParseBool(isPoolStr)
 	responseModel, err := order_brc20_service.FetchBidPsbt(req)
 	if err != nil {
 		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))

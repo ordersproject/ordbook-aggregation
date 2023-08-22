@@ -61,6 +61,32 @@ func PushPoolOrder(c *gin.Context) {
 	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
 }
 
+// @Summary Update pool order
+// @Description Update pool order
+// @Produce  json
+// @Param Request body request.OrderPoolBrc20UpdateReq true "Request"
+// @Tags brc20
+// @Success 200 {object} respond.Message ""
+// @Router /brc20/pool/order/update [post]
+func UpdatePoolOrder(c *gin.Context) {
+	var (
+		t            int64 = tool.MakeTimestamp()
+		requestModel *request.OrderPoolBrc20UpdateReq
+		publicKey    string = ""
+	)
+	if c.ShouldBindJSON(&requestModel) == nil {
+		publicKey = getAuthParams(c)
+		responseModel, err := order_brc20_service.UpdatePoolOrder(requestModel, publicKey, c.ClientIP())
+		if err != nil {
+			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+			return
+		}
+		c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+		return
+	}
+	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
+}
+
 // @Summary Fetch pool orders
 // @Description Fetch pool orders
 // @Produce  json
@@ -169,4 +195,113 @@ func FetchPoolPairInfo(c *gin.Context) {
 	}
 	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
 	return
+}
+
+// @Summary Fetch one pool pair info
+// @Description Fetch one pool pair info
+// @Produce  json
+// @Tags brc20
+// @Param net query string false "net"
+// @Param tick query string false "tick"
+// @Param pair query string false "pair"
+// @Param address query string false "address"
+// @Success 200 {object} respond.PoolInfoItem ""
+// @Router /brc20/pool/pair/info/one [get]
+func FetchOnePoolPairInfo(c *gin.Context) {
+	var (
+		t   int64                        = tool.MakeTimestamp()
+		req *request.PoolPairFetchOneReq = &request.PoolPairFetchOneReq{
+			Net:     c.DefaultQuery("net", ""),
+			Tick:    c.DefaultQuery("tick", ""),
+			Pair:    c.DefaultQuery("pair", ""),
+			Address: c.DefaultQuery("address", ""),
+		}
+	)
+	responseModel, err := order_brc20_service.FetchOnePoolPairInfo(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary Fetch pool inscription
+// @Description Fetch pool inscription
+// @Produce  json
+// @Tags brc20
+// @Param net query string false "net"
+// @Param tick query string false "tick"
+// @Param address query string true "address"
+// @Success 200 {object} respond.PoolInscriptionResp ""
+// @Router /brc20/pool/inscription [get]
+func FetchPoolInscription(c *gin.Context) {
+	var (
+		t   int64                                 = tool.MakeTimestamp()
+		req *request.PoolBrc20FetchInscriptionReq = &request.PoolBrc20FetchInscriptionReq{
+			Net:     c.DefaultQuery("net", ""),
+			Tick:    c.DefaultQuery("tick", ""),
+			Address: c.DefaultQuery("address", ""),
+		}
+		publicKey = getAuthParams(c)
+	)
+	responseModel, err := order_brc20_service.FetchPoolInscription(req, publicKey, c.ClientIP())
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary get claim pool order
+// @Description get claim pool order
+// @Produce  json
+// @Param Request body request.PoolBrc20ClaimReq true "Request"
+// @Tags brc20
+// @Success 200 {object} respond.PoolBrc20ClaimResp ""
+// @Router /brc20/pool/order/claim [post]
+func ClaimPool(c *gin.Context) {
+	var (
+		t            int64 = tool.MakeTimestamp()
+		requestModel *request.PoolBrc20ClaimReq
+		publicKey    string = ""
+	)
+	if c.ShouldBindJSON(&requestModel) == nil {
+		publicKey = getAuthParams(c)
+		responseModel, err := order_brc20_service.ClaimPool(requestModel, publicKey, c.ClientIP())
+		if err != nil {
+			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+			return
+		}
+		c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+		return
+	}
+	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
+}
+
+// @Summary claim pool order
+// @Description claim pool order
+// @Produce  json
+// @Param Request body request.PoolBrc20ClaimUpdateReq true "Request"
+// @Tags brc20
+// @Success 200 {object} respond.Message ""
+// @Router /brc20/pool/order/claim/commit [post]
+func UpdateClaim(c *gin.Context) {
+	var (
+		t            int64 = tool.MakeTimestamp()
+		requestModel *request.PoolBrc20ClaimUpdateReq
+		publicKey    string = ""
+	)
+	if c.ShouldBindJSON(&requestModel) == nil {
+		publicKey = getAuthParams(c)
+		responseModel, err := order_brc20_service.UpdateClaim(requestModel, publicKey, c.ClientIP())
+		if err != nil {
+			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+			return
+		}
+		c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+		return
+	}
+	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
 }

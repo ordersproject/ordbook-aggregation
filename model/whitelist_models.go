@@ -9,7 +9,8 @@ import (
 type WhitelistType int
 
 const (
-	WhitelistTypeClaim WhitelistType = 1
+	WhitelistTypeClaim   WhitelistType = 1
+	WhitelistTypeClaim1w WhitelistType = 2
 )
 
 type WhiteUseState int
@@ -26,6 +27,7 @@ type WhitelistModel struct {
 	IP            string        `json:"ip" bson:"ip"`
 	WhitelistType WhitelistType `json:"whitelistType" bson:"whitelistType"`
 	WhiteUseState WhiteUseState `json:"whiteUseState" bson:"whiteUseState"`
+	Limit         int64         `json:"limit" bson:"limit"`
 	Timestamp     int64         `json:"timestamp" bson:"timestamp"`
 	CreateTime    int64         `json:"createTime" bson:"createTime"`
 	UpdateTime    int64         `json:"updateTime" bson:"updateTime"`

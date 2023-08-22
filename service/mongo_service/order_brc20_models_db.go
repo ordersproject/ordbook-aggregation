@@ -44,6 +44,7 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 	CreateIndex(collection, "buyerIp")
 	CreateIndex(collection, "timestamp")
 	CreateIndex(collection, "dealTime")
+	CreateIndex(collection, "poolOrderId")
 
 	entity := &model.OrderBrc20Model{
 		Id:                  util.GetUUIDInt64(),
@@ -76,6 +77,7 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 		PsbtRawMidBid:       orderBrc20.PsbtRawMidBid,
 		PsbtRawFinalBid:     orderBrc20.PsbtRawFinalBid,
 		PsbtBidTxId:         orderBrc20.PsbtBidTxId,
+		PoolOrderId:         orderBrc20.PoolOrderId,
 		Integral:            orderBrc20.Integral,
 		FreeState:           orderBrc20.FreeState,
 		DealTime:            orderBrc20.DealTime,
@@ -135,6 +137,7 @@ func SetOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20Mod
 		bsonData = append(bsonData, bson.E{Key: "psbtRawMidBid", Value: orderBrc20.PsbtRawMidBid})
 		bsonData = append(bsonData, bson.E{Key: "psbtRawFinalBid", Value: orderBrc20.PsbtRawFinalBid})
 		bsonData = append(bsonData, bson.E{Key: "psbtBidTxId", Value: orderBrc20.PsbtBidTxId})
+		bsonData = append(bsonData, bson.E{Key: "poolOrderId", Value: orderBrc20.PoolOrderId})
 		bsonData = append(bsonData, bson.E{Key: "integral", Value: orderBrc20.Integral})
 		bsonData = append(bsonData, bson.E{Key: "freeState", Value: orderBrc20.FreeState})
 		bsonData = append(bsonData, bson.E{Key: "dealTime", Value: orderBrc20.DealTime})
@@ -169,6 +172,35 @@ func FindOrderBrc20ModelByInscriptionId(inscriptionId string, orderState model.O
 		return nil, err
 	}
 	return entity, nil
+}
+
+func CountOrderBrc20ModelListForClaim(net, tick string, orderState model.OrderState, coinAmount int64) (int64, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return 0, err
+	}
+	find := bson.M{
+		"freeState": model.FreeStateClaim,
+		"state":     model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+	if orderState != 0 {
+		find["orderState"] = orderState
+	}
+	if coinAmount != 0 {
+		find["coinAmount"] = coinAmount
+	}
+
+	total, err := collection.CountDocuments(context.TODO(), find)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
 }
 
 func CountOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string, orderType model.OrderType, orderState model.OrderState) (int64, error) {
@@ -207,7 +239,7 @@ func CountOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string, ord
 
 func FindOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string,
 	orderType model.OrderType, orderState model.OrderState,
-	limit int64, flag, page int64, sortKey string, sortType int64, freeState model.FreeState) ([]*model.OrderBrc20Model, error) {
+	limit int64, flag, page int64, sortKey string, sortType int64, freeState model.FreeState, coinAmount int64) ([]*model.OrderBrc20Model, error) {
 	collection, err := model.OrderBrc20Model{}.GetReadDB()
 	if err != nil {
 		return nil, errors.New("db connect error")
@@ -233,6 +265,9 @@ func FindOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string,
 	}
 	if orderType != 0 {
 		find["orderType"] = orderType
+	}
+	if coinAmount != 0 {
+		find["coinAmount"] = coinAmount
 	}
 	if orderState != 0 {
 		if orderState == model.OrderStateAll {
@@ -386,6 +421,67 @@ func FindAddressOrderBrc20ModelList(net, tick, address string,
 	models := make([]*model.OrderBrc20Model, 0)
 	pagination := options.Find().SetLimit(limit).SetSkip(skip)
 	sort := options.Find().SetSort(bson.M{sortKey: sortType})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.OrderBrc20Model{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get OrderBrc20Model Error")
+	}
+	return models, nil
+}
+
+func FindOrderBrc20ModelListByTimestamp(net, tick string,
+	orderType model.OrderType, orderState model.OrderState, limit, startTIme, endTime int64) ([]*model.OrderBrc20Model, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"state": model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+
+	if orderType != 0 {
+		find["orderType"] = orderType
+	}
+	if orderState != 0 {
+		find["orderState"] = orderState
+	}
+
+	if startTIme != 0 {
+		or := make([]bson.M, 0)
+		between := bson.M{GTE_: startTIme}
+		if endTime != 0 {
+			between[LTE_] = endTime
+		}
+		//find["timestamp"] = start
+		or = append(or, bson.M{"timestamp": between})
+		or = append(or, bson.M{"dealTime": between})
+
+		find[OR_] = or
+	}
+
+	sortKey := "timestamp"
+
+	skip := int64(0)
+
+	models := make([]*model.OrderBrc20Model, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(skip)
+	sort := options.Find().SetSort(bson.M{sortKey: 1})
 	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
 		defer cursor.Close(context.Background())
 		for cursor.Next(context.Background()) {
@@ -631,7 +727,7 @@ func SetOrderBrc20MarketPriceModel(orderBrc20MarketPrice *model.OrderBrc20Market
 	}
 }
 
-func CountBuyerOrderBrc20ModelList(net, tick, buyerAddress, buyerIp string, orderType model.OrderType, orderState model.OrderState, startTime, endTime int64) (int64, error) {
+func CountBuyerOrderBrc20ModelList(net, tick, buyerAddress, buyerIp string, orderType model.OrderType, orderState model.OrderState, startTime, endTime int64, coinAmount int64) (int64, error) {
 	collection, err := model.OrderBrc20Model{}.GetReadDB()
 	if err != nil {
 		return 0, err
@@ -656,6 +752,9 @@ func CountBuyerOrderBrc20ModelList(net, tick, buyerAddress, buyerIp string, orde
 	}
 	if orderState != 0 {
 		find["orderState"] = orderState
+	}
+	if coinAmount != 0 {
+		find["coinAmount"] = coinAmount
 	}
 
 	between := bson.M{}
@@ -708,9 +807,11 @@ func createWhitelistModel(whitelist *model.WhitelistModel) (*model.WhitelistMode
 	entity := &model.WhitelistModel{
 		Id:            util.GetUUIDInt64(),
 		AddressId:     whitelist.AddressId,
+		IP:            whitelist.IP,
 		Address:       whitelist.Address,
 		WhitelistType: whitelist.WhitelistType,
 		WhiteUseState: whitelist.WhiteUseState,
+		Limit:         whitelist.Limit,
 		Timestamp:     whitelist.Timestamp,
 		CreateTime:    util.Time(),
 		State:         model.STATE_EXIST,
@@ -740,8 +841,10 @@ func SetWhitelistModel(whitelist *model.WhitelistModel) (*model.WhitelistModel, 
 		bsonData := bson.D{}
 		bsonData = append(bsonData, bson.E{Key: "addressId", Value: whitelist.AddressId})
 		bsonData = append(bsonData, bson.E{Key: "address", Value: whitelist.Address})
+		bsonData = append(bsonData, bson.E{Key: "ip", Value: whitelist.IP})
 		bsonData = append(bsonData, bson.E{Key: "whitelistType", Value: whitelist.WhitelistType})
 		bsonData = append(bsonData, bson.E{Key: "whiteUseState", Value: whitelist.WhiteUseState})
+		bsonData = append(bsonData, bson.E{Key: "limit", Value: whitelist.Limit})
 		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: whitelist.Timestamp})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",

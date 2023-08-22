@@ -53,7 +53,7 @@ func UpdateClaimOrder(c *gin.Context) {
 	)
 	if c.ShouldBindJSON(&requestModel) == nil {
 		publicKey = getAuthParams(c)
-		responseModel, err := order_brc20_service.UpdateClaimOrder(requestModel, publicKey, c.ClientIP())
+		responseModel, err := order_brc20_service.UpdateClaimOrder(requestModel, "", publicKey, c.ClientIP())
 		if err != nil {
 			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
 			return

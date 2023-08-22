@@ -19,7 +19,7 @@ import (
 
 const (
 	claimFetchLimit int64 = 1
-	claimDayLimit   int64 = 1
+	claimDayLimit   int64 = 2
 )
 
 func FetchClaimOrder(req *request.OrderBrc20ClaimFetchOneReq, publicKey, ip string) (*respond.Brc20ClaimItem, error) {
@@ -34,15 +34,18 @@ func FetchClaimOrder(req *request.OrderBrc20ClaimFetchOneReq, publicKey, ip stri
 	_ = todayStartTime
 	_ = todayEndTime
 
-	canCount, err := getWhitelistCount(req.Address, ip, model.WhitelistTypeClaim)
-	if err != nil {
-		return nil, err
-	}
+	claimCoinAmount, canCount, _ := getWhitelistCount(req.Net, req.Tick, req.Address, ip, model.WhitelistTypeClaim)
 	if canCount <= 0 {
-		return nil, errors.New("already had claimed")
+		claimCoinAmount, canCount, err = getWhitelistCount(req.Net, req.Tick, req.Address, ip, model.WhitelistTypeClaim1w)
+		if err != nil {
+			return nil, err
+		}
+		if canCount <= 0 {
+			return nil, errors.New("already had claimed")
+		}
 	}
 
-	entity, err = GetUnoccupiedClaimBrc20PsbtList(req.Net, req.Tick, claimFetchLimit)
+	entity, err = GetUnoccupiedClaimBrc20PsbtList(req.Net, req.Tick, claimFetchLimit, claimCoinAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -71,17 +74,18 @@ func FetchClaimOrder(req *request.OrderBrc20ClaimFetchOneReq, publicKey, ip stri
 	}
 
 	item := &respond.Brc20ClaimItem{
-		Net:        entity.Net,
-		OrderId:    entity.OrderId,
-		Tick:       entity.Tick,
-		Fee:        entity.Amount,
-		CoinAmount: entity.CoinAmount,
-		PsbtRaw:    entity.PsbtRawPreAsk,
+		Net:            entity.Net,
+		OrderId:        entity.OrderId,
+		Tick:           entity.Tick,
+		Fee:            entity.Amount,
+		CoinAmount:     entity.CoinAmount,
+		PsbtRaw:        entity.PsbtRawPreAsk,
+		AvailableCount: canCount,
 	}
 	return item, nil
 }
 
-func UpdateClaimOrder(req *request.OrderBrc20ClaimUpdateReq, publicKey, ip string) (string, error) {
+func UpdateClaimOrder(req *request.OrderBrc20ClaimUpdateReq, buyerOwnAddress, publicKey, ip string) (string, error) {
 	var (
 		finalAskPsbtBuilder *PsbtBuilder
 		netParams           *chaincfg.Params = GetNetParams(req.Net)
@@ -112,11 +116,15 @@ func UpdateClaimOrder(req *request.OrderBrc20ClaimUpdateReq, publicKey, ip strin
 	buyerInputTxId := buyerInput.PreviousOutPoint.Hash.String()
 	buyerInputIndex := buyerInput.PreviousOutPoint.Index
 	if strings.ToLower(req.Net) != "testnet" {
-		buyerTx, err := oklink_service.GetTxDetail(buyerInputTxId)
-		if err != nil {
-			return "", errors.New(fmt.Sprintf("Get Buyer preTx err:%s", err.Error()))
+		if buyerOwnAddress != "" {
+			buyerAddress = buyerOwnAddress
+		} else {
+			buyerTx, err := oklink_service.GetTxDetail(buyerInputTxId)
+			if err != nil {
+				return "", errors.New(fmt.Sprintf("Get Buyer preTx err:%s", err.Error()))
+			}
+			buyerAddress = buyerTx.OutputDetails[buyerInputIndex].OutputHash
 		}
-		buyerAddress = buyerTx.OutputDetails[buyerInputIndex].OutputHash
 	} else {
 		buyerAddress = req.Address
 	}
@@ -147,6 +155,7 @@ func UpdateClaimOrder(req *request.OrderBrc20ClaimUpdateReq, publicKey, ip strin
 		return "", errors.New(fmt.Sprintf("Broadcast Psbt %s, orderId-%s err:%s", entityOrder.Net, entityOrder.OrderId, err.Error()))
 	}
 
+	entityOrder.PsbtRawFinalAsk = req.PsbtRaw
 	entityOrder.PsbtAskTxId = txPsbtResp.Result
 	entityOrder.OrderState = model.OrderStateFinishClaim
 
@@ -155,5 +164,6 @@ func UpdateClaimOrder(req *request.OrderBrc20ClaimUpdateReq, publicKey, ip strin
 	if err != nil {
 		return "", err
 	}
+	updateWhiteListUsed(entityOrder.BuyerAddress, ip, model.WhitelistTypeClaim)
 	return req.OrderId, nil
 }

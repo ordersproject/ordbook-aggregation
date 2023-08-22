@@ -303,6 +303,39 @@ definitions:
       psbtRaw:
         type: string
     type: object
+  request.OrderPoolBrc20UpdateReq:
+    properties:
+      net:
+        description: livenet/signet/testnet
+        type: string
+      orderId:
+        type: string
+      poolState:
+        allOf:
+        - $ref: '#/definitions/model.PoolState'
+        description: 1-add,2-remove,3-used,4-claim
+    type: object
+  request.PoolBrc20ClaimReq:
+    properties:
+      address:
+        type: string
+      net:
+        description: livenet/signet/testnet
+        type: string
+      poolOrderId:
+        type: string
+      preSigScript:
+        type: string
+      tick:
+        type: string
+    type: object
+  request.PoolBrc20ClaimUpdateReq:
+    properties:
+      poolOrderId:
+        type: string
+      psbtRaw:
+        type: string
+    type: object
   request.PoolBrc20PushReq:
     properties:
       address:
@@ -423,6 +456,9 @@ definitions:
     type: object
   respond.Brc20ClaimItem:
     properties:
+      availableCount:
+        description: AvailableCount
+        type: integer
       coinAmount:
         description: Brc20 amount
         type: integer
@@ -621,28 +657,18 @@ definitions:
     type: object
   respond.KlineItem:
     properties:
-      "0":
+      close:
         type: string
-      "1":
+      high:
         type: string
-      "2":
+      low:
         type: string
-      "3":
+      open:
         type: string
-      "4":
-        type: string
-      "5":
-        type: string
-      "6":
-        type: string
-      "7":
-        type: string
-      "8":
-        type: string
-      "9":
-        type: string
-      net:
-        type: string
+      timestamp:
+        type: integer
+      volume:
+        type: integer
     type: object
   respond.Message:
     properties:
@@ -665,6 +691,35 @@ definitions:
       total:
         type: integer
     type: object
+  respond.PoolBrc20ClaimResp:
+    properties:
+      coinAmount:
+        description: Brc20 amount
+        type: integer
+      coinPsbtRaw:
+        description: coin PSBT Raw
+        type: string
+      fee:
+        description: claim fee
+        type: integer
+      inscriptionId:
+        description: InscriptionId
+        type: string
+      net:
+        description: Net env
+        type: string
+      orderId:
+        description: Order ID
+        type: string
+      psbtRaw:
+        description: PSBT Raw
+        type: string
+      rewardCoinAmount:
+        type: integer
+      tick:
+        description: Brc20 symbol
+        type: string
+    type: object
   respond.PoolBrc20Item:
     properties:
       address:
@@ -672,6 +727,18 @@ definitions:
         type: string
       amount:
         type: integer
+      coinAddress:
+        description: tick
+        type: string
+      coinAmount:
+        description: tick
+        type: integer
+      coinDecimalNum:
+        description: tick
+        type: integer
+      coinPsbtRaw:
+        description: coin PSBT Raw
+        type: string
       decimalNum:
         type: integer
       inscriptionId:
@@ -720,6 +787,12 @@ definitions:
       net:
         description: Net env
         type: string
+      ownAmount:
+        type: integer
+      ownCoinAmount:
+        type: integer
+      ownCount:
+        type: integer
       pair:
         description: Brc20 pair
         type: string
@@ -735,6 +808,28 @@ definitions:
         items:
           $ref: '#/definitions/respond.PoolInfoItem'
         type: array
+      total:
+        type: integer
+    type: object
+  respond.PoolInscriptionItem:
+    properties:
+      coinAmount:
+        type: string
+      inscriptionId:
+        type: string
+      inscriptionNumber:
+        type: string
+    type: object
+  respond.PoolInscriptionResp:
+    properties:
+      availableList:
+        items:
+          $ref: '#/definitions/respond.PoolInscriptionItem'
+        type: array
+      net:
+        type: string
+      tick:
+        type: string
       total:
         type: integer
     type: object
@@ -976,17 +1071,27 @@ paths:
     get:
       description: Fetch tick kline data
       parameters:
+      - description: net
+        in: query
+        name: net
+        required: true
+        type: string
       - description: tick
         in: query
         name: tick
+        required: true
         type: string
       - description: interval：1m/1s/15m/1h/4h/1d/1w/
         in: query
         name: interval
         type: string
-      - description: Limit
+      - description: limit
         in: query
-        name: Limit
+        name: limit
+        type: integer
+      - description: flag
+        in: query
+        name: flag
         type: integer
       produces:
       - application/json
@@ -1074,6 +1179,14 @@ paths:
         in: query
         name: amount
         type: integer
+      - description: isPool for pool
+        in: query
+        name: isPool
+        type: boolean
+      - description: orderId of pool
+        in: query
+        name: orderId
+        type: string
       produces:
       - application/json
       responses:
@@ -1147,6 +1260,18 @@ paths:
         in: query
         name: tick
         type: string
+      - description: 'limit: Max-50'
+        in: query
+        name: limit
+        type: integer
+      - description: flag
+        in: query
+        name: flag
+        type: integer
+      - description: isPool
+        in: query
+        name: isPool
+        type: boolean
       produces:
       - application/json
       responses:
@@ -1310,6 +1435,33 @@ paths:
       summary: Fetch user orders
       tags:
       - brc20
+  /brc20/pool/inscription:
+    get:
+      description: Fetch pool inscription
+      parameters:
+      - description: net
+        in: query
+        name: net
+        type: string
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: address
+        in: query
+        name: address
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolInscriptionResp'
+      summary: Fetch pool inscription
+      tags:
+      - brc20
   /brc20/pool/order/{orderId}:
     get:
       description: Fetch one pool order
@@ -1334,6 +1486,46 @@ paths:
       summary: Fetch one pool order
       tags:
       - brc20
+  /brc20/pool/order/claim:
+    post:
+      description: get claim pool order
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.PoolBrc20ClaimReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolBrc20ClaimResp'
+      summary: get claim pool order
+      tags:
+      - brc20
+  /brc20/pool/order/claim/commit:
+    post:
+      description: claim pool order
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.PoolBrc20ClaimUpdateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Message'
+      summary: claim pool order
+      tags:
+      - brc20
   /brc20/pool/order/push:
     post:
       description: Push pool order
@@ -1352,6 +1544,26 @@ paths:
           schema:
             $ref: '#/definitions/respond.Message'
       summary: Push pool order
+      tags:
+      - brc20
+  /brc20/pool/order/update:
+    post:
+      description: Update pool order
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.OrderPoolBrc20UpdateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Message'
+      summary: Update pool order
       tags:
       - brc20
   /brc20/pool/orders:
@@ -1432,6 +1644,36 @@ paths:
           schema:
             $ref: '#/definitions/respond.PoolInfoResponse'
       summary: Fetch pool pair info
+      tags:
+      - brc20
+  /brc20/pool/pair/info/one:
+    get:
+      description: Fetch one pool pair info
+      parameters:
+      - description: net
+        in: query
+        name: net
+        type: string
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: pair
+        in: query
+        name: pair
+        type: string
+      - description: address
+        in: query
+        name: address
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolInfoItem'
+      summary: Fetch one pool pair info
       tags:
       - brc20
   /brc20/pool/pair/key:

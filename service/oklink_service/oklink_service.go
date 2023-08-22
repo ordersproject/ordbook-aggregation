@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"ordbook-aggregation/config"
+	"ordbook-aggregation/service/common_service"
 	"ordbook-aggregation/tool"
 	"strconv"
 	"strings"
@@ -23,7 +24,7 @@ func GetAddressBrc20BalanceResult(address, tick string, page, limit int64) (*Okl
 		err    error
 		query  map[string]string = map[string]string{
 			"address": address,
-			"token":   strings.ToUpper(tick),
+			"token":   common_service.ChangeRealTick(tick),
 			"page":    strconv.FormatInt(page, 10),
 			"limit":   strconv.FormatInt(limit, 10),
 		}
@@ -66,7 +67,7 @@ func GetAddressBrc20BalanceListResult(address, tick string, page, limit int64) (
 		err    error
 		query  map[string]string = map[string]string{
 			"address": address,
-			"token":   strings.ToUpper(tick),
+			"token":   common_service.ChangeRealTick(tick),
 			"page":    strconv.FormatInt(page, 10),
 			"limit":   strconv.FormatInt(limit, 10),
 		}
@@ -118,6 +119,9 @@ func GetInscriptions(token, inscriptionId, inscriptionNumber string, page, limit
 			"Ok-Access-Key": config.OklinkKey,
 		}
 	)
+
+	inscriptionId = strings.ReplaceAll(inscriptionId, ":", "i")
+	query["inscriptionId"] = inscriptionId
 
 	url = fmt.Sprintf("%s/api/v5/explorer/btc/inscriptions-list", config.OklinkDomain)
 	result, err = tool.GetUrl(url, query, headers)
@@ -253,6 +257,48 @@ func GetAddressUtxo(address string, page, limit int64) (*OklinkUtxoDetails, erro
 	}
 
 	fmt.Println(result)
+	if err = tool.JsonToObject(result, &resp); err != nil {
+		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
+	}
+
+	if resp.Code != OklinkCodeSuccess {
+		return nil, errors.New(fmt.Sprintf("Msg:%s", resp.Msg))
+	}
+
+	if err = tool.JsonToAny(resp.Data, &data); err != nil {
+		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
+	}
+	if len(data) == 0 {
+		return nil, errors.New("No Data. ")
+	}
+
+	return data[0], nil
+}
+
+// GetBrc20HolderAddress
+func GetBrc20HolderAddress(tick string, page, limit int64) (*OklinkBrc20HolderAddressList, error) {
+	var (
+		url    string
+		result string
+		resp   *OklinkResp
+		data   []*OklinkBrc20HolderAddressList = make([]*OklinkBrc20HolderAddressList, 0)
+		err    error
+		query  map[string]string = map[string]string{
+			"token": common_service.ChangeRealTick(tick),
+			"page":  strconv.FormatInt(page, 10),
+			"limit": strconv.FormatInt(limit, 10),
+		}
+		headers map[string]string = map[string]string{
+			"Ok-Access-Key": config.OklinkKey,
+		}
+	)
+
+	url = fmt.Sprintf("%s/api/v5/explorer/btc/position-list", config.OklinkDomain)
+	result, err = tool.GetUrl(url, query, headers)
+	if err != nil {
+		return nil, err
+	}
+	//fmt.Println(result)
 	if err = tool.JsonToObject(result, &resp); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}

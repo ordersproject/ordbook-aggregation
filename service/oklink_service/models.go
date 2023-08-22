@@ -96,3 +96,16 @@ type UtxoItem struct {
 	Address       string `json:"address"`
 	UnspentAmount string `json:"unspentAmount"`
 }
+
+type OklinkBrc20HolderAddressList struct {
+	Page         string               `json:"page"`
+	Limit        string               `json:"limit"`
+	TotalPage    string               `json:"totalPage"`
+	PositionList []*HolderAddressItem `json:"positionList"`
+}
+
+type HolderAddressItem struct {
+	HolderAddress string `json:"holderAddress"`
+	Amount        string `json:"amount"`
+	Rank          string `json:"rank"`
+}

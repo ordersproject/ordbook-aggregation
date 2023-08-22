@@ -25,23 +25,24 @@ const (
 	MaxTotalUtxoAmount int64 = 50000
 )
 
-func LoopCheckPlatformAddressForBidValue(net string)  {
+func LoopCheckPlatformAddressForBidValue(net string) {
 	var (
-		LoopName string = "BidValue"
+		LoopName                                                          string = "BidValue"
 		platformPrivateKeyReceiveBidValue, platformAddressReceiveBidValue string = order_brc20_service.GetPlatformKeyAndAddressReceiveBidValue(net)
-		err error
-		utxoResp *oklink_service.OklinkUtxoDetails
-		totalUtxoAmount int64 = 0
-		netParams *chaincfg.Params = order_brc20_service.GetNetParams(net)
-		fromPriKeyHex, fromSegwitAddress string = "", ""
-		txRaw string = ""
-		utxoList []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
-		startIndex int64 = order_brc20_service.GetSaveStartIndex(net, model.UtxoTypeBidY)
-		changeAddress string = platformAddressReceiveBidValue
-		count int64 = 0
-		perAmount uint64 = 10000
-		feeRate int64 = 20
-		totalSize int64 = 0
+		err                                                               error
+		utxoResp                                                          *oklink_service.OklinkUtxoDetails
+		totalUtxoAmount                                                   int64                   = 0
+		netParams                                                         *chaincfg.Params        = order_brc20_service.GetNetParams(net)
+		fromPriKeyHex, fromSegwitAddress                                  string                  = "", ""
+		txRaw                                                             string                  = ""
+		utxoList                                                          []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
+		startIndex                                                        int64                   = order_brc20_service.GetSaveStartIndex(net, model.UtxoTypeBidY)
+		changeAddress                                                     string                  = platformAddressReceiveBidValue
+		count                                                             int64                   = 0
+		//todo 5w/utxo 10w/utxo, 20w/utxo, 50w/utxo, 100w/utxo
+		perAmount         uint64        = 10000
+		feeRate           int64         = 20
+		totalSize         int64         = 0
 		utxoInterfaceList []interface{} = make([]interface{}, 0)
 	)
 	utxoResp, err = oklink_service.GetAddressUtxo(platformAddressReceiveBidValue, 1, 50)
@@ -108,10 +109,10 @@ func LoopCheckPlatformAddressForBidValue(net string)  {
 	pkScript := hex.EncodeToString(pkScriptByte)
 	outputs := make([]*order_brc20_service.TxOutput, 0)
 
-	totalSize = int64(len(inputs)) * order_brc20_service.SpendSize + count * order_brc20_service.OutSize + order_brc20_service.OtherSize
-	for totalSize*feeRate + count*int64(perAmount) < totalUtxoAmount {
+	totalSize = int64(len(inputs))*order_brc20_service.SpendSize + count*order_brc20_service.OutSize + order_brc20_service.OtherSize
+	for totalSize*feeRate+count*int64(perAmount) < totalUtxoAmount {
 		count++
-		totalSize = int64(len(inputs)) * order_brc20_service.SpendSize + count * order_brc20_service.OutSize + order_brc20_service.OtherSize
+		totalSize = int64(len(inputs))*order_brc20_service.SpendSize + count*order_brc20_service.OutSize + order_brc20_service.OtherSize
 		fmt.Printf("[Cal][%s]inLen:%d, outLen:%d, totalSize:%d, totalFee:%d, totalOutAmount:%d, totalInAmount:%d\n", LoopName, len(inputs), count, totalSize, totalSize*feeRate, totalUtxoAmount, totalUtxoAmount)
 	}
 	count = count - 1
@@ -121,7 +122,6 @@ func LoopCheckPlatformAddressForBidValue(net string)  {
 		fmt.Printf("[LOOP][%s] Count of outputs is 0, not enough, waiting for next time\n", LoopName)
 		return
 	}
-
 
 	for i := int64(0); i < count; i++ {
 		outputs = append(outputs, &order_brc20_service.TxOutput{
@@ -139,8 +139,8 @@ func LoopCheckPlatformAddressForBidValue(net string)  {
 			Index:         i,
 			PkScript:      pkScript,
 			UsedState:     model.UsedNo,
-			SortIndex: startIndex + i+1,
-			Timestamp: tool.MakeTimestamp(),
+			SortIndex:     startIndex + i + 1,
+			Timestamp:     tool.MakeTimestamp(),
 		})
 	}
 
@@ -192,7 +192,6 @@ func LoopCheckPlatformAddressForBidValue(net string)  {
 		}
 		txId = txResp.Result
 
-
 		//txResp, err := node.BroadcastTx(net, txRaw)
 		//if err != nil {
 		//	fmt.Printf("[LOOP][%s] [%s]-BroadcastTx err:%s\n", LoopName, net, err.Error())
@@ -212,24 +211,24 @@ func LoopCheckPlatformAddressForBidValue(net string)  {
 	fmt.Printf("[LOOP][%s] Replenish Utxo success, txId:%s\n", LoopName, txId)
 }
 
-func LoopCheckPlatformAddressForDummyValue(net string)  {
+func LoopCheckPlatformAddressForDummyValue(net string) {
 	var (
-		LoopName string = "DummyValue"
+		LoopName                                                              string = "DummyValue"
 		platformPrivateKeyReceiveDummyValue, platformAddressReceiveDummyValue string = order_brc20_service.GetPlatformKeyAndAddressReceiveDummyValue(net)
-		err error
-		utxoResp *oklink_service.OklinkUtxoDetails
-		totalUtxoAmount int64 = 0
-		netParams *chaincfg.Params = order_brc20_service.GetNetParams(net)
-		fromPriKeyHex, fromSegwitAddress string = "", ""
-		txRaw string = ""
-		utxoList []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
-		startIndex int64 = order_brc20_service.GetSaveStartIndex(net, model.UtxoTypeBidY)
-		changeAddress string = platformAddressReceiveDummyValue
-		count int64 = 0
-		perAmount uint64 = 10000
-		feeRate int64 = 20
-		totalSize int64 = 0
-		utxoInterfaceList []interface{} = make([]interface{}, 0)
+		err                                                                   error
+		utxoResp                                                              *oklink_service.OklinkUtxoDetails
+		totalUtxoAmount                                                       int64                   = 0
+		netParams                                                             *chaincfg.Params        = order_brc20_service.GetNetParams(net)
+		fromPriKeyHex, fromSegwitAddress                                      string                  = "", ""
+		txRaw                                                                 string                  = ""
+		utxoList                                                              []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
+		startIndex                                                            int64                   = order_brc20_service.GetSaveStartIndex(net, model.UtxoTypeBidY)
+		changeAddress                                                         string                  = platformAddressReceiveDummyValue
+		count                                                                 int64                   = 0
+		perAmount                                                             uint64                  = 10000
+		feeRate                                                               int64                   = 20
+		totalSize                                                             int64                   = 0
+		utxoInterfaceList                                                     []interface{}           = make([]interface{}, 0)
 	)
 	utxoResp, err = oklink_service.GetAddressUtxo(platformAddressReceiveDummyValue, 1, 50)
 	if err != nil {
@@ -295,10 +294,10 @@ func LoopCheckPlatformAddressForDummyValue(net string)  {
 	pkScript := hex.EncodeToString(pkScriptByte)
 	outputs := make([]*order_brc20_service.TxOutput, 0)
 
-	totalSize = int64(len(inputs)) * order_brc20_service.SpendSize + count * order_brc20_service.OutSize + order_brc20_service.OtherSize
-	for totalSize*feeRate + count*int64(perAmount) < totalUtxoAmount {
+	totalSize = int64(len(inputs))*order_brc20_service.SpendSize + count*order_brc20_service.OutSize + order_brc20_service.OtherSize
+	for totalSize*feeRate+count*int64(perAmount) < totalUtxoAmount {
 		count++
-		totalSize = int64(len(inputs)) * order_brc20_service.SpendSize + count * order_brc20_service.OutSize + order_brc20_service.OtherSize
+		totalSize = int64(len(inputs))*order_brc20_service.SpendSize + count*order_brc20_service.OutSize + order_brc20_service.OtherSize
 		fmt.Printf("[Cal][%s]inLen:%d, outLen:%d, totalSize:%d\n, totalFee:%d, totalOutAmount:%d, totalInAmount:%d\n", LoopName, len(inputs), count, totalSize, totalSize*feeRate, totalUtxoAmount, totalUtxoAmount)
 	}
 	count = count - 1
@@ -325,8 +324,8 @@ func LoopCheckPlatformAddressForDummyValue(net string)  {
 			Index:         i,
 			PkScript:      pkScript,
 			UsedState:     model.UsedNo,
-			SortIndex: startIndex + i+1,
-			Timestamp: tool.MakeTimestamp(),
+			SortIndex:     startIndex + i + 1,
+			Timestamp:     tool.MakeTimestamp(),
 		})
 	}
 
