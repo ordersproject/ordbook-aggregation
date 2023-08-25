@@ -64,13 +64,15 @@ type PoolInscriptionItem struct {
 }
 
 type PoolBrc20ClaimResp struct {
-	Net              string `json:"net,omitempty"`           //Net env
-	OrderId          string `json:"orderId,omitempty"`       //Order ID
-	Tick             string `json:"tick,omitempty"`          //Brc20 symbol
-	Fee              uint64 `json:"fee,omitempty"`           //claim fee
-	CoinAmount       uint64 `json:"coinAmount,omitempty"`    //Brc20 amount
-	InscriptionId    string `json:"inscriptionId,omitempty"` //InscriptionId
-	PsbtRaw          string `json:"psbtRaw,omitempty"`       //PSBT Raw
-	CoinPsbtRaw      string `json:"coinPsbtRaw,omitempty"`   //coin PSBT Raw
-	RewardCoinAmount int64  `json:"rewardCoinAmount,omitempty"`
+	Net                 string `json:"net,omitempty"`           //Net env
+	OrderId             string `json:"orderId,omitempty"`       //Order ID
+	Tick                string `json:"tick,omitempty"`          //Brc20 symbol
+	Fee                 uint64 `json:"fee,omitempty"`           //claim fee
+	CoinAmount          uint64 `json:"coinAmount,omitempty"`    //Brc20 amount
+	InscriptionId       string `json:"inscriptionId,omitempty"` //InscriptionId
+	PsbtRaw             string `json:"psbtRaw"`                 //PSBT Raw
+	CoinTransferPsbtRaw string `json:"coinTransferPsbtRaw"`     //coin transfer PSBT Raw
+	CoinPsbtRaw         string `json:"coinPsbtRaw"`             //coin PSBT Raw
+	RewardPsbtRaw       string `json:"rewardPsbtRaw"`           //reward PSBT Raw
+	RewardCoinAmount    int64  `json:"rewardCoinAmount,omitempty"`
 }

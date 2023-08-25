@@ -4,10 +4,12 @@ definitions:
     enum:
     - 1
     - 2
+    - 3
     type: integer
     x-enum-varnames:
     - FreeStateYes
     - FreeStateClaim
+    - FreeStatePoolClaim
   model.OrderState:
     enum:
     - 1
@@ -20,6 +22,8 @@ definitions:
     - 7
     - 9
     - 10
+    - 11
+    - 12
     - 100
     type: integer
     x-enum-varnames:
@@ -33,6 +37,8 @@ definitions:
     - OrderStatePreAsk
     - OrderStatePreClaim
     - OrderStateFinishClaim
+    - OrderStatePoolPreClaim
+    - OrderStatePoolFinishClaim
     - OrderStateAll
   model.OrderType:
     enum:
@@ -59,21 +65,25 @@ definitions:
     - 1
     - 2
     - 3
+    - 4
     type: integer
     x-enum-varnames:
     - PoolTypeTick
     - PoolTypeBtc
     - PoolTypeBoth
+    - PoolTypeMultiSigInscription
   model.UtxoType:
     enum:
     - 1
     - 2
     - 6
+    - 10
     type: integer
     x-enum-varnames:
     - UtxoTypeDummy
     - UtxoTypeBidY
     - UtxoTypeFakerInscription
+    - UtxoTypeMultiInscription
   request.Brc20CommitReq:
     properties:
       feeAddress:
@@ -335,6 +345,9 @@ definitions:
         type: string
       psbtRaw:
         type: string
+      rewardIndex:
+        description: 0-no, 1-yes
+        type: integer
     type: object
   request.PoolBrc20PushReq:
     properties:
@@ -699,6 +712,9 @@ definitions:
       coinPsbtRaw:
         description: coin PSBT Raw
         type: string
+      coinTransferPsbtRaw:
+        description: coin transfer PSBT Raw
+        type: string
       fee:
         description: claim fee
         type: integer
@@ -716,6 +732,9 @@ definitions:
         type: string
       rewardCoinAmount:
         type: integer
+      rewardPsbtRaw:
+        description: reward PSBT Raw
+        type: string
       tick:
         description: Brc20 symbol
         type: string
@@ -1081,7 +1100,7 @@ paths:
         name: tick
         required: true
         type: string
-      - description: interval：1m/1s/15m/1h/4h/1d/1w/
+      - description: interval：15m/1h/4h/1d/1w/
         in: query
         name: interval
         type: string
@@ -1758,6 +1777,26 @@ paths:
       tags:
       - System
   /brc20/transfer/colddown/batch/ask:
+    post:
+      description: Cold down the brc20 transfer batch
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.ColdDownBrcTransferBatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Brc20TransferCommitBatchResp'
+      summary: Cold down the brc20 transfer batch
+      tags:
+      - System
+  /brc20/transfer/colddown/batch/pool:
     post:
       description: Cold down the brc20 transfer batch
       parameters:

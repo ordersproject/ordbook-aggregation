@@ -329,7 +329,6 @@ func FetchTickKline(req *request.TickKlineFetchReq) (*respond.Brc20KlineInfo, er
 		startTime = endTime - limit*dis
 	}
 	//fmt.Printf("%s-%s, %s-%s\n", req.Net, req.Tick, tool.MakeDate(startTime), tool.MakeDate(endTime))
-
 	entityList, _ = mongo_service.FindBrc20TickKlineModelList(req.Net, req.Tick, startTime, endTime)
 	for _, v := range entityList {
 		list = append(list, &respond.KlineItem{

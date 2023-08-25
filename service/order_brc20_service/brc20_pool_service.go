@@ -466,15 +466,20 @@ func FetchPoolInscription(req *request.PoolBrc20FetchInscriptionReq, publicKey, 
 
 func ClaimPool(req *request.PoolBrc20ClaimReq, publicKey, ip string) (*respond.PoolBrc20ClaimResp, error) {
 	var (
-		netParams                         *chaincfg.Params = GetNetParams(req.Net)
-		entityOrder                       *model.PoolBrc20Model
-		preSigScriptByte                  []byte
-		err                               error
-		tx                                *wire.MsgTx
-		coinTx                            *wire.MsgTx
-		psbtRaw                           string
-		coinPsbtRaw                       string
-		_, platformAddressReceiveBidValue string = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
+		netParams                             *chaincfg.Params = GetNetParams(req.Net)
+		entityOrder                           *model.PoolBrc20Model
+		preSigScriptByte                      []byte
+		err                                   error
+		tx                                    *wire.MsgTx
+		coinTx                                *wire.MsgTx
+		coinTransferTx                        *wire.MsgTx
+		psbtRaw                               string
+		coinPsbtRaw                           string
+		coinTransferPsbtRaw                   string
+		_, platformAddressReceiveBidValue     string = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
+		_, platformAddressMultiSigInscription string = GetPlatformKeyAndAddressForMultiSigInscription(req.Net)
+		//_, platformAddressMultiSigInscriptionForReceiveValue string = GetPlatformKeyAndAddressForMultiSigInscriptionAndReceiveValue(req.Net)
+		rewardPsbtRaw string = ""
 	)
 
 	entityOrder, _ = mongo_service.FindPoolBrc20ModelByOrderId(req.PoolOrderId)
@@ -497,56 +502,117 @@ func ClaimPool(req *request.PoolBrc20ClaimReq, publicKey, ip string) (*respond.P
 		return nil, err
 	}
 
-	coinTx, coinPsbtRaw, err = claimPoolBrc20Order(req.PoolOrderId, req.Address, 0, preSigScriptByte)
+	//ordinals
+	coinTx, coinPsbtRaw, err = claimPoolBrc20Order(req.PoolOrderId, platformAddressMultiSigInscription, 0, preSigScriptByte)
 	if err != nil {
 		return nil, err
 	}
 	_ = coinTx
 	_ = psbtRaw
 
+	//brc20
+	coinTransferTx, coinTransferPsbtRaw, err = claimPoolBrc20Order(req.PoolOrderId, req.Address, model.PoolTypeMultiSigInscription, preSigScriptByte)
+	if err != nil {
+		return nil, err
+	}
+	_ = coinTransferTx
+	_ = coinTransferPsbtRaw
+
+	//btc
 	tx, psbtRaw, err = claimPoolBrc20Order(req.PoolOrderId, platformAddressReceiveBidValue, model.PoolTypeBtc, preSigScriptByte)
 	if err != nil {
 		return nil, err
 	}
 	_ = tx
+
+	//rewardPsbtRaw, err = makePoolRewardPsbt(entityOrder.Net, req.Address)
+	//if err != nil {
+	//	major.Println(fmt.Sprintf("[POOL-CLAIM] makePoolRewardPsbt err:%s\n", err.Error()))
+	//}
+
 	return &respond.PoolBrc20ClaimResp{
 		Net:     entityOrder.Net,
 		OrderId: entityOrder.OrderId,
 		Tick:    entityOrder.Tick,
 		//Fee:           0,
-		//CoinAmount:    0,
-		//InscriptionId: "",
-		CoinPsbtRaw:      coinPsbtRaw,
-		PsbtRaw:          psbtRaw,
-		RewardCoinAmount: 1500,
+		CoinAmount:          entityOrder.CoinAmount,
+		InscriptionId:       entityOrder.DealInscriptionId,
+		CoinPsbtRaw:         coinPsbtRaw,
+		PsbtRaw:             psbtRaw,
+		CoinTransferPsbtRaw: coinTransferPsbtRaw,
+		RewardPsbtRaw:       rewardPsbtRaw,
+		RewardCoinAmount:    1500,
 	}, nil
 }
 
 func UpdateClaim(req *request.PoolBrc20ClaimUpdateReq, publicKey, ip string) (string, error) {
 	var (
-		netParams             *chaincfg.Params
-		entityOrder           *model.PoolBrc20Model
-		err                   error
-		txRaw                 string = ""
-		finalClaimPsbtBuilder *PsbtBuilder
+		netParams                                                *chaincfg.Params
+		entityOrder                                              *model.PoolBrc20Model
+		err                                                      error
+		txRaw                                                    string = ""
+		finalClaimPsbtBuilder                                    *PsbtBuilder
+		platformAddressReceiveBidValue                           string = ""
+		platformAddressMultiSigInscription                       string = ""
+		hasAddressMultiSigInscription, hasAddressReceiveBidValue bool   = false, false
+		multiSigInscriptionTxIndex, multiSigInscriptionTxAmount  int64  = 0, 0
 	)
 	entityOrder, _ = mongo_service.FindPoolBrc20ModelByOrderId(req.PoolOrderId)
 	if entityOrder == nil || entityOrder.Id == 0 {
 		return "", errors.New("Order is empty. ")
 	}
-	netParams = GetNetParams(entityOrder.Net)
-	finalClaimPsbtBuilder, err = NewPsbtBuilder(netParams, req.PsbtRaw)
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("PSBT: NewPsbtBuilder err:%s", err.Error()))
-	}
-	txRaw, err = finalClaimPsbtBuilder.ExtractPsbtTransaction()
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("PSBT: ExtractPsbtTransaction err:%s", err.Error()))
+
+	_, platformAddressReceiveBidValue = GetPlatformKeyAndAddressReceiveBidValue(entityOrder.Net)
+	_, platformAddressMultiSigInscription = GetPlatformKeyAndAddressForMultiSigInscription(entityOrder.Net)
+	if req.RewardIndex == 1 {
+		//finalClaimPsbtBuilder, err = addPoolRewardPsbt(entityOrder.Net, req.Address, req.PsbtRaw)
+		//txRaw, err = finalClaimPsbtBuilder.ExtractPsbtTransaction()
+		//if err != nil {
+		//	return "", errors.New(fmt.Sprintf("PSBT: ExtractPsbtTransaction err:%s", err.Error()))
+		//}
+	} else {
+		netParams = GetNetParams(entityOrder.Net)
+		finalClaimPsbtBuilder, err = NewPsbtBuilder(netParams, req.PsbtRaw)
+		if err != nil {
+			return "", errors.New(fmt.Sprintf("Wrong PSBT: NewPsbtBuilder err:%s", err.Error()))
+		}
+
+		if finalClaimPsbtBuilder.GetOutputs() == nil || len(finalClaimPsbtBuilder.GetOutputs()) == 0 {
+			return "", errors.New(fmt.Sprintf("Wrong PSBT: outputs are empty"))
+		}
+		if len(finalClaimPsbtBuilder.GetOutputs()) < 3 {
+			return "", errors.New(fmt.Sprintf("Wrong PSBT: The length of the outputs is less than 3 "))
+		}
+		for k, v := range finalClaimPsbtBuilder.GetOutputs() {
+			_, addrs, _, err := txscript.ExtractPkScriptAddrs(v.PkScript, netParams)
+			if err != nil {
+				return "", errors.New("Wrong Psbt: Extract address from out err. ")
+			}
+			if addrs[0].EncodeAddress() == platformAddressMultiSigInscription {
+				multiSigInscriptionTxIndex = int64(k)
+				hasAddressMultiSigInscription = true
+				multiSigInscriptionTxAmount = v.Value
+				if v.Value != 4000 {
+					return "", errors.New(fmt.Sprintf("Wrong Psbt: value of output[%d] is not 4000", k))
+				}
+			} else if addrs[0].EncodeAddress() == platformAddressReceiveBidValue {
+				hasAddressReceiveBidValue = true
+			}
+		}
+		if !(hasAddressMultiSigInscription && hasAddressReceiveBidValue) {
+			return "", errors.New(fmt.Sprintf("Wrong PSBT: outputs missing"))
+		}
+
+		txRaw, err = finalClaimPsbtBuilder.ExtractPsbtTransaction()
+		if err != nil {
+			return "", errors.New(fmt.Sprintf("PSBT: ExtractPsbtTransaction err:%s", err.Error()))
+		}
 	}
 
 	err = updateClaim(entityOrder, txRaw)
 	if err != nil {
 		return "", err
 	}
+	saveNewMultiSigInscriptionUtxo(entityOrder.Net, entityOrder.ClaimTx, multiSigInscriptionTxIndex, uint64(multiSigInscriptionTxAmount))
 	return "success", err
 }

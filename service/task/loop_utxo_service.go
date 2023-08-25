@@ -36,14 +36,14 @@ func LoopCheckPlatformAddressForBidValue(net string) {
 		fromPriKeyHex, fromSegwitAddress                                  string                  = "", ""
 		txRaw                                                             string                  = ""
 		utxoList                                                          []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
-		startIndex                                                        int64                   = order_brc20_service.GetSaveStartIndex(net, model.UtxoTypeBidY)
 		changeAddress                                                     string                  = platformAddressReceiveBidValue
 		count                                                             int64                   = 0
-		//todo 5w/utxo 10w/utxo, 20w/utxo, 50w/utxo, 100w/utxo
+		//todo 1w/utxo 5w/utxo 10w/utxo, 50w/utxo, 100w/utxo
 		perAmount         uint64        = 10000
 		feeRate           int64         = 20
 		totalSize         int64         = 0
 		utxoInterfaceList []interface{} = make([]interface{}, 0)
+		startIndex        int64         = order_brc20_service.GetSaveStartIndex(net, model.UtxoTypeBidY, int64(perAmount))
 	)
 	utxoResp, err = oklink_service.GetAddressUtxo(platformAddressReceiveBidValue, 1, 50)
 	if err != nil {
@@ -222,13 +222,13 @@ func LoopCheckPlatformAddressForDummyValue(net string) {
 		fromPriKeyHex, fromSegwitAddress                                      string                  = "", ""
 		txRaw                                                                 string                  = ""
 		utxoList                                                              []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
-		startIndex                                                            int64                   = order_brc20_service.GetSaveStartIndex(net, model.UtxoTypeBidY)
 		changeAddress                                                         string                  = platformAddressReceiveDummyValue
 		count                                                                 int64                   = 0
 		perAmount                                                             uint64                  = 10000
 		feeRate                                                               int64                   = 20
 		totalSize                                                             int64                   = 0
 		utxoInterfaceList                                                     []interface{}           = make([]interface{}, 0)
+		startIndex                                                            int64                   = order_brc20_service.GetSaveStartIndex(net, model.UtxoTypeBidY, int64(perAmount))
 	)
 	utxoResp, err = oklink_service.GetAddressUtxo(platformAddressReceiveDummyValue, 1, 50)
 	if err != nil {

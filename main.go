@@ -58,18 +58,11 @@ func main() {
 	InitAll()
 
 	order_brc20_service.InitCommon()
-	order_brc20_service.AddWhiteList2()
-	//order_brc20_service.AddWhiteListForSnapshot()
 
 	go ws.StartWS()
 	task.Run()
 	tool_service.RunAllJob()
 	task.RunJob()
-	//go task.Fix()
 	controller.Run()
 	//run()
-
-	//tool_service.CheckWlClaim()
-	//tool_service.ToolSnapshotHolder()
-	//tool_service.DownloadSnapshotHolderData()
 }

@@ -289,7 +289,7 @@ func InscribeOneDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddres
 	return commitTxHash.String(), revealTxHash, inscription, nil
 }
 
-func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddress, content string, feeRate int64, changeAddress string, count int64, utxoList []*InscribeUtxo, outAddressType string, isOnlyCal bool) (string, []string, []string, int64, error) {
+func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddress, content string, feeRate int64, changeAddress string, count int64, utxoList []*InscribeUtxo, outAddressType string, isOnlyCal bool, revealOutValue int64) (string, []string, []string, int64, error) {
 	//btcApiClient := mempool.NewClient(netParams)
 	btcApiClient := unisat.NewClient(netParams)
 	contentType := "text/plain;charset=utf-8"
@@ -383,6 +383,7 @@ func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddr
 		DataList:                    dataList,
 		SingleRevealTxOnly:          false,
 		ChangeAddress:               changeAddress,
+		RevealOutValue:              revealOutValue,
 	}
 
 	tool, err := ord.NewInscriptionToolWithBtcApiClient(netParams, btcApiClient, &request)
@@ -396,7 +397,7 @@ func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddr
 
 	commitTxHash, revealTxHashList, inscriptions, fees, err := tool.Inscribe()
 	if err != nil {
-		return "", nil, nil, 0, errors.New(fmt.Sprintf("send tx errr, %v", err))
+		return "", nil, nil, 0, errors.New(fmt.Sprintf("send tx err, %v", err))
 	}
 	log.Println("commitTxHash, " + commitTxHash.String())
 	revealTxHashStrList := make([]string, 0)

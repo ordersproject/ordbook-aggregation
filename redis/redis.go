@@ -10,11 +10,13 @@ import (
 )
 
 const (
-	ex                  = "86400"
-	CacheGetUtxo_       = "cache_get_utxo_"
-	UtxoTypeDummy_      = "dummy_"
-	UtxoTypeBidY_       = "bid_y_"
-	CacheGetClaimOrder_ = "cache_get_claim_order_"
+	ex                           = "86400"
+	CacheGetUtxo_                = "cache_get_utxo_"
+	UtxoTypeDummy_               = "dummy_"
+	UtxoTypeBidY_                = "bid_y_"
+	UtxoTypeMultiSigInscription_ = "multi_sig_inscription_"
+	CacheGetClaimOrder_          = "cache_get_claim_order_"
+	CacheGetPoolClaimOrder_      = "cache_get_pool_claim_order_"
 )
 
 var addressEndpoint = ""

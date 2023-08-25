@@ -30,18 +30,17 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error) {
 		txRaw                            string = ""
 		//latestUtxo *model.OrderUtxoModel
 		utxoList   []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
-		startIndex int64                   = GetSaveStartIndex(req.Net, req.UtxoType)
+		startIndex int64                   = GetSaveStartIndex(req.Net, req.UtxoType, int64(req.PerAmount))
 	)
 
-	fromPriKeyHex, fromSegwitAddress, err = create_key.CreateSegwitKey(netParams)
-	if err != nil {
-		return "", err
+	if req.UtxoType == model.UtxoTypeMultiInscription {
+		_, fromSegwitAddress = GetPlatformKeyAndAddressForMultiSigInscription(req.Net)
+	} else {
+		fromPriKeyHex, fromSegwitAddress, err = create_key.CreateSegwitKey(netParams)
+		if err != nil {
+			return "", err
+		}
 	}
-
-	//latestUtxo, _ = mongo_service.GetLatestStartIndexUtxo(req.Net, req.UtxoType)
-	//if latestUtxo != nil {
-	//	startIndex = latestUtxo.SortIndex
-	//}
 
 	inputs := make([]*TxInputUtxo, 0)
 	inputs = append(inputs, &TxInputUtxo{
@@ -144,12 +143,7 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error) {
 }
 
 func saveNewDummyFromBid(net string, out Output, priKeyHex string, index int64, txId string) error {
-	startIndex := GetSaveStartIndex(net, model.UtxoTypeDummy)
-	//startIndex := int64(0)
-	//latestUtxo, _ := mongo_service.GetLatestStartIndexUtxo(net, model.UtxoTypeDummy)
-	//if latestUtxo != nil {
-	//	startIndex = latestUtxo.SortIndex
-	//}
+	startIndex := GetSaveStartIndex(net, model.UtxoTypeDummy, 0)
 	netParams := GetNetParams(net)
 	addr, err := btcutil.DecodeAddress(out.Address, netParams)
 	if err != nil {
@@ -323,7 +317,7 @@ func ColdDownBrc20TransferBatch(req *request.ColdDownBrcTransferBatch) (*respond
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
 		inscription_service.InscribeMultiDataFromUtxo(netParams, req.PriKeyHex, platformAddressSendBrc20,
-			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, "", req.IsOnlyCal)
+			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, "", req.IsOnlyCal, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +364,7 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
 		inscription_service.InscribeMultiDataFromUtxo(netParams, req.PriKeyHex, platformAddressSendBrc20ForAsk,
-			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, req.OutAddressType, req.IsOnlyCal)
+			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, req.OutAddressType, req.IsOnlyCal, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -444,19 +438,156 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 			//OrderState:     model.OrderStateCreate,
 			InscriptionId: v,
 			//OrderState:    model.OrderStatePreAsk,
-			OrderState:    model.OrderStatePreClaim,
+			OrderState: model.OrderStatePreClaim,
+			//OrderState:    model.OrderStatePoolPreClaim,
 			OrderType:     model.OrderTypeSell,
 			SellerAddress: platformAddressSendBrc20ForAsk,
 			BuyerAddress:  "",
 			PsbtRawPreAsk: psbtRaw,
 			FreeState:     model.FreeStateClaim,
-			Timestamp:     tool.MakeTimestamp(),
+			//FreeState: model.FreeStatePoolClaim,
+			Timestamp: tool.MakeTimestamp(),
 		}
 		_, err = mongo_service.SetOrderBrc20Model(entity)
 		if err != nil {
 			return nil, err
 		}
 		UpdateMarketPrice(req.Net, req.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(req.Tick)))
+	}
+
+	return &respond.Brc20TransferCommitBatchResp{
+		Fees:              fees,
+		CommitTxHash:      commitTxHash,
+		RevealTxHashList:  revealTxHashList,
+		InscriptionIdList: inscriptionIdList,
+	}, nil
+}
+
+func ColdDownBatchBrc20TransferAndMakePool(req *request.ColdDownBrcTransferBatch) (*respond.Brc20TransferCommitBatchResp, error) {
+	var (
+		netParams                                                 *chaincfg.Params = GetNetParams(req.Net)
+		platformPrivateKeyRewardBrc20, platformAddressRewardBrc20 string           = GetPlatformKeyAndAddressForRewardBrc20(req.Net)
+		_, platformAddressReceiveValueForAsk                      string           = GetPlatformKeyAndAddressReceiveValueForAsk(req.Net)
+		transferContent                                           string           = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, req.Tick, req.InscribeTransferAmount)
+		commitTxHash                                              string           = ""
+		revealTxHashList, inscriptionIdList                       []string         = make([]string, 0), make([]string, 0)
+		err                                                       error
+		brc20BalanceResult                                        *oklink_service.OklinkBrc20BalanceDetails
+		availableBalance                                          int64                               = 0
+		fees                                                      int64                               = 0
+		inscribeUtxoList                                          []*inscription_service.InscribeUtxo = make([]*inscription_service.InscribeUtxo, 0)
+		commonCoinAmount                                          uint64                              = uint64(req.InscribeTransferAmount)
+		commonOutAmount                                           uint64                              = 4000
+		commonCoinRatePrice                                       uint64                              = 0
+	)
+	inscribeUtxoList = append(inscribeUtxoList, &inscription_service.InscribeUtxo{
+		OutTx:     req.TxId,
+		OutIndex:  req.Index,
+		OutAmount: int64(req.Amount),
+	})
+
+	fmt.Println(transferContent)
+	brc20BalanceResult, err = oklink_service.GetAddressBrc20BalanceResult(platformAddressRewardBrc20, req.Tick, 1, 50)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("%+v\n", brc20BalanceResult)
+	availableBalance, _ = strconv.ParseInt(brc20BalanceResult.AvailableBalance, 10, 64)
+	fmt.Printf("availableBalance:%d, req.InscribeTransferAmount*req.Count: %d\n", availableBalance, req.InscribeTransferAmount*req.Count)
+	if availableBalance < req.InscribeTransferAmount*req.Count {
+		return nil, errors.New("AvailableBalance not enough. ")
+	}
+	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
+		inscription_service.InscribeMultiDataFromUtxo(netParams, req.PriKeyHex, platformAddressRewardBrc20,
+			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, req.OutAddressType, req.IsOnlyCal, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	//make ask order
+	outAmountDe := decimal.NewFromInt(int64(commonOutAmount))
+	coinAmountDe := decimal.NewFromInt(int64(commonCoinAmount))
+	coinRatePriceStr := outAmountDe.Div(coinAmountDe).StringFixed(0)
+	commonCoinRatePrice, _ = strconv.ParseUint(coinRatePriceStr, 10, 64)
+
+	addr, err := btcutil.DecodeAddress(platformAddressRewardBrc20, netParams)
+	if err != nil {
+		return nil, err
+	}
+	pkScript, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range inscriptionIdList {
+		inscriptionIdStrs := strings.Split(v, "i")
+		inscriptionTxId := inscriptionIdStrs[0]
+		inscriptionTxIndex, _ := strconv.ParseInt(inscriptionIdStrs[1], 10, 64)
+
+		inputs := make([]Input, 0)
+		inputs = append(inputs, Input{
+			OutTxId:  inscriptionTxId,
+			OutIndex: uint32(inscriptionTxIndex),
+		})
+
+		outputs := make([]Output, 0)
+		outputs = append(outputs, Output{
+			Address: platformAddressReceiveValueForAsk,
+			Amount:  commonOutAmount,
+		})
+		inputSigns := make([]*InputSign, 0)
+
+		inputSigns = append(inputSigns, &InputSign{
+			Index:       0,
+			OutRaw:      "",
+			PkScript:    hex.EncodeToString(pkScript),
+			SighashType: txscript.SigHashSingle | txscript.SigHashAnyOneCanPay,
+			PriHex:      platformPrivateKeyRewardBrc20,
+			UtxoType:    Witness,
+			Amount:      546,
+		})
+
+		builder, err := CreatePsbtBuilder(netParams, inputs, outputs)
+		if err != nil {
+			return nil, err
+		}
+		err = builder.UpdateAndSignInput(inputSigns)
+		if err != nil {
+			return nil, err
+		}
+		psbtRaw, err := builder.ToString()
+		if err != nil {
+			return nil, err
+		}
+
+		orderId := fmt.Sprintf("%s_%s_%s_%s_%d_%d", req.Net, req.Tick, v, platformAddressRewardBrc20, commonOutAmount, commonCoinAmount)
+		orderId = hex.EncodeToString(tool.SHA256([]byte(orderId)))
+		entity := &model.OrderBrc20Model{
+			Net:            req.Net,
+			OrderId:        orderId,
+			Tick:           req.Tick,
+			Amount:         commonOutAmount,
+			DecimalNum:     8,
+			CoinAmount:     commonCoinAmount,
+			CoinDecimalNum: 18,
+			CoinRatePrice:  commonCoinRatePrice,
+			//OrderState:     model.OrderStateCreate,
+			InscriptionId: v,
+			//OrderState:    model.OrderStatePreAsk,
+			//OrderState:    model.OrderStatePreClaim,
+			OrderState:    model.OrderStatePoolPreClaim,
+			OrderType:     model.OrderTypeSell,
+			SellerAddress: platformAddressRewardBrc20,
+			BuyerAddress:  "",
+			PsbtRawPreAsk: psbtRaw,
+			//FreeState:     model.FreeStateClaim,
+			FreeState: model.FreeStatePoolClaim,
+			Timestamp: tool.MakeTimestamp(),
+		}
+		_, err = mongo_service.SetOrderBrc20Model(entity)
+		if err != nil {
+			return nil, err
+		}
+		//UpdateMarketPrice(req.Net, req.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(req.Tick)))
 	}
 
 	return &respond.Brc20TransferCommitBatchResp{

@@ -13,8 +13,13 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"ordbook-aggregation/major"
 	"ordbook-aggregation/model"
+	"ordbook-aggregation/service/inscription_service"
 	"ordbook-aggregation/service/mongo_service"
+	"ordbook-aggregation/service/oklink_service"
 	"ordbook-aggregation/service/unisat_service"
+	"ordbook-aggregation/tool"
+	"strconv"
+	"strings"
 )
 
 type addressToKey struct {
@@ -96,10 +101,6 @@ func createMultiSigAddress(net *chaincfg.Params, pubKey ...string) (string, stri
 	return hex.EncodeToString(multiSigScript), address.EncodeAddress(), nativeSegwitAddress.EncodeAddress(), nil
 }
 
-func makeMultiSigTx(outTxId string, outIndex int64) {
-
-}
-
 func signMultiSigScript(net *chaincfg.Params, tx *wire.MsgTx, i int, pkScript []byte, hashType txscript.SigHashType, priKey string, preSigScript []byte) ([]byte, error) {
 	privateKeyBytes, err := hex.DecodeString(priKey)
 	if err != nil {
@@ -163,45 +164,111 @@ func setCoinStatusPoolBrc20Order(bidOrder *model.OrderBrc20Model, poolCoinState 
 	if err != nil {
 		major.Println(fmt.Sprintf("SetPoolBrc20ModelForStatus err:%s", err))
 	}
+	inscriptionMultiSigTransfer(bidOrder.Net, bidOrder.PoolOrderId)
 }
 
-func inscriptionMultiSigTransfer(poolOrderId string) {
+func inscriptionMultiSigTransfer(net, poolOrderId string) error {
 	var (
-		poolOrder          *model.PoolBrc20Model
-		inscriptionAddress string           = ""
-		netParams          *chaincfg.Params = &chaincfg.MainNetParams
+		poolOrder                   *model.PoolBrc20Model
+		utxoMultiSigInscriptionList []*model.OrderUtxoModel
+		inscriptionAddress          string = ""
+		brc20BalanceResult          *oklink_service.OklinkBrc20BalanceDetails
+		availableBalance            int64 = 0
+
+		commitTxHash                                                              string = ""
+		revealTxHashList                                                          []string
+		inscriptionIdList                                                         []string
+		err                                                                       error
+		transferContent                                                           string                              = ""
+		feeRate                                                                   int64                               = 10
+		inscribeUtxoList                                                          []*inscription_service.InscribeUtxo = make([]*inscription_service.InscribeUtxo, 0)
+		_, platformAddressReceiveBidValue                                         string                              = GetPlatformKeyAndAddressReceiveBidValue(net)
+		platformPrivateKeyMultiSigInscription, platformAddressMultiSigInscription string                              = GetPlatformKeyAndAddressForMultiSigInscription(net)
+		netParams                                                                 *chaincfg.Params                    = GetNetParams(net)
+		changeAddress                                                             string                              = platformAddressReceiveBidValue
+
+		dealInscriptionId, dealInscriptionTx                                   string = "", ""
+		dealInscriptionTxIndex, dealInscriptionTxOutValue, dealInscriptionTime int64  = 0, 1000, 0
 	)
 	poolOrder, _ = mongo_service.FindPoolBrc20ModelByOrderId(poolOrderId)
 	if poolOrder == nil {
-		return
+		return errors.New("[POOL-INSCRIPTION]poolOrder is empty")
 	}
-	netParams = GetNetParams(poolOrder.Net)
+	if poolOrder.DealInscriptionId != "" {
+		return errors.New("[POOL-INSCRIPTION]poolOrder DealInscription has been done")
+	}
+	if poolOrder.PoolCoinState != model.PoolStateUsed {
+		return errors.New("[POOL-INSCRIPTION]poolOrder not used")
+	}
+
 	if poolOrder.MultiSigScriptAddress == "" {
 		MultiSigScriptByte, err := hex.DecodeString(poolOrder.MultiSigScript)
 		if err != nil {
-			return
+			return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] err:%s", err.Error()))
 		}
 		h := sha256.New()
 		h.Write(MultiSigScriptByte)
 		nativeSegwitAddress, err := btcutil.NewAddressWitnessScriptHash(h.Sum(nil), netParams)
 		if err != nil {
 			fmt.Println("Failed to create native SegWit address:", err)
-			return
+			return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] err:%s", err.Error()))
 		}
 		poolOrder.MultiSigScriptAddress = nativeSegwitAddress.EncodeAddress()
 	}
 	inscriptionAddress = poolOrder.MultiSigScriptAddress
 	if inscriptionAddress == "" {
-		return
+		return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] inscriptionAddress is empty"))
 	}
 
-	//commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
-	//	inscription_service.InscribeMultiDataFromUtxo(netParams, req.PriKeyHex, inscriptionAddress,
-	//		transferContent, req.FeeRate, req.ChangeAddress, 1, inscribeUtxoList, "segwit", false)
-	//if err != nil {
-	//	return nil, err
-	//}
+	brc20BalanceResult, err = oklink_service.GetAddressBrc20BalanceResult(inscriptionAddress, poolOrder.Tick, 1, 50)
+	if err != nil {
+		return err
+	}
+	availableBalance, _ = strconv.ParseInt(brc20BalanceResult.AvailableBalance, 10, 64)
+	fmt.Printf("availableBalance:%d, coinAmount: %d\n", availableBalance, poolOrder.CoinAmount)
 
+	transferContent = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, poolOrder.Tick, poolOrder.CoinAmount)
+
+	utxoMultiSigInscriptionList, err = GetUnoccupiedUtxoList(net, 1, 0, model.UtxoTypeMultiInscription)
+	defer ReleaseUtxoList(utxoMultiSigInscriptionList)
+	if err != nil {
+		return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] get utxo err:%s", err.Error()))
+	}
+	for _, v := range utxoMultiSigInscriptionList {
+		if v.Address != platformAddressMultiSigInscription {
+			continue
+		}
+		fmt.Printf("%+v\n", *v)
+		inscribeUtxoList = append(inscribeUtxoList, &inscription_service.InscribeUtxo{
+			OutTx:     v.TxId,
+			OutIndex:  v.Index,
+			OutAmount: int64(v.Amount),
+		})
+	}
+	if len(inscribeUtxoList) <= 0 {
+		return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] get utxo empty"))
+	}
+
+	commitTxHash, revealTxHashList, inscriptionIdList, _, err =
+		inscription_service.InscribeMultiDataFromUtxo(netParams, platformPrivateKeyMultiSigInscription, inscriptionAddress,
+			transferContent, feeRate, changeAddress, 1, inscribeUtxoList, "segwit", false, dealInscriptionTxOutValue)
+	if err != nil {
+		return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] Inscribe err:%s", err.Error()))
+	}
+
+	dealInscriptionId = inscriptionIdList[0]
+	dealInscriptionTx = revealTxHashList[0]
+	dealInscriptionTxIndex = 0
+	dealInscriptionTime = tool.MakeTimestamp()
+	err = mongo_service.SetPoolBrc20ModelForDealInscription(poolOrderId, dealInscriptionId, dealInscriptionTx, dealInscriptionTxIndex, dealInscriptionTxOutValue, dealInscriptionTime)
+	if err != nil {
+		major.Println(fmt.Sprintf("SetPoolBrc20ModelForDealInscription err:%s", err))
+		return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] save data err:%s", err.Error()))
+	}
+	setUsedMultiSigInscriptionUtxo(utxoMultiSigInscriptionList, commitTxHash)
+
+	major.Println(fmt.Sprintf("[POOL] inscription for multiSigAddress success"))
+	return nil
 }
 
 func claimPoolBrc20Order(orderId, claimAddress string, poolType model.PoolType, preSigScript []byte) (*wire.MsgTx, string, error) {
@@ -248,6 +315,18 @@ func claimPoolBrc20Order(orderId, claimAddress string, poolType model.PoolType, 
 		claimTxId = entity.DealTx
 		claimTxIndex = entity.DealTxIndex
 		claimTxValue = entity.DealTxOutValue
+		claimMultiSigScript = entity.MultiSigScript
+	} else if poolType == model.PoolTypeMultiSigInscription {
+		if entity.DealInscriptionTx == "" {
+			err := inscriptionMultiSigTransfer(entity.Net, entity.OrderId)
+			if err != nil {
+				fmt.Println(err)
+				return nil, "", err
+			}
+		}
+		claimTxId = entity.DealInscriptionTx
+		claimTxIndex = entity.DealInscriptionTxIndex
+		claimTxValue = entity.DealInscriptionTxOutValue
 		claimMultiSigScript = entity.MultiSigScript
 	}
 
@@ -448,4 +527,185 @@ func updateClaim(poolOrder *model.PoolBrc20Model, rawTx string) error {
 		return err
 	}
 	return nil
+}
+
+func saveNewMultiSigInscriptionUtxo(net, txId string, txIndex int64, amount uint64) error {
+	startIndex := GetSaveStartIndex(net, model.UtxoTypeMultiInscription, 0)
+	_, fromSegwitAddress := GetPlatformKeyAndAddressForMultiSigInscription(net)
+	addr, err := btcutil.DecodeAddress(fromSegwitAddress, GetNetParams(net))
+	if err != nil {
+		return err
+	}
+	pkScriptByte, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return err
+	}
+	pkScript := hex.EncodeToString(pkScriptByte)
+	newUtxo := &model.OrderUtxoModel{
+		//UtxoId:     "",
+		Net:           net,
+		UtxoType:      model.UtxoTypeMultiInscription,
+		Amount:        amount,
+		Address:       fromSegwitAddress,
+		PrivateKeyHex: "",
+		TxId:          "",
+		Index:         txIndex,
+		PkScript:      pkScript,
+		UsedState:     model.UsedNo,
+		//UseTx:      "",
+		SortIndex: startIndex + 1,
+		Timestamp: tool.MakeTimestamp(),
+	}
+	newUtxo.TxId = txId
+	newUtxo.UtxoId = fmt.Sprintf("%s_%d", newUtxo.TxId, newUtxo.Index)
+
+	_, err = mongo_service.SetOrderUtxoModel(newUtxo)
+	if err != nil {
+		major.Println(fmt.Sprintf("SetOrderUtxoModel for cold down err:%s", err.Error()))
+		return err
+	}
+	return nil
+}
+
+func makePoolRewardPsbt(net, receiveAddress string) (string, error) {
+	var (
+		netParams                                                 *chaincfg.Params = GetNetParams(net)
+		rewardTick                                                string           = "ORXC"
+		rewardTickCoinAmount                                      int64            = 1500
+		entityPoolClaimOrder                                      *model.OrderBrc20Model
+		inscriptionId                                             string = ""
+		platformPrivateKeyRewardBrc20, platformAddressRewardBrc20 string = GetPlatformKeyAndAddressForRewardBrc20(net)
+		err                                                       error
+	)
+	entityPoolClaimOrder, err = GetUnoccupiedPoolClaimBrc20PsbtList(net, rewardTick, 1, rewardTickCoinAmount)
+	if err != nil {
+		return "", err
+	}
+	if entityPoolClaimOrder == nil {
+		return "", errors.New("Pool Claim Order is empty. ")
+	}
+	inscriptionId = entityPoolClaimOrder.InscriptionId
+	if inscriptionId == "" {
+		return "", errors.New("InscriptionId of Pool Claim Order is empty. ")
+	}
+	addr, err := btcutil.DecodeAddress(platformAddressRewardBrc20, netParams)
+	if err != nil {
+		return "", err
+	}
+	pkScript, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return "", err
+	}
+
+	inscriptionIdStrs := strings.Split(inscriptionId, "i")
+	inscriptionTxId := inscriptionIdStrs[0]
+	inscriptionTxIndex, _ := strconv.ParseInt(inscriptionIdStrs[1], 10, 64)
+
+	inputs := make([]Input, 0)
+	inputs = append(inputs, Input{
+		OutTxId:  inscriptionTxId,
+		OutIndex: uint32(inscriptionTxIndex),
+	})
+
+	outputs := make([]Output, 0)
+	outputs = append(outputs, Output{
+		Address: receiveAddress,
+		Amount:  entityPoolClaimOrder.Amount,
+	})
+	inputSigns := make([]*InputSign, 0)
+
+	inputSigns = append(inputSigns, &InputSign{
+		Index:       0,
+		OutRaw:      "",
+		PkScript:    hex.EncodeToString(pkScript),
+		SighashType: txscript.SigHashSingle | txscript.SigHashAnyOneCanPay,
+		PriHex:      platformPrivateKeyRewardBrc20,
+		UtxoType:    Witness,
+		Amount:      546,
+	})
+
+	builder, err := CreatePsbtBuilder(netParams, inputs, outputs)
+	if err != nil {
+		return "", err
+	}
+	err = builder.UpdateAndSignInput(inputSigns)
+	if err != nil {
+		return "", err
+	}
+	psbtRaw, err := builder.ToString()
+	if err != nil {
+		return "", err
+	}
+
+	return psbtRaw, nil
+}
+
+func addPoolRewardPsbt(net, receiveAddress, claimPsbtRaw string) (*PsbtBuilder, error) {
+	var (
+		netParams                                                 *chaincfg.Params = GetNetParams(net)
+		rewardTick                                                string           = "ORXC"
+		rewardTickCoinAmount                                      int64            = 1500
+		entityPoolClaimOrder                                      *model.OrderBrc20Model
+		inscriptionId                                             string = ""
+		platformPrivateKeyRewardBrc20, platformAddressRewardBrc20 string = GetPlatformKeyAndAddressForRewardBrc20(net)
+		err                                                       error
+	)
+	entityPoolClaimOrder, err = GetUnoccupiedPoolClaimBrc20PsbtList(net, rewardTick, 1, rewardTickCoinAmount)
+	if err != nil {
+		return nil, err
+	}
+	if entityPoolClaimOrder == nil {
+		return nil, errors.New("Pool Claim Order is empty. ")
+	}
+	inscriptionId = entityPoolClaimOrder.InscriptionId
+	if inscriptionId == "" {
+		return nil, errors.New("InscriptionId of Pool Claim Order is empty. ")
+	}
+	addr, err := btcutil.DecodeAddress(platformAddressRewardBrc20, netParams)
+	if err != nil {
+		return nil, err
+	}
+	pkScript, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	inscriptionIdStrs := strings.Split(inscriptionId, "i")
+	inscriptionTxId := inscriptionIdStrs[0]
+	inscriptionTxIndex, _ := strconv.ParseInt(inscriptionIdStrs[1], 10, 64)
+
+	inputs := make([]Input, 0)
+	input := Input{
+		OutTxId:  inscriptionTxId,
+		OutIndex: uint32(inscriptionTxIndex),
+	}
+	inputs = append(inputs, input)
+
+	outputs := make([]Output, 0)
+	outputs = append(outputs, Output{
+		Address: receiveAddress,
+		Amount:  entityPoolClaimOrder.Amount,
+	})
+	inputSigns := make([]*InputSign, 0)
+	inputSign := &InputSign{
+		Index:       0,
+		OutRaw:      "",
+		PkScript:    hex.EncodeToString(pkScript),
+		SighashType: txscript.SigHashAll | txscript.SigHashAnyOneCanPay,
+		PriHex:      platformPrivateKeyRewardBrc20,
+		UtxoType:    Witness,
+		Amount:      546,
+	}
+	inputSigns = append(inputSigns, inputSign)
+
+	builder, err := NewPsbtBuilder(netParams, claimPsbtRaw)
+	if err != nil {
+		return nil, err
+	}
+	err = builder.AddInput(input, inputSign)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("PSBT(X): AddInput err:%s", err.Error()))
+	}
+
+	return builder, nil
 }

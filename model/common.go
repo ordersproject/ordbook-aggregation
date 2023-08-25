@@ -27,6 +27,9 @@ const (
 	OrderStatePreClaim    OrderState = 9
 	OrderStateFinishClaim OrderState = 10
 
+	OrderStatePoolPreClaim    OrderState = 11
+	OrderStatePoolFinishClaim OrderState = 12
+
 	//100 all
 	OrderStateAll OrderState = 100
 )
@@ -34,6 +37,7 @@ const (
 type FreeState int
 
 const (
-	FreeStateYes   FreeState = 1
-	FreeStateClaim FreeState = 2
+	FreeStateYes       FreeState = 1
+	FreeStateClaim     FreeState = 2
+	FreeStatePoolClaim FreeState = 3
 )

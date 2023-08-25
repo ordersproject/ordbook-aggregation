@@ -224,6 +224,32 @@ func SetPoolBrc20ModelForDealInscription(orderId string, dealInscriptionId, deal
 	return nil
 }
 
+func SetPoolBrc20ModelForDealInscriptionInTool(orderId string, dealInscriptionId, dealInscriptionTx string) error {
+	entity, err := FindPoolBrc20ModelByOrderId(orderId)
+	if err == nil && entity != nil {
+		collection, err := model.PoolBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", orderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "dealInscriptionId", Value: dealInscriptionId})
+		bsonData = append(bsonData, bson.E{Key: "dealInscriptionTx", Value: dealInscriptionTx})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func SetPoolBrc20ModelForClaim(poolBrc20 *model.PoolBrc20Model) error {
 	entity, err := FindPoolBrc20ModelByOrderId(poolBrc20.OrderId)
 	if err == nil && entity != nil {

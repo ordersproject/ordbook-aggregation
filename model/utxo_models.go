@@ -12,6 +12,7 @@ const (
 	UtxoTypeDummy            UtxoType = 1
 	UtxoTypeBidY             UtxoType = 2
 	UtxoTypeFakerInscription UtxoType = 6
+	UtxoTypeMultiInscription UtxoType = 10
 )
 
 type UsedState int

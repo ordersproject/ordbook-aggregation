@@ -66,4 +66,5 @@ type PoolBrc20ClaimReq struct {
 type PoolBrc20ClaimUpdateReq struct {
 	PsbtRaw     string `json:"psbtRaw"`
 	PoolOrderId string `json:"poolOrderId"`
+	RewardIndex int64  `json:"rewardIndex"` //0-no, 1-yes
 }

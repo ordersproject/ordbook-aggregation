@@ -348,7 +348,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "interval：1m/1s/15m/1h/4h/1d/1w/",
+                        "description": "interval：15m/1h/4h/1d/1w/",
                         "name": "interval",
                         "in": "query"
                     },
@@ -1406,6 +1406,37 @@
                 }
             }
         },
+        "/brc20/transfer/colddown/batch/pool": {
+            "post": {
+                "description": "Cold down the brc20 transfer batch",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Cold down the brc20 transfer batch",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ColdDownBrcTransferBatch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Brc20TransferCommitBatchResp"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/utxo/colddown": {
             "post": {
                 "description": "Do bid order",
@@ -1463,11 +1494,13 @@
             "type": "integer",
             "enum": [
                 1,
-                2
+                2,
+                3
             ],
             "x-enum-varnames": [
                 "FreeStateYes",
-                "FreeStateClaim"
+                "FreeStateClaim",
+                "FreeStatePoolClaim"
             ]
         },
         "model.OrderState": {
@@ -1483,6 +1516,8 @@
                 7,
                 9,
                 10,
+                11,
+                12,
                 100
             ],
             "x-enum-varnames": [
@@ -1496,6 +1531,8 @@
                 "OrderStatePreAsk",
                 "OrderStatePreClaim",
                 "OrderStateFinishClaim",
+                "OrderStatePoolPreClaim",
+                "OrderStatePoolFinishClaim",
                 "OrderStateAll"
             ]
         },
@@ -1530,12 +1567,14 @@
             "enum": [
                 1,
                 2,
-                3
+                3,
+                4
             ],
             "x-enum-varnames": [
                 "PoolTypeTick",
                 "PoolTypeBtc",
-                "PoolTypeBoth"
+                "PoolTypeBoth",
+                "PoolTypeMultiSigInscription"
             ]
         },
         "model.UtxoType": {
@@ -1543,12 +1582,14 @@
             "enum": [
                 1,
                 2,
-                6
+                6,
+                10
             ],
             "x-enum-varnames": [
                 "UtxoTypeDummy",
                 "UtxoTypeBidY",
-                "UtxoTypeFakerInscription"
+                "UtxoTypeFakerInscription",
+                "UtxoTypeMultiInscription"
             ]
         },
         "request.Brc20CommitReq": {
@@ -1947,6 +1988,10 @@
                 },
                 "psbtRaw": {
                     "type": "string"
+                },
+                "rewardIndex": {
+                    "description": "0-no, 1-yes",
+                    "type": "integer"
                 }
             }
         },
@@ -2495,6 +2540,10 @@
                     "description": "coin PSBT Raw",
                     "type": "string"
                 },
+                "coinTransferPsbtRaw": {
+                    "description": "coin transfer PSBT Raw",
+                    "type": "string"
+                },
                 "fee": {
                     "description": "claim fee",
                     "type": "integer"
@@ -2517,6 +2566,10 @@
                 },
                 "rewardCoinAmount": {
                     "type": "integer"
+                },
+                "rewardPsbtRaw": {
+                    "description": "reward PSBT Raw",
+                    "type": "string"
                 },
                 "tick": {
                     "description": "Brc20 symbol",

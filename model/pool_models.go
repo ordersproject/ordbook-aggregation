@@ -10,9 +10,10 @@ type PoolType int
 type PoolState int
 
 const (
-	PoolTypeTick PoolType = 1
-	PoolTypeBtc  PoolType = 2
-	PoolTypeBoth PoolType = 3
+	PoolTypeTick                PoolType = 1
+	PoolTypeBtc                 PoolType = 2
+	PoolTypeBoth                PoolType = 3
+	PoolTypeMultiSigInscription PoolType = 4
 
 	PoolStateAdd    PoolState = 1
 	PoolStateRemove PoolState = 2

@@ -895,3 +895,92 @@ func FindWhitelistModelByIpAndType(ip string, whitelistType model.WhitelistType)
 	}
 	return entity, nil
 }
+
+func FindOrderBrc20ModelToolList(net, tick, sellerAddress, buyerAddress string,
+	orderType model.OrderType, orderState model.OrderState,
+	limit int64, flag, page int64, sortKey string, sortType int64, freeState model.FreeState, coinAmount int64) ([]*model.OrderBrc20Model, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"state": model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+	if sellerAddress != "" {
+		find["sellerAddress"] = sellerAddress
+	}
+	if buyerAddress != "" {
+		find["buyerAddress"] = buyerAddress
+	}
+	if orderType != 0 {
+		find["orderType"] = orderType
+	}
+	if coinAmount != 0 {
+		find["coinAmount"] = coinAmount
+	}
+	if orderState != 0 {
+		if orderState == model.OrderStateAll {
+			find["orderState"] = bson.M{IN_: []model.OrderState{
+				model.OrderStateCreate,
+				model.OrderStateFinish,
+				model.OrderStateCancel,
+				model.OrderStateErr,
+			}}
+		} else {
+			find["orderState"] = orderState
+		}
+	}
+
+	if freeState != 0 {
+		find["freeState"] = freeState
+	}
+
+	switch sortKey {
+	case "coinRatePrice":
+		sortKey = "coinRatePrice"
+	default:
+		sortKey = "timestamp"
+	}
+
+	flagKey := GT_
+	if sortType >= 0 {
+		sortType = 1
+		flagKey = GT_
+	} else {
+		sortType = -1
+		flagKey = LT_
+	}
+
+	skip := int64(0)
+	if page != 0 {
+		skip = (page - 1) * limit
+	} else if flag != 0 {
+		find[sortKey] = bson.M{flagKey: flag}
+	}
+
+	models := make([]*model.OrderBrc20Model, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(skip)
+	sort := options.Find().SetSort(bson.M{sortKey: sortType})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.OrderBrc20Model{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get OrderBrc20Model Error")
+	}
+	return models, nil
+}

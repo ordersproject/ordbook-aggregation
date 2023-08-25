@@ -5,8 +5,9 @@ import (
 )
 
 const (
-	CacheLockUtxoTypeDummy = "dummy"
-	CacheLockUtxoTypeBidpay = "bidpay"
+	CacheLockUtxoTypeDummy               = "dummy"
+	CacheLockUtxoTypeBidpay              = "bidpay"
+	CacheLockUtxoTypeMultiSigInscription = "multisiginscriptionpay"
 )
 
 var _lockUtxoItemMap *LockUtxoItemMap
@@ -17,15 +18,14 @@ func init() {
 
 type LockUtxoItemMap struct {
 	LockUtxoInfoExist map[string]int // 0-unlock, 1-lock
-	Lock          *sync.RWMutex
+	Lock              *sync.RWMutex
 	//Lock          *sync.Mutex
 }
-
 
 func NewLockUtxoItemMap() *LockUtxoItemMap {
 	userInfoItemMap := &LockUtxoItemMap{
 		LockUtxoInfoExist: make(map[string]int),
-		Lock: new(sync.RWMutex),
+		Lock:              new(sync.RWMutex),
 	}
 	return userInfoItemMap
 }
@@ -37,7 +37,7 @@ func GetLockUtxoItemMap() *LockUtxoItemMap {
 	return _lockUtxoItemMap
 }
 
-func (u LockUtxoItemMap) Get(cacheLockUtxoType string) (int, bool)  {
+func (u LockUtxoItemMap) Get(cacheLockUtxoType string) (int, bool) {
 	u.Lock.RLock()
 	defer u.Lock.RUnlock()
 	if v, ok := u.LockUtxoInfoExist[cacheLockUtxoType]; ok {
@@ -46,7 +46,7 @@ func (u LockUtxoItemMap) Get(cacheLockUtxoType string) (int, bool)  {
 	return 0, false
 }
 
-func (u LockUtxoItemMap) GetAndSet(cacheLockUtxoType string, lockState int) (int, bool)  {
+func (u LockUtxoItemMap) GetAndSet(cacheLockUtxoType string, lockState int) (int, bool) {
 	u.Lock.RLock()
 	defer u.Lock.RUnlock()
 	if v, ok := u.LockUtxoInfoExist[cacheLockUtxoType]; ok {
@@ -56,14 +56,13 @@ func (u LockUtxoItemMap) GetAndSet(cacheLockUtxoType string, lockState int) (int
 	return lockState, false
 }
 
-func (u LockUtxoItemMap) Set(cacheLockUtxoType string, lockState int)  {
+func (u LockUtxoItemMap) Set(cacheLockUtxoType string, lockState int) {
 	u.Lock.Lock()
 	defer u.Lock.Unlock()
 	u.LockUtxoInfoExist[cacheLockUtxoType] = lockState
 }
 
-
-func (u LockUtxoItemMap) Deleted(cacheLockUtxoType string)  {
+func (u LockUtxoItemMap) Deleted(cacheLockUtxoType string) {
 	u.Lock.Lock()
 	defer u.Lock.Unlock()
 	//delete() not usable

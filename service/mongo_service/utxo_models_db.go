@@ -13,7 +13,7 @@ import (
 )
 
 func FindOrderUtxoModelByUtxorId(utxoId string) (*model.OrderUtxoModel, error) {
-	collection, err :=  model.OrderUtxoModel{}.GetReadDB()
+	collection, err := model.OrderUtxoModel{}.GetReadDB()
 	if err != nil {
 		return nil, err
 	}
@@ -29,8 +29,7 @@ func FindOrderUtxoModelByUtxorId(utxoId string) (*model.OrderUtxoModel, error) {
 	return entity, nil
 }
 
-
-func createOrderUtxoModel(orderUtxo *model.OrderUtxoModel) (*model.OrderUtxoModel, error)  {
+func createOrderUtxoModel(orderUtxo *model.OrderUtxoModel) (*model.OrderUtxoModel, error) {
 	collection, err := model.OrderUtxoModel{}.GetWriteDB()
 	if err != nil {
 		return nil, err
@@ -40,6 +39,7 @@ func createOrderUtxoModel(orderUtxo *model.OrderUtxoModel) (*model.OrderUtxoMode
 	CreateIndex(collection, "net")
 	CreateIndex(collection, "utxoType")
 	CreateIndex(collection, "txId")
+	CreateIndex(collection, "amount")
 	CreateIndex(collection, "index")
 	CreateIndex(collection, "used")
 	CreateIndex(collection, "useTx")
@@ -75,7 +75,7 @@ func createOrderUtxoModel(orderUtxo *model.OrderUtxoModel) (*model.OrderUtxoMode
 	}
 }
 
-func SetOrderUtxoModel(orderUtxo *model.OrderUtxoModel) (*model.OrderUtxoModel, error)  {
+func SetOrderUtxoModel(orderUtxo *model.OrderUtxoModel) (*model.OrderUtxoModel, error) {
 	entity, err := FindOrderUtxoModelByUtxorId(orderUtxo.UtxoId)
 	if err == nil && entity != nil {
 		collection, err := model.OrderUtxoModel{}.GetWriteDB()
@@ -114,8 +114,7 @@ func SetOrderUtxoModel(orderUtxo *model.OrderUtxoModel) (*model.OrderUtxoModel, 
 	}
 }
 
-
-func UpdateOrderUtxoModelForUsed(utxoId, useTx string, UsedState  model.UsedState) error {
+func UpdateOrderUtxoModelForUsed(utxoId, useTx string, UsedState model.UsedState) error {
 	entity, err := FindOrderUtxoModelByUtxorId(utxoId)
 	if err == nil && entity != nil {
 		collection, err := model.OrderUtxoModel{}.GetWriteDB()
@@ -141,9 +140,7 @@ func UpdateOrderUtxoModelForUsed(utxoId, useTx string, UsedState  model.UsedStat
 	return nil
 }
 
-
-
-func FindUtxoList(net string, startIndex, limit int64, utxoType model.UtxoType) ([]*model.OrderUtxoModel, error){
+func FindUtxoList(net string, startIndex, limit, perAmount int64, utxoType model.UtxoType) ([]*model.OrderUtxoModel, error) {
 	collection, err := model.OrderUtxoModel{}.GetReadDB()
 	if err != nil {
 		return nil, errors.New("db connect error")
@@ -153,13 +150,17 @@ func FindUtxoList(net string, startIndex, limit int64, utxoType model.UtxoType) 
 	}
 
 	find := bson.M{
-		"net":  net,
-		"utxoType":  utxoType,
-		"used":  model.UsedNo,
-		"state": model.STATE_EXIST,
+		"net":      net,
+		"utxoType": utxoType,
+		"used":     model.UsedNo,
+		"state":    model.STATE_EXIST,
 	}
-	start := bson.M{GT_:startIndex}
+	start := bson.M{GT_: startIndex}
 	find["sortIndex"] = start
+
+	if perAmount != 0 {
+		find["amount"] = perAmount
+	}
 
 	models := make([]*model.OrderUtxoModel, 0)
 	pagination := options.Find().SetLimit(limit).SetSkip(0)
@@ -178,7 +179,7 @@ func FindUtxoList(net string, startIndex, limit int64, utxoType model.UtxoType) 
 	return models, nil
 }
 
-func GetLatestStartIndexUtxo(net string, utxoType model.UtxoType) (*model.OrderUtxoModel, error){
+func GetLatestStartIndexUtxo(net string, utxoType model.UtxoType, perAmount int64) (*model.OrderUtxoModel, error) {
 	collection, err := model.OrderUtxoModel{}.GetReadDB()
 	if err != nil {
 		return nil, errors.New("db connect error")
@@ -187,10 +188,13 @@ func GetLatestStartIndexUtxo(net string, utxoType model.UtxoType) (*model.OrderU
 		return nil, errors.New("db connect error")
 	}
 	find := bson.M{
-		"net":  net,
-		"utxoType":  utxoType,
-		"used":  model.UsedNo,
-		"state": model.STATE_EXIST,
+		"net":      net,
+		"utxoType": utxoType,
+		"used":     model.UsedNo,
+		"state":    model.STATE_EXIST,
+	}
+	if perAmount != 0 {
+		find["amount"] = perAmount
 	}
 	sort := options.FindOne().SetSort(bson.M{"sortIndex": -1})
 	entity := &model.OrderUtxoModel{}
@@ -201,7 +205,7 @@ func GetLatestStartIndexUtxo(net string, utxoType model.UtxoType) (*model.OrderU
 	return entity, nil
 }
 
-func SetManyUtxoInSession(utxoList []*model.OrderUtxoModel, jop func()error) error {
+func SetManyUtxoInSession(utxoList []*model.OrderUtxoModel, jop func() error) error {
 	mongoDB, err := major.GetOrderbookDb()
 	if err != nil {
 		return err
@@ -212,7 +216,6 @@ func SetManyUtxoInSession(utxoList []*model.OrderUtxoModel, jop func()error) err
 			return err
 		}
 		collection := mongoDB.Database(model.OrderUtxoModel{}.GetDB()).Collection(model.OrderUtxoModel{}.GetCollection())
-
 
 		for _, orderUtxo := range utxoList {
 			entity := &model.OrderUtxoModel{
@@ -243,7 +246,6 @@ func SetManyUtxoInSession(utxoList []*model.OrderUtxoModel, jop func()error) err
 			fmt.Printf("InsertOne in mongo transaction success\n")
 		}
 
-
 		//if _, err := collection.InsertMany(sessionContext, utxoList); err != nil {
 		//	if err := sessionContext.AbortTransaction(context.Background()); err != nil {
 		//		fmt.Printf("mongo transaction rollback failed, %s\n", err.Error())
@@ -260,7 +262,6 @@ func SetManyUtxoInSession(utxoList []*model.OrderUtxoModel, jop func()error) err
 			return err
 		}
 
-
 		if err := sessionContext.CommitTransaction(context.Background()); err != nil {
 			fmt.Printf("mongo transaction commit failed, %s\n", err.Error())
 			return err
@@ -271,4 +272,37 @@ func SetManyUtxoInSession(utxoList []*model.OrderUtxoModel, jop func()error) err
 		return err
 	}
 	return nil
+}
+
+func FindAllUtxoList(net string, limit int64, utxoType model.UtxoType, useState model.UsedState) ([]*model.OrderUtxoModel, error) {
+	collection, err := model.OrderUtxoModel{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"net":      net,
+		"utxoType": utxoType,
+		"state":    model.STATE_EXIST,
+	}
+	find["used"] = useState
+
+	models := make([]*model.OrderUtxoModel, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(0)
+	sort := options.Find().SetSort(bson.M{"sortIndex": 1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.OrderUtxoModel{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get OrderUtxoModel Error")
+	}
+	return models, nil
 }

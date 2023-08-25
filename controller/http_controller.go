@@ -44,6 +44,7 @@ func Run() {
 		brc20.POST("/transfer/colddown", ColdDownBrc20Transfer)
 		brc20.POST("/transfer/colddown/batch", ColdDownBrc20TransferBatch)
 		brc20.POST("/transfer/colddown/batch/ask", ColdDownBatchBrc20TransferAndMakeAsk)
+		brc20.POST("/transfer/colddown/batch/pool", ColdDownBatchBrc20TransferAndMakePool)
 		brc20.POST("/utxo/colddown", ColdDownUtxo)
 
 		brc20.GET("/ws/uuid", GetWsUuid)

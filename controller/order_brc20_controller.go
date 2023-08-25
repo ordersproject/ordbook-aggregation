@@ -214,7 +214,7 @@ func FetchTicker(c *gin.Context) {
 // @Tags brc20
 // @Param net query string true "net"
 // @Param tick query string true "tick"
-// @Param interval query string false "interval：1m/1s/15m/1h/4h/1d/1w/"
+// @Param interval query string false "interval：15m/1h/4h/1d/1w/"
 // @Param limit query int false "limit"
 // @Param flag query int false "flag"
 // @Success 200 {object} respond.KlineItem ""

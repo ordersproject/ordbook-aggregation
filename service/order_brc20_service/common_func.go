@@ -132,7 +132,7 @@ func GetTxHash(rawTxByte []byte) string {
 }
 
 func GetTestFakerInscription(net string) []*model.OrderUtxoModel {
-	utxoMockInscriptionList, _ := mongo_service.FindUtxoList(net, -1, 1000, model.UtxoTypeFakerInscription)
+	utxoMockInscriptionList, _ := mongo_service.FindUtxoList(net, -1, 1000, 0, model.UtxoTypeFakerInscription)
 	return utxoMockInscriptionList
 }
 
@@ -213,6 +213,27 @@ func GetPlatformKeyMultiSig(net string) (string, string) {
 	return config.PlatformMainnetPrivateKeyMultiSig, config.PlatformMainnetPublicKeyMultiSig
 }
 
+func GetPlatformKeyAndAddressForMultiSigInscription(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyInscriptionMultiSig, config.PlatformTestnetAddressInscriptionMultiSig
+	}
+	return config.PlatformMainnetPrivateKeyInscriptionMultiSig, config.PlatformMainnetAddressInscriptionMultiSig
+}
+
+func GetPlatformKeyAndAddressForMultiSigInscriptionAndReceiveValue(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyInscriptionMultiSigForReceiveValue, config.PlatformTestnetAddressInscriptionMultiSigForReceiveValue
+	}
+	return config.PlatformMainnetPrivateKeyInscriptionMultiSigForReceiveValue, config.PlatformMainnetAddressInscriptionMultiSigForReceiveValue
+}
+
+func GetPlatformKeyAndAddressForRewardBrc20(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyRewardBrc20, config.PlatformTestnetAddressRewardBrc20
+	}
+	return config.PlatformMainnetPrivateKeyRewardBrc20, config.PlatformMainnetAddressRewardBrc20
+}
+
 func CheckBidInscriptionIdExist(inscriptionId string) bool {
 	entity, _ := mongo_service.FindOrderBrc20ModelByInscriptionId(inscriptionId, model.OrderStateCreate)
 	if entity == nil || entity.Id == 0 {
@@ -243,7 +264,18 @@ func setUsedBidYUtxo(utxoBidYList []*model.OrderUtxoModel, useTx string) {
 	}
 }
 
-func serUsedFakerInscriptionUtxo(utxoId, useTx string, useState model.UsedState) {
+func setUsedMultiSigInscriptionUtxo(utxoMultiSigInscriptionList []*model.OrderUtxoModel, useTx string) {
+	for _, v := range utxoMultiSigInscriptionList {
+		v.UseTx = useTx
+		v.UsedState = model.UsedYes
+		err := mongo_service.UpdateOrderUtxoModelForUsed(v.UtxoId, useTx, v.UsedState)
+		if err != nil {
+			continue
+		}
+	}
+}
+
+func setUsedFakerInscriptionUtxo(utxoId, useTx string, useState model.UsedState) {
 	err := mongo_service.UpdateOrderUtxoModelForUsed(utxoId, useTx, useState)
 	if err != nil {
 		return

@@ -353,7 +353,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "interval：1m/1s/15m/1h/4h/1d/1w/",
+                        "description": "interval：15m/1h/4h/1d/1w/",
                         "name": "interval",
                         "in": "query"
                     },
@@ -1411,6 +1411,37 @@ const docTemplate = `{
                 }
             }
         },
+        "/brc20/transfer/colddown/batch/pool": {
+            "post": {
+                "description": "Cold down the brc20 transfer batch",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Cold down the brc20 transfer batch",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.ColdDownBrcTransferBatch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Brc20TransferCommitBatchResp"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/utxo/colddown": {
             "post": {
                 "description": "Do bid order",
@@ -1468,11 +1499,13 @@ const docTemplate = `{
             "type": "integer",
             "enum": [
                 1,
-                2
+                2,
+                3
             ],
             "x-enum-varnames": [
                 "FreeStateYes",
-                "FreeStateClaim"
+                "FreeStateClaim",
+                "FreeStatePoolClaim"
             ]
         },
         "model.OrderState": {
@@ -1488,6 +1521,8 @@ const docTemplate = `{
                 7,
                 9,
                 10,
+                11,
+                12,
                 100
             ],
             "x-enum-varnames": [
@@ -1501,6 +1536,8 @@ const docTemplate = `{
                 "OrderStatePreAsk",
                 "OrderStatePreClaim",
                 "OrderStateFinishClaim",
+                "OrderStatePoolPreClaim",
+                "OrderStatePoolFinishClaim",
                 "OrderStateAll"
             ]
         },
@@ -1535,12 +1572,14 @@ const docTemplate = `{
             "enum": [
                 1,
                 2,
-                3
+                3,
+                4
             ],
             "x-enum-varnames": [
                 "PoolTypeTick",
                 "PoolTypeBtc",
-                "PoolTypeBoth"
+                "PoolTypeBoth",
+                "PoolTypeMultiSigInscription"
             ]
         },
         "model.UtxoType": {
@@ -1548,12 +1587,14 @@ const docTemplate = `{
             "enum": [
                 1,
                 2,
-                6
+                6,
+                10
             ],
             "x-enum-varnames": [
                 "UtxoTypeDummy",
                 "UtxoTypeBidY",
-                "UtxoTypeFakerInscription"
+                "UtxoTypeFakerInscription",
+                "UtxoTypeMultiInscription"
             ]
         },
         "request.Brc20CommitReq": {
@@ -1952,6 +1993,10 @@ const docTemplate = `{
                 },
                 "psbtRaw": {
                     "type": "string"
+                },
+                "rewardIndex": {
+                    "description": "0-no, 1-yes",
+                    "type": "integer"
                 }
             }
         },
@@ -2500,6 +2545,10 @@ const docTemplate = `{
                     "description": "coin PSBT Raw",
                     "type": "string"
                 },
+                "coinTransferPsbtRaw": {
+                    "description": "coin transfer PSBT Raw",
+                    "type": "string"
+                },
                 "fee": {
                     "description": "claim fee",
                     "type": "integer"
@@ -2522,6 +2571,10 @@ const docTemplate = `{
                 },
                 "rewardCoinAmount": {
                     "type": "integer"
+                },
+                "rewardPsbtRaw": {
+                    "description": "reward PSBT Raw",
+                    "type": "string"
                 },
                 "tick": {
                     "description": "Brc20 symbol",

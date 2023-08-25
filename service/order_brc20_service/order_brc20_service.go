@@ -669,28 +669,6 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	if entity == nil {
 		return nil, errors.New("Bid is empty. ")
 	}
-	if entity.PoolOrderId != "" {
-		poolOrder, _ := mongo_service.FindPoolBrc20ModelByOrderId(entity.PoolOrderId)
-		if poolOrder == nil {
-			entity.OrderState = model.OrderStateErr
-			_, err := mongo_service.SetOrderBrc20Model(entity)
-			if err != nil {
-				return nil, err
-			}
-			return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck pool order is empty"))
-		} else if poolOrder.PoolState != model.PoolStateAdd {
-			entity.OrderState = model.OrderStateErr
-			_, err := mongo_service.SetOrderBrc20Model(entity)
-			if err != nil {
-				return nil, err
-			}
-			return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck pool order status not AddState"))
-		} else {
-			addressSendBrc20 = poolOrder.CoinAddress
-			multiSigScript = poolOrder.MultiSigScript
-			inscriptionOutputValue = 1000 - 546
-		}
-	}
 
 	newDummyOutPriKeyHex, newDummyOutSegwitAddress, err := create_key.CreateSegwitKey(netParams)
 	if err != nil {
@@ -766,30 +744,42 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 
 	brc20ReceiveValue = inValue
 
-	//utxoDummyList, _ = mongo_service.FindUtxoList(req.Net, startIndexDummy, 2, model.UtxoTypeDummy)
-	//if len(utxoDummyList) == 0 {
-	//	return nil, errors.New("Service Upgrade for dummy. ")
-	//}
-	utxoDummyList, err = GetUnoccupiedUtxoList(req.Net, 2, model.UtxoTypeDummy)
+	if entity.PoolOrderId != "" {
+		poolOrder, _ := mongo_service.FindPoolBrc20ModelByOrderId(entity.PoolOrderId)
+		if poolOrder == nil {
+			entity.OrderState = model.OrderStateErr
+			_, err := mongo_service.SetOrderBrc20Model(entity)
+			if err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck pool order is empty"))
+		} else if poolOrder.PoolState != model.PoolStateAdd {
+			entity.OrderState = model.OrderStateErr
+			_, err := mongo_service.SetOrderBrc20Model(entity)
+			if err != nil {
+				return nil, err
+			}
+			return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck pool order status not AddState"))
+		} else {
+			addressSendBrc20 = poolOrder.CoinAddress
+			multiSigScript = poolOrder.MultiSigScript
+			inscriptionOutputValue = 4000 - brc20ReceiveValue
+		}
+	}
+
+	utxoDummyList, err = GetUnoccupiedUtxoList(req.Net, 2, 0, model.UtxoTypeDummy)
 	defer ReleaseUtxoList(utxoDummyList)
 	if err != nil {
 		return nil, err
 	}
 
 	//get bidY pay utxo
-	limit := (entity.SupplementaryAmount+sellerReceiveValue+entity.Fee+inscriptionOutputValue)/platformPayPerAmount + 1
-	changeAmount := platformPayPerAmount*limit - (entity.SupplementaryAmount + sellerReceiveValue + entity.Fee + inscriptionOutputValue)
+	totalNeedAmount := entity.SupplementaryAmount + sellerReceiveValue + entity.Fee + inscriptionOutputValue
+	limit := totalNeedAmount/platformPayPerAmount + 1
+	changeAmount := platformPayPerAmount*limit - totalNeedAmount
 	fmt.Printf("changeAmount: %d\n", changeAmount)
 
-	//utxoBidYList, _ = mongo_service.FindUtxoList(req.Net, startIndexBidY, int64(limit), model.UtxoTypeBidY)
-	//if len(utxoBidYList) == 0 {
-	//	return nil, errors.New("Service Upgrade for bid. ")
-	//}
-	//if uint64(len(utxoBidYList)) != limit {
-	//	return nil, errors.New("Service Upgrade for bid. ")
-	//}
-
-	utxoBidYList, err = GetUnoccupiedUtxoList(req.Net, int64(limit), model.UtxoTypeBidY)
+	utxoBidYList, err = GetUnoccupiedUtxoList(req.Net, int64(limit), int64(totalNeedAmount), model.UtxoTypeBidY)
 	defer ReleaseUtxoList(utxoDummyList)
 	if err != nil {
 		return nil, err

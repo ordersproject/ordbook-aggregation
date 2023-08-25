@@ -13,7 +13,7 @@ func Fix() {
 	var (
 		net       string = "livenet"
 		nowTime   int64  = tool.MakeTimestamp()
-		startTime int64  = 1688112000000
+		startTime int64  = 1692677705213
 		disTime   int64  = 1000 * 60 * 15
 
 		entityList []*model.Brc20TickModel
@@ -93,6 +93,7 @@ func updateTickKline(net, tick string, startTime, endTime int64) {
 			Volume:    volume,
 			Timestamp: endTime,
 		}
+		_, err = mongo_service.SetBrc20TickKlineModel(kline)
 		if err != nil {
 			major.Println(fmt.Sprintf("SetBrc20TickKlineModel err:%s", err.Error()))
 			return

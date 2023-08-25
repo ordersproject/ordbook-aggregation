@@ -49,7 +49,6 @@ func FetchClaimOrder(req *request.OrderBrc20ClaimFetchOneReq, publicKey, ip stri
 	if err != nil {
 		return nil, err
 	}
-	//defer ReleaseClaimOrderList([]*model.OrderBrc20Model{entity})
 	if entity == nil {
 		return nil, errors.New("Claim Order is empty. ")
 	}
