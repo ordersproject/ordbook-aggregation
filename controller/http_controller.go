@@ -63,11 +63,16 @@ func Run() {
 		//brc20.POST("/pool/order/claim", auth.AuthSignMiddleware(), ClaimPool)
 		brc20.POST("/pool/order/claim", ClaimPool)
 		brc20.POST("/pool/order/claim/commit", auth.AuthSignMiddleware(), UpdateClaim)
+
 		brc20.GET("/pool/orders", FetchPoolOrders)
 		brc20.GET("/pool/order/:orderId", auth.AuthSignMiddleware(), FetchOnePoolOrder)
 		brc20.GET("/pool/pair/info", FetchPoolPairInfo)
 		brc20.GET("/pool/pair/info/one", FetchOnePoolPairInfo)
 		brc20.GET("/pool/inscription", FetchPoolInscription)
+		//brc20.GET("/pool/reward/info", auth.AuthSignMiddleware(), FetchOwnerReward)
+		brc20.GET("/pool/reward/info", FetchOwnerReward)
+		brc20.POST("/pool/reward/claim", auth.AuthSignMiddleware(), ClaimReward)
+		brc20.GET("/pool/reward/orders", FetchPoolRewardOrders)
 
 	}
 

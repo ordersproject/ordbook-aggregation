@@ -11,3 +11,8 @@ func GetRawTx(net, txId string) (string, error) {
 	txRaw, err := client.GetTransactionHex(net, txId)
 	return txRaw, err
 }
+
+func CurrentBlockHeight(net string) (uint64, error) {
+	client := NewClientController(net)
+	return client.GetBlockHeight(net)
+}

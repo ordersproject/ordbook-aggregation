@@ -34,6 +34,19 @@ func FetchClaimOrder(req *request.OrderBrc20ClaimFetchOneReq, publicKey, ip stri
 	_ = todayStartTime
 	_ = todayEndTime
 
+	if req.Address == "bc1pxeyh7t7jsjy8cp82uyktluswrjks857g9p5jp9p3gznhh4l43vasxk73yh" ||
+		req.Address == "bc1prqtv8aep7ucyxkvf7d6ysvjcaqt97w8rhgujdqfggsa75s038xssu0plp8" ||
+		req.Address == "bc1pnjnls650g6jsfcz9khfe6whrgz554cr3qce6mtm3w9fm98yhad7q3gg548" ||
+		req.Address == "bc1pcn5jrkj685js2drekqhfy3y7asty9l3gy6eqprk77ek5rh4vmftqwtqlsa" ||
+		req.Address == "bc1qpdut0l6x4talcmrea0vy0dy3f8n6du9vkljnrt" ||
+		req.Address == "bc1pwn878nk8fxkqtw5r3kwqftam3qdhu5m4mngyv8wax0jua9jhymwsyjkph2" ||
+		req.Address == "bc1pt37lx4xls62l8fx79pk3tsk0xm4f94tzj3gccjm69h0u5ppct7sqzc0ccl" ||
+		req.Address == "bc1ptf0n3jes6zv8zm6ttz020pnqvvx7pxq3grsx8tgt52wj9lnfruvqg7seaw" {
+
+	} else {
+		return nil, errors.New("The event has ended, thank you for participating. ")
+	}
+
 	claimCoinAmount, canCount, _ := getWhitelistCount(req.Net, req.Tick, req.Address, ip, model.WhitelistTypeClaim)
 	if canCount <= 0 {
 		claimCoinAmount, canCount, err = getWhitelistCount(req.Net, req.Tick, req.Address, ip, model.WhitelistTypeClaim1w)

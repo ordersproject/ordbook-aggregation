@@ -25,9 +25,8 @@ type UtxoAddressType string
 
 const (
 	UtxoAddressTypeTaproot UtxoAddressType = "taproot"
-	UtxoAddressTypeSegwit UtxoAddressType = "segwit"
+	UtxoAddressTypeSegwit  UtxoAddressType = "segwit"
 )
-
 
 type InscriptionData struct {
 	ContentType string
@@ -36,9 +35,9 @@ type InscriptionData struct {
 }
 
 type InscriptionRequest struct {
-	CommitTxOutPointList   []*wire.OutPoint
-	CommitTxPrivateKeyList []*btcec.PrivateKey // If used without RPC,
-	CommitTxUtxoAddressTypeList []UtxoAddressType // sign utxo type
+	CommitTxOutPointList        []*wire.OutPoint
+	CommitTxPrivateKeyList      []*btcec.PrivateKey // If used without RPC,
+	CommitTxUtxoAddressTypeList []UtxoAddressType   // sign utxo type
 	// a local signature is required for committing the commit tx.
 	// Currently, CommitTxPrivateKeyList[i] sign CommitTxOutPointList[i]
 	CommitFeeRate      int64
@@ -47,7 +46,7 @@ type InscriptionRequest struct {
 	SingleRevealTxOnly bool // Currently, the official Ordinal parser can only parse a single NFT per transaction.
 	// When the official Ordinal parser supports parsing multiple NFTs in the future, we can consider using a single reveal transaction.
 	RevealOutValue int64
-	ChangeAddress string
+	ChangeAddress  string
 }
 
 type inscriptionTxCtxData struct {
@@ -65,15 +64,15 @@ type blockchainClient struct {
 }
 
 type InscriptionTool struct {
-	net                       *chaincfg.Params
-	client                    *blockchainClient
-	commitTxPrevOutputFetcher *txscript.MultiPrevOutFetcher
-	commitTxPrivateKeyList    []*btcec.PrivateKey
+	net                         *chaincfg.Params
+	client                      *blockchainClient
+	commitTxPrevOutputFetcher   *txscript.MultiPrevOutFetcher
+	commitTxPrivateKeyList      []*btcec.PrivateKey
 	CommitTxUtxoAddressTypeList []UtxoAddressType
-	txCtxDataList             []*inscriptionTxCtxData
-	revealTxPrevOutputFetcher *txscript.MultiPrevOutFetcher
-	revealTx                  []*wire.MsgTx
-	commitTx                  *wire.MsgTx
+	txCtxDataList               []*inscriptionTxCtxData
+	revealTxPrevOutputFetcher   *txscript.MultiPrevOutFetcher
+	revealTx                    []*wire.MsgTx
+	commitTx                    *wire.MsgTx
 }
 
 const (
@@ -365,6 +364,7 @@ func (tool *InscriptionTool) buildCommitTx(commitTxOutPointList []*wire.OutPoint
 	fee := btcutil.Amount(mempool.GetTxVirtualSize(btcutil.NewTx(tx))) * btcutil.Amount(commitFeeRate)
 	changeAmount := totalSenderAmount - btcutil.Amount(totalRevealPrevOutput) - fee
 	if changeAmount > 0 {
+		//if changeAmount > 546 {
 		tx.TxOut[len(tx.TxOut)-1].Value = int64(changeAmount)
 	} else {
 		tx.TxOut = tx.TxOut[:len(tx.TxOut)-1]
@@ -449,7 +449,7 @@ func (tool *InscriptionTool) signCommitTx() error {
 					return err
 				}
 				witnessList[i] = witness
-			}else {
+			} else {
 				switch tool.CommitTxUtxoAddressTypeList[i] {
 				case UtxoAddressTypeSegwit:
 					txOut := tool.commitTxPrevOutputFetcher.FetchPrevOutput(tool.commitTx.TxIn[i].PreviousOutPoint)

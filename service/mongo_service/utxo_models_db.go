@@ -140,6 +140,29 @@ func UpdateOrderUtxoModelForUsed(utxoId, useTx string, UsedState model.UsedState
 	return nil
 }
 
+func CountUtxoList(net string, perAmount int64, utxoType model.UtxoType) (int64, error) {
+	collection, err := model.OrderUtxoModel{}.GetReadDB()
+	if err != nil {
+		return 0, err
+	}
+	find := bson.M{
+		"net":      net,
+		"utxoType": utxoType,
+		"used":     model.UsedNo,
+		"state":    model.STATE_EXIST,
+	}
+
+	if perAmount != 0 {
+		find["amount"] = perAmount
+	}
+
+	total, err := collection.CountDocuments(context.TODO(), find)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 func FindUtxoList(net string, startIndex, limit, perAmount int64, utxoType model.UtxoType) ([]*model.OrderUtxoModel, error) {
 	collection, err := model.OrderUtxoModel{}.GetReadDB()
 	if err != nil {

@@ -282,6 +282,10 @@ func FindOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string,
 		}
 	}
 
+	if freeState != 0 {
+		find["freeState"] = freeState
+	}
+
 	switch sortKey {
 	case "coinRatePrice":
 		sortKey = "coinRatePrice"
@@ -463,16 +467,17 @@ func FindOrderBrc20ModelListByTimestamp(net, tick string,
 	}
 
 	if startTIme != 0 {
-		or := make([]bson.M, 0)
+
 		between := bson.M{GTE_: startTIme}
 		if endTime != 0 {
 			between[LTE_] = endTime
 		}
-		//find["timestamp"] = start
-		or = append(or, bson.M{"timestamp": between})
-		or = append(or, bson.M{"dealTime": between})
+		//or := make([]bson.M, 0)
+		//or = append(or, bson.M{"timestamp": between})
+		//or = append(or, bson.M{"dealTime": between})
+		//find[OR_] = or
 
-		find[OR_] = or
+		between["timestamp"] = between
 	}
 
 	sortKey := "timestamp"
@@ -494,6 +499,30 @@ func FindOrderBrc20ModelListByTimestamp(net, tick string,
 		return nil, errors.New("Get OrderBrc20Model Error")
 	}
 	return models, nil
+}
+
+func FindLastOrderBrc20ModelFinish(net, tick string, orderType model.OrderType, orderState model.OrderState) (*model.OrderBrc20Model, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.D{
+		{"net", net},
+		{"tick", tick},
+		//{"orderType", orderType},
+		{"orderState", orderState},
+		//{"state", model.STATE_EXIST},
+	}
+	if orderType != 0 {
+		queryBson = append(queryBson, bson.E{Key: "orderType", Value: orderType})
+	}
+	sort := options.FindOne().SetSort(bson.M{"dealTime": -1})
+	entity := &model.OrderBrc20Model{}
+	err = collection.FindOne(context.TODO(), queryBson, sort).Decode(entity)
+	if err != nil {
+		return nil, err
+	}
+	return entity, nil
 }
 
 func FindOrderBrc20BidDummyModelByDummyId(dummyId string) (*model.OrderBrc20BidDummyModel, error) {
@@ -896,7 +925,7 @@ func FindWhitelistModelByIpAndType(ip string, whitelistType model.WhitelistType)
 	return entity, nil
 }
 
-func FindOrderBrc20ModelToolList(net, tick, sellerAddress, buyerAddress string,
+func FindOrderBrc20ModelToolList(net, tick, sellerAddress, buyerAddress, buyerIp, inscriptionId string,
 	orderType model.OrderType, orderState model.OrderState,
 	limit int64, flag, page int64, sortKey string, sortType int64, freeState model.FreeState, coinAmount int64) ([]*model.OrderBrc20Model, error) {
 	collection, err := model.OrderBrc20Model{}.GetReadDB()
@@ -916,11 +945,17 @@ func FindOrderBrc20ModelToolList(net, tick, sellerAddress, buyerAddress string,
 	if tick != "" {
 		find["tick"] = tick
 	}
+	if inscriptionId != "" {
+		find["inscriptionId"] = inscriptionId
+	}
 	if sellerAddress != "" {
 		find["sellerAddress"] = sellerAddress
 	}
 	if buyerAddress != "" {
 		find["buyerAddress"] = buyerAddress
+	}
+	if buyerIp != "" {
+		find["buyerIp"] = buyerIp
 	}
 	if orderType != 0 {
 		find["orderType"] = orderType
@@ -948,6 +983,8 @@ func FindOrderBrc20ModelToolList(net, tick, sellerAddress, buyerAddress string,
 	switch sortKey {
 	case "coinRatePrice":
 		sortKey = "coinRatePrice"
+	case "dealTime":
+		sortKey = "dealTime"
 	default:
 		sortKey = "timestamp"
 	}
@@ -983,4 +1020,178 @@ func FindOrderBrc20ModelToolList(net, tick, sellerAddress, buyerAddress string,
 		return nil, errors.New("Get OrderBrc20Model Error")
 	}
 	return models, nil
+}
+
+func FindOrderBrc20ModelListByDealTimestamp(net, tick string,
+	orderType model.OrderType, orderState model.OrderState, limit, startTIme, endTime int64) ([]*model.OrderBrc20Model, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"state": model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+
+	if orderType != 0 {
+		find["orderType"] = orderType
+	}
+	if orderState != 0 {
+		find["orderState"] = orderState
+	}
+
+	if startTIme != 0 {
+
+		between := bson.M{GTE_: startTIme}
+		if endTime != 0 {
+			between[LTE_] = endTime
+		}
+
+		between["dealTime"] = between
+	}
+
+	sortKey := "dealTime"
+
+	skip := int64(0)
+
+	models := make([]*model.OrderBrc20Model, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(skip)
+	sort := options.Find().SetSort(bson.M{sortKey: 1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.OrderBrc20Model{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get OrderBrc20Model Error")
+	}
+	return models, nil
+}
+
+func SetOrderBrc20ModelForInscriptionState(orderBrc20 *model.OrderBrc20Model) error {
+	entity, err := FindOrderBrc20ModelByOrderId(orderBrc20.OrderId)
+	if err == nil && entity != nil {
+		collection, err := model.OrderBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", orderBrc20.OrderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "inscriptionState", Value: orderBrc20.InscriptionState})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func FindOrderBrc20MarketInfoModelByPair(net, date string) (*model.OrderBrc20MarketInfoModel, error) {
+	collection, err := model.OrderBrc20MarketInfoModel{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.D{
+		{"net", net},
+		{"date", date},
+		//{"state", model.STATE_EXIST},
+	}
+	entity := &model.OrderBrc20MarketInfoModel{}
+	err = collection.FindOne(context.TODO(), queryBson).Decode(entity)
+	if err != nil {
+		return nil, err
+	}
+	return entity, nil
+}
+
+func createOrderBrc20MarketInfoModel(orderBrc20MarketInfo *model.OrderBrc20MarketInfoModel) (*model.OrderBrc20MarketInfoModel, error) {
+	collection, err := model.OrderBrc20MarketInfoModel{}.GetWriteDB()
+	if err != nil {
+		return nil, err
+	}
+
+	CreateUniqueIndex(collection, "netDate")
+	CreateIndex(collection, "net")
+	CreateIndex(collection, "date")
+	CreateIndex(collection, "bidVolume")
+	CreateIndex(collection, "timestamp")
+
+	entity := &model.OrderBrc20MarketInfoModel{
+		Id:         util.GetUUIDInt64(),
+		NetDate:    orderBrc20MarketInfo.NetDate,
+		Net:        orderBrc20MarketInfo.Net,
+		Date:       orderBrc20MarketInfo.Date,
+		AskVolume:  orderBrc20MarketInfo.AskVolume,
+		BidVolume:  orderBrc20MarketInfo.BidVolume,
+		AskFees:    orderBrc20MarketInfo.AskFees,
+		BidFees:    orderBrc20MarketInfo.BidFees,
+		Between:    orderBrc20MarketInfo.Between,
+		Timestamp:  orderBrc20MarketInfo.Timestamp,
+		CreateTime: util.Time(),
+		State:      model.STATE_EXIST,
+	}
+
+	_, err = collection.InsertOne(context.TODO(), entity)
+	if err != nil {
+		return nil, err
+	} else {
+		//id := res.InsertedID
+		//fmt.Println("insert id :", id)
+		return entity, nil
+	}
+}
+
+func SetOrderBrc20MarketInfoModel(orderBrc20MarketInfo *model.OrderBrc20MarketInfoModel) (*model.OrderBrc20MarketInfoModel, error) {
+	entity, err := FindOrderBrc20MarketInfoModelByPair(orderBrc20MarketInfo.Net, orderBrc20MarketInfo.Date)
+	if err == nil && entity != nil {
+		collection, err := model.OrderBrc20MarketInfoModel{}.GetWriteDB()
+		if err != nil {
+			return nil, err
+		}
+		filter := bson.D{
+			{"net", orderBrc20MarketInfo.Net},
+			{"date", orderBrc20MarketInfo.Date},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "netDate", Value: orderBrc20MarketInfo.NetDate})
+		bsonData = append(bsonData, bson.E{Key: "net", Value: orderBrc20MarketInfo.Net})
+		bsonData = append(bsonData, bson.E{Key: "date", Value: orderBrc20MarketInfo.Date})
+		bsonData = append(bsonData, bson.E{Key: "askVolume", Value: orderBrc20MarketInfo.AskVolume})
+		bsonData = append(bsonData, bson.E{Key: "bidVolume", Value: orderBrc20MarketInfo.BidVolume})
+		bsonData = append(bsonData, bson.E{Key: "askFees", Value: orderBrc20MarketInfo.AskFees})
+		bsonData = append(bsonData, bson.E{Key: "bidFees", Value: orderBrc20MarketInfo.BidFees})
+		bsonData = append(bsonData, bson.E{Key: "between", Value: orderBrc20MarketInfo.Between})
+		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: orderBrc20MarketInfo.Timestamp})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return nil, err
+		}
+		return orderBrc20MarketInfo, nil
+	} else {
+		return createOrderBrc20MarketInfoModel(orderBrc20MarketInfo)
+	}
 }

@@ -59,6 +59,14 @@ func main() {
 
 	order_brc20_service.InitCommon()
 
+	//order_brc20_service.AddWhiteListForSnapshot()
+	//order_brc20_service.AddWhiteList2()
+
+	//tool_service.CheckWlClaim()
+	//go tool_service.ToolSnapshotBtcBalanceHolder()
+	//tool_service.DownloadSnapshotHolderData()
+	//tool_service.FixAsk()
+
 	go ws.StartWS()
 	task.Run()
 	tool_service.RunAllJob()

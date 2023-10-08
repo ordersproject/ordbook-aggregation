@@ -9,22 +9,31 @@ type PoolResponse struct {
 }
 
 type PoolBrc20Item struct {
-	Net            string          `json:"net,omitempty"`            //Net env
-	OrderId        string          `json:"orderId,omitempty"`        //Order ID
-	Tick           string          `json:"tick,omitempty"`           //Brc20 symbol
-	Pair           string          `json:"pair,omitempty"`           //Brc20 pair
-	CoinAmount     uint64          `json:"coinAmount,omitempty"`     //tick
-	CoinDecimalNum int             `json:"coinDecimalNum,omitempty"` //tick
-	CoinAddress    string          `json:"coinAddress,omitempty"`    //tick
-	Amount         uint64          `json:"amount,omitempty"`         //
-	DecimalNum     int             `json:"decimalNum,omitempty"`     //
-	PoolType       model.PoolType  `json:"poolType,omitempty"`       //pool type：1-tick,2-btc
-	PoolState      model.PoolState `json:"poolState,omitempty"`      //pool state：1-add,2-remove,3-used,4-claim
-	Address        string          `json:"address,omitempty"`        //address
-	InscriptionId  string          `json:"inscriptionId,omitempty"`  //InscriptionId
-	CoinPsbtRaw    string          `json:"coinPsbtRaw,omitempty"`    //coin PSBT Raw
-	PsbtRaw        string          `json:"psbtRaw,omitempty"`        //PSBT Raw
-	Timestamp      int64           `json:"timestamp"`                //Create time
+	Net                                     string          `json:"net,omitempty"`            //Net env
+	OrderId                                 string          `json:"orderId,omitempty"`        //Order ID
+	Tick                                    string          `json:"tick,omitempty"`           //Brc20 symbol
+	Pair                                    string          `json:"pair,omitempty"`           //Brc20 pair
+	CoinAmount                              uint64          `json:"coinAmount,omitempty"`     //tick
+	CoinDecimalNum                          int             `json:"coinDecimalNum,omitempty"` //tick
+	CoinAddress                             string          `json:"coinAddress,omitempty"`    //tick
+	Amount                                  uint64          `json:"amount,omitempty"`         //
+	DecimalNum                              int             `json:"decimalNum,omitempty"`     //
+	PoolType                                model.PoolType  `json:"poolType,omitempty"`       //pool type：1-tick,2-btc
+	PoolState                               model.PoolState `json:"poolState,omitempty"`      //pool state：1-add,2-remove,3-used,4-claim
+	Address                                 string          `json:"address,omitempty"`        //address
+	InscriptionId                           string          `json:"inscriptionId,omitempty"`  //InscriptionId
+	CoinPsbtRaw                             string          `json:"coinPsbtRaw,omitempty"`    //coin PSBT Raw
+	PsbtRaw                                 string          `json:"psbtRaw,omitempty"`        //PSBT Raw
+	UtxoId                                  string          `json:"utxoId"`                   //UtxoId
+	MultiSigScriptAddress                   string          `json:"multiSigScriptAddress"`
+	DealInscriptionId                       string          `json:"dealInscriptionId"` //InscriptionId
+	DealInscriptionTx                       string          `json:"dealInscriptionTx"`
+	DealInscriptionTxIndex                  int64           `json:"dealInscriptionTxIndex"`
+	DealInscriptionTxOutValue               int64           `json:"dealInscriptionTxOutValue"`
+	DealInscriptionTime                     int64           `json:"dealInscriptionTime"`
+	MultiSigScriptAddressTickAvailableState int64           `json:"multiSigScriptAddressTickAvailableState"` //0-no, 1-available
+	Timestamp                               int64           `json:"timestamp"`                               //Create time
+	RewardCoinAmount                        int64           `json:"rewardCoinAmount,omitempty"`
 }
 
 type PoolInfoResponse struct {
@@ -46,8 +55,10 @@ type PoolInfoItem struct {
 }
 
 type PoolKeyInfoResp struct {
-	Net       string `json:"net,omitempty"`       //Net env
-	PublicKey string `json:"publicKey,omitempty"` // key
+	Net               string `json:"net,omitempty"`               //Net env
+	PublicKey         string `json:"publicKey,omitempty"`         // key
+	BtcPublicKey      string `json:"btcPublicKey,omitempty"`      // key for btc
+	BtcReceiveAddress string `json:"btcReceiveAddress,omitempty"` // key
 }
 
 type PoolInscriptionResp struct {
@@ -75,4 +86,32 @@ type PoolBrc20ClaimResp struct {
 	CoinPsbtRaw         string `json:"coinPsbtRaw"`             //coin PSBT Raw
 	RewardPsbtRaw       string `json:"rewardPsbtRaw"`           //reward PSBT Raw
 	RewardCoinAmount    int64  `json:"rewardCoinAmount,omitempty"`
+}
+
+type PoolBrc20RewardResp struct {
+	Net               string `json:"net,omitempty"`  //Net env
+	Tick              string `json:"tick,omitempty"` //Brc20 symbol
+	TotalRewardAmount uint64 `json:"totalRewardAmount"`
+	//ClaimedOwnCoinAmount     uint64 `json:"claimedOwnCoinAmount"`
+	//ClaimedOwnAmount         uint64 `json:"claimedOwnAmount"`
+	//ClaimedOwnCount          uint64 `json:"claimedOwnCount"`
+	HadClaimRewardAmount uint64 `json:"hadClaimRewardAmount"`
+	//HadClaimRewardOrderCount uint64 `json:"HadClaimRewardOrderCount"`
+}
+
+type PoolRewardOrderResponse struct {
+	Total   int64                  `json:"total,omitempty"`
+	Results []*PoolRewardOrderItem `json:"results,omitempty"`
+	Flag    int64                  `json:"flag,omitempty"`
+}
+
+type PoolRewardOrderItem struct {
+	Net              string            `json:"net,omitempty"`
+	Tick             string            `json:"tick,omitempty"`
+	OrderId          string            `json:"orderId,omitempty"`
+	Pair             string            `json:"pair"`
+	RewardCoinAmount int64             `json:"rewardCoinAmount,omitempty"`
+	Address          string            `json:"address,omitempty"`
+	RewardState      model.RewardState `json:"rewardState,omitempty"`
+	Timestamp        int64             `json:"timestamp,omitempty"`
 }

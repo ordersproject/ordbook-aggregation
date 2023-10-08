@@ -58,7 +58,7 @@ type Brc20KlineInfo struct {
 	Tick     string       `json:"tick"`
 	Interval string       `json:"interval"` //1m/1s/15m/1h/4h/1d/1w/
 	List     []*KlineItem `json:"list"`
-	flag     int64        `json:"flag"`
+	Flag     int64        `json:"flag"`
 }
 type KlineItem struct {
 	Timestamp int64  `json:"timestamp"`
@@ -84,10 +84,13 @@ type BidPre struct {
 }
 
 type AvailableItem struct {
-	InscriptionId     string `json:"inscriptionId,omitempty"`
-	InscriptionNumber string `json:"inscriptionNumber,omitempty"`
-	CoinAmount        string `json:"coinAmount,omitempty"`
-	PoolOrderId       string `json:"poolOrderId,omitempty"`
+	InscriptionId     string         `json:"inscriptionId,omitempty"`
+	InscriptionNumber string         `json:"inscriptionNumber,omitempty"`
+	CoinAmount        string         `json:"coinAmount,omitempty"`
+	PoolOrderId       string         `json:"poolOrderId,omitempty"`
+	CoinRatePrice     uint64         `json:"coinRatePrice,omitempty"`
+	PoolType          model.PoolType `json:"poolType,omitempty"`
+	BtcPoolMode       model.PoolMode `json:"btcPoolMode,omitempty"` //PoolMode for btc
 }
 
 type WsUuidResp struct {

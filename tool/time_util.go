@@ -25,6 +25,11 @@ func MakeDateV2(timestamp int64) string {
 	return time.Unix(timestamp/1000, 0).In(l).Format(timeFormat)
 }
 
+func MakeDateV3(timestamp int64) string {
+	timeFormat := "2006-01-02"
+	return time.Unix(timestamp/1000, 0).In(l).Format(timeFormat)
+}
+
 //00:00:00-time
 func GetToday0Time() int64 {
 	currentTime := time.Now()
@@ -36,5 +41,19 @@ func GetToday0Time() int64 {
 func GetToday24Time() int64 {
 	currentTime := time.Now()
 	endTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), 23, 59, 59, 0, l)
+	return endTime.UnixNano() / 1e6
+}
+
+//00:00:00-time
+func GetYesterday0Time() int64 {
+	currentTime := time.Now()
+	startTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day()-1, 0, 0, 0, 0, l)
+	return startTime.UnixNano() / 1e6
+}
+
+//23:59:59-time
+func GetYesterday24Time() int64 {
+	currentTime := time.Now()
+	endTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day()-1, 23, 59, 59, 0, l)
 	return endTime.UnixNano() / 1e6
 }

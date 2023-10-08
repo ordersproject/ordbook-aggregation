@@ -256,7 +256,7 @@ func GetAddressUtxo(address string, page, limit int64) (*OklinkUtxoDetails, erro
 		return nil, err
 	}
 
-	fmt.Println(result)
+	//fmt.Println(result)
 	if err = tool.JsonToObject(result, &resp); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
@@ -294,6 +294,132 @@ func GetBrc20HolderAddress(tick string, page, limit int64) (*OklinkBrc20HolderAd
 	)
 
 	url = fmt.Sprintf("%s/api/v5/explorer/btc/position-list", config.OklinkDomain)
+	result, err = tool.GetUrl(url, query, headers)
+	if err != nil {
+		return nil, err
+	}
+	//fmt.Println(result)
+	if err = tool.JsonToObject(result, &resp); err != nil {
+		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
+	}
+
+	if resp.Code != OklinkCodeSuccess {
+		return nil, errors.New(fmt.Sprintf("Msg:%s", resp.Msg))
+	}
+
+	if err = tool.JsonToAny(resp.Data, &data); err != nil {
+		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
+	}
+	if len(data) == 0 {
+		return nil, errors.New("No Data. ")
+	}
+
+	return data[0], nil
+}
+
+// Get brc20Balance-list
+func GetAddressBrc20BalanceTransactionList(address, tick string, page, limit int64) (*OklinkBrc20transactionList, error) {
+	var (
+		url    string
+		result string
+		resp   *OklinkResp
+		data   []*OklinkBrc20transactionList = make([]*OklinkBrc20transactionList, 0)
+		err    error
+		query  map[string]string = map[string]string{
+			"address": address,
+			"token":   common_service.ChangeRealTick(tick),
+			"page":    strconv.FormatInt(page, 10),
+			"limit":   strconv.FormatInt(limit, 10),
+		}
+		headers map[string]string = map[string]string{
+			"Ok-Access-Key": config.OklinkKey,
+		}
+	)
+
+	url = fmt.Sprintf("%s/api/v5/explorer/btc/transaction-list", config.OklinkDomain)
+	result, err = tool.GetUrl(url, query, headers)
+	if err != nil {
+		return nil, err
+	}
+	//fmt.Println(result)
+	if err = tool.JsonToObject(result, &resp); err != nil {
+		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
+	}
+
+	if resp.Code != OklinkCodeSuccess {
+		return nil, errors.New(fmt.Sprintf("Msg:%s", resp.Msg))
+	}
+
+	if err = tool.JsonToAny(resp.Data, &data); err != nil {
+		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
+	}
+	if len(data) == 0 {
+		return nil, errors.New("No Data. ")
+	}
+
+	return data[0], nil
+}
+
+// Get btc balance
+func GetAddressSummary(address string) (*AddressSummary, error) {
+	var (
+		url    string
+		result string
+		resp   *OklinkResp
+		data   []*AddressSummary = make([]*AddressSummary, 0)
+		err    error
+		query  map[string]string = map[string]string{
+			"chainShortName": "btc",
+			"address":        address,
+		}
+		headers map[string]string = map[string]string{
+			"Ok-Access-Key": config.OklinkKey,
+		}
+	)
+
+	url = fmt.Sprintf("%s/api/v5/explorer/address/address-summary", config.OklinkDomain)
+	result, err = tool.GetUrl(url, query, headers)
+	if err != nil {
+		return nil, err
+	}
+	//fmt.Println(result)
+	if err = tool.JsonToObject(result, &resp); err != nil {
+		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
+	}
+
+	if resp.Code != OklinkCodeSuccess {
+		return nil, errors.New(fmt.Sprintf("Msg:%s", resp.Msg))
+	}
+
+	if err = tool.JsonToAny(resp.Data, &data); err != nil {
+		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
+	}
+	if len(data) == 0 {
+		return nil, errors.New("No Data. ")
+	}
+
+	return data[0], nil
+}
+
+// Get Inscriptions-list
+func GetInscriptionsList(inscriptionId string, page, limit int64) (*OklinkBrc20transactionList, error) {
+	var (
+		url    string
+		result string
+		resp   *OklinkResp
+		data   []*OklinkBrc20transactionList = make([]*OklinkBrc20transactionList, 0)
+		err    error
+		query  map[string]string = map[string]string{
+			"inscriptionId": inscriptionId,
+			"page":          strconv.FormatInt(page, 10),
+			"limit":         strconv.FormatInt(limit, 10),
+		}
+		headers map[string]string = map[string]string{
+			"Ok-Access-Key": config.OklinkKey,
+		}
+	)
+
+	url = fmt.Sprintf("%s/api/v5/explorer/btc/inscriptions-list", config.OklinkDomain)
 	result, err = tool.GetUrl(url, query, headers)
 	if err != nil {
 		return nil, err

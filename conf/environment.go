@@ -4,7 +4,7 @@ package conf
 type EnvironmentEnum int8
 
 const (
-	ExampleEnvironmentEnum           EnvironmentEnum = 0x01
+	ExampleEnvironmentEnum EnvironmentEnum = 0x01
 )
 
 var SystemEnvironmentEnum = ExampleEnvironmentEnum

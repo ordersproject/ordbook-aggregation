@@ -308,7 +308,7 @@ func FetchPreBid(c *gin.Context) {
 // @Param inscriptionNumber query string false "inscriptionNumber"
 // @Param coinAmount query string false "coinAmount"
 // @Param address query string false "address"
-// @Param amount query int false "amount"
+// @Param amount query int true "amount"
 // @Param isPool query bool false "isPool for pool"
 // @Param orderId query string false "orderId of pool"
 // @Success 200 {object} respond.BidPsbt ""

@@ -8,6 +8,8 @@ const (
 	CacheLockUtxoTypeDummy               = "dummy"
 	CacheLockUtxoTypeBidpay              = "bidpay"
 	CacheLockUtxoTypeMultiSigInscription = "multisiginscriptionpay"
+	CacheLockUtxoTypeRewardInscription   = "rewardinscriptionpay"
+	CacheLockUtxoTypeRewardSend          = "rewardsendpay"
 )
 
 var _lockUtxoItemMap *LockUtxoItemMap

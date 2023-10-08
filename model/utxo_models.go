@@ -9,10 +9,12 @@ import (
 type UtxoType int
 
 const (
-	UtxoTypeDummy            UtxoType = 1
-	UtxoTypeBidY             UtxoType = 2
-	UtxoTypeFakerInscription UtxoType = 6
-	UtxoTypeMultiInscription UtxoType = 10
+	UtxoTypeDummy             UtxoType = 1
+	UtxoTypeBidY              UtxoType = 2
+	UtxoTypeFakerInscription  UtxoType = 6
+	UtxoTypeMultiInscription  UtxoType = 10
+	UtxoTypeRewardInscription UtxoType = 20
+	UtxoTypeRewardSend        UtxoType = 21
 )
 
 type UsedState int

@@ -305,3 +305,106 @@ func UpdateClaim(c *gin.Context) {
 	}
 	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
 }
+
+// @Summary Fetch pool reward info
+// @Description Fetch pool reward info
+// @Produce  json
+// @Tags brc20
+// @Param net query string true "net"
+// @Param tick query string false "tick"
+// @Param address query string true "address"
+// @Success 200 {object} respond.PoolBrc20RewardResp ""
+// @Router /brc20/pool/reward/info [get]
+func FetchOwnerReward(c *gin.Context) {
+	var (
+		t   int64                       = tool.MakeTimestamp()
+		req *request.PoolBrc20RewardReq = &request.PoolBrc20RewardReq{
+			Net:     c.DefaultQuery("net", ""),
+			Tick:    c.DefaultQuery("tick", ""),
+			Address: c.DefaultQuery("address", ""),
+		}
+	)
+	responseModel, err := order_brc20_service.FetchOwnerReward(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary create one claim reward order
+// @Description create one claim reward order
+// @Produce  json
+// @Param Request body request.PoolBrc20ClaimRewardReq true "Request"
+// @Tags brc20
+// @Success 200 {object} respond.Message ""
+// @Router /brc20/pool/reward/claim [post]
+func ClaimReward(c *gin.Context) {
+	var (
+		t            int64 = tool.MakeTimestamp()
+		requestModel *request.PoolBrc20ClaimRewardReq
+		publicKey    string = ""
+	)
+	if c.ShouldBindJSON(&requestModel) == nil {
+		publicKey = getAuthParams(c)
+		responseModel, err := order_brc20_service.ClaimReward(requestModel, publicKey, c.ClientIP())
+		if err != nil {
+			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+			return
+		}
+		c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+		return
+	}
+	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
+}
+
+// @Summary Fetch pool reward orders
+// @Description Fetch pool reward orders
+// @Produce  json
+// @Tags brc20
+// @Param net query string false "net:mainnet/signet/testnet"
+// @Param tick query string false "tick"
+// @Param address query string false "address"
+// @Param rewardState query int false "rewardState: 1-create,2-inscription,3-send,100-all"
+// @Param limit query int false "limit: Max-50"
+// @Param page query int false "page"
+// @Param flag query int false "flag"
+// @Param sortKey query string false "sortKey: timestamp, default:timestamp"
+// @Param sortType query int false "sortType: 1/-1"
+// @Success 200 {object} respond.PoolRewardOrderResponse ""
+// @Router /brc20/pool/reward/orders [get]
+func FetchPoolRewardOrders(c *gin.Context) {
+	var (
+		t              int64                            = tool.MakeTimestamp()
+		rewardStateStr                                  = c.DefaultQuery("rewardState", "0")
+		limitStr                                        = c.DefaultQuery("limit", "50")
+		pageStr                                         = c.DefaultQuery("page", "0")
+		flagStr                                         = c.DefaultQuery("flag", "0")
+		sortTypeStr                                     = c.DefaultQuery("sortType", "0")
+		req            *request.PoolRewardOrderFetchReq = &request.PoolRewardOrderFetchReq{
+			Net:         c.DefaultQuery("net", ""),
+			Tick:        c.DefaultQuery("tick", ""),
+			RewardState: 0,
+			Limit:       0,
+			Flag:        0,
+			Page:        0,
+			Address:     c.DefaultQuery("address", ""),
+			SortKey:     c.DefaultQuery("sortKey", ""),
+			SortType:    0,
+		}
+	)
+	rewardState, _ := strconv.ParseInt(rewardStateStr, 10, 64)
+	req.RewardState = model.RewardState(rewardState)
+	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
+	req.Flag, _ = strconv.ParseInt(flagStr, 10, 64)
+	req.Page, _ = strconv.ParseInt(pageStr, 10, 64)
+	req.SortType, _ = strconv.ParseInt(sortTypeStr, 10, 64)
+	responseModel, err := order_brc20_service.FetchPoolRewardOrders(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}

@@ -14,11 +14,11 @@ import (
 const (
 	maxLimit int64 = 500
 
-	doBidUtxoPerAmount1w   int64 = 10000
-	doBidUtxoPerAmount5w   int64 = 50000
-	doBidUtxoPerAmount10w  int64 = 100000
-	doBidUtxoPerAmount50w  int64 = 500000
-	doBidUtxoPerAmount100w int64 = 1000000
+	DoBidUtxoPerAmount1w   int64 = 10000
+	DoBidUtxoPerAmount5w   int64 = 50000
+	DoBidUtxoPerAmount10w  int64 = 100000
+	DoBidUtxoPerAmount50w  int64 = 500000
+	DoBidUtxoPerAmount100w int64 = 1000000
 )
 
 var (
@@ -45,21 +45,34 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 	case model.UtxoTypeBidY:
 		cacheType = cache_service.CacheLockUtxoTypeBidpay
 		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeBidY_)
-		perAmount = doBidUtxoPerAmount1w
-		if totalNeedAmount > 0 && totalNeedAmount < doBidUtxoPerAmount5w {
-			perAmount = doBidUtxoPerAmount1w
-		} else if totalNeedAmount >= doBidUtxoPerAmount5w && totalNeedAmount < doBidUtxoPerAmount10w {
-			perAmount = doBidUtxoPerAmount5w
-		} else if totalNeedAmount >= doBidUtxoPerAmount10w && totalNeedAmount < doBidUtxoPerAmount50w {
-			perAmount = doBidUtxoPerAmount10w
-		} else {
-			perAmount = doBidUtxoPerAmount50w
-		}
+		perAmount = DoBidUtxoPerAmount1w
+		//if totalNeedAmount > 0 && totalNeedAmount < doBidUtxoPerAmount5w {
+		//	perAmount = doBidUtxoPerAmount1w
+		//} else {
+		//	perAmount = doBidUtxoPerAmount5w
+		//}
+
+		//else if totalNeedAmount >= doBidUtxoPerAmount5w && totalNeedAmount < doBidUtxoPerAmount10w {
+		//	perAmount = doBidUtxoPerAmount5w
+		//} else if totalNeedAmount >= doBidUtxoPerAmount10w && totalNeedAmount < doBidUtxoPerAmount50w {
+		//	perAmount = doBidUtxoPerAmount10w
+		//} else {
+		//	perAmount = doBidUtxoPerAmount50w
+		//}
 		limit = totalNeedAmount/perAmount + 1
 		break
 	case model.UtxoTypeMultiInscription:
+		perAmount = 5000
 		cacheType = cache_service.CacheLockUtxoTypeMultiSigInscription
 		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeMultiSigInscription_)
+		break
+	case model.UtxoTypeRewardInscription:
+		cacheType = cache_service.CacheLockUtxoTypeRewardInscription
+		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeRewardInscription_)
+		break
+	case model.UtxoTypeRewardSend:
+		cacheType = cache_service.CacheLockUtxoTypeRewardSend
+		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeRewardSend_)
 		break
 	default:
 		return nil, errors.New("Unoccupied-Utxo: wrong type")
@@ -118,6 +131,12 @@ func ReleaseUtxoList(utxoList []*model.OrderUtxoModel) {
 		case model.UtxoTypeMultiInscription:
 			cacheUtxoType = redis.UtxoTypeMultiSigInscription_
 			break
+		case model.UtxoTypeRewardInscription:
+			cacheUtxoType = redis.UtxoTypeRewardInscription_
+			break
+		case model.UtxoTypeRewardSend:
+			cacheUtxoType = redis.UtxoTypeRewardSend_
+			break
 		default:
 			continue
 		}
@@ -140,6 +159,12 @@ func cacheUtxoList(utxoList []*model.OrderUtxoModel) {
 			break
 		case model.UtxoTypeMultiInscription:
 			cacheUtxoType = redis.UtxoTypeMultiSigInscription_
+			break
+		case model.UtxoTypeRewardInscription:
+			cacheUtxoType = redis.UtxoTypeRewardInscription_
+			break
+		case model.UtxoTypeRewardSend:
+			cacheUtxoType = redis.UtxoTypeRewardSend_
 			break
 		default:
 			continue

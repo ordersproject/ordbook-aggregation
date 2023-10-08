@@ -15,6 +15,8 @@ const (
 	UtxoTypeDummy_               = "dummy_"
 	UtxoTypeBidY_                = "bid_y_"
 	UtxoTypeMultiSigInscription_ = "multi_sig_inscription_"
+	UtxoTypeRewardInscription_   = "reward_inscription_"
+	UtxoTypeRewardSend_          = "reward_send_"
 	CacheGetClaimOrder_          = "cache_get_claim_order_"
 	CacheGetPoolClaimOrder_      = "cache_get_pool_claim_order_"
 )

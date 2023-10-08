@@ -19,8 +19,19 @@ const (
 	//SpendSize = 1 + 73 + 1 + 33
 	SpendSize = 1 + 73 + 1 + 33
 
-	OutSize = 31
+	OutSize   = 31
 	OtherSize = 10
+
+	TX_EMPTY_SIZE               = 4 + 1 + 1 + 4
+	TX_INPUT_BASE               = 32 + 4 + 1 + 4
+	TX_INPUT_PUBKEYHASH         = 107
+	TX_INPUT_SEGWIT             = 27
+	TX_INPUT_TAPROOT            = 17 // round up 16.5 bytes
+	TX_OUTPUT_BASE              = 8 + 1
+	TX_OUTPUT_PUBKEYHASH        = 25
+	TX_OUTPUT_SCRIPTHASH        = 23
+	TX_OUTPUT_SEGWIT            = 22
+	TX_OUTPUT_SEGWIT_SCRIPTHASH = 34
 )
 
 type TxInputUtxo struct {
@@ -33,7 +44,7 @@ type TxInputUtxo struct {
 
 type TxOutput struct {
 	Address string
-	Amount int64
+	Amount  int64
 }
 
 func BuildCommonTx(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutput, changeAddress string, fee int64) (*wire.MsgTx, error) {
@@ -68,7 +79,7 @@ func BuildCommonTx(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutp
 
 	reqFee := btcutil.Amount(txSize * int(fee))
 	fmt.Printf("txSize:%d, reqFee:%d, totalAmount:%d, outAmount:%d\n", txSize, reqFee, totalAmount, outAmount)
-	if totalAmount - outAmount < int64(reqFee) {
+	if totalAmount-outAmount < int64(reqFee) {
 		return nil, errors.New("Insufficient fee")
 	}
 
@@ -95,7 +106,6 @@ func BuildCommonTx(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutp
 			return nil, err
 		}
 		privateKey, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
-
 
 		pkScriptByte, err := hex.DecodeString(in.PkScript)
 		if err != nil {

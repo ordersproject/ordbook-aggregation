@@ -48,6 +48,16 @@ definitions:
     x-enum-varnames:
     - OrderTypeSell
     - OrderTypeBuy
+  model.PoolMode:
+    enum:
+    - 0
+    - 1
+    - 2
+    type: integer
+    x-enum-varnames:
+    - PoolModeNone
+    - PoolModePsbt
+    - PoolModeCustody
   model.PoolState:
     enum:
     - 1
@@ -66,24 +76,44 @@ definitions:
     - 2
     - 3
     - 4
+    - 100
     type: integer
     x-enum-varnames:
     - PoolTypeTick
     - PoolTypeBtc
     - PoolTypeBoth
     - PoolTypeMultiSigInscription
+    - PoolTypeAll
+  model.RewardState:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 100
+    type: integer
+    x-enum-varnames:
+    - RewardStateNo
+    - RewardStateCreate
+    - RewardStateInscription
+    - RewardStateSend
+    - RewardStateAll
   model.UtxoType:
     enum:
     - 1
     - 2
     - 6
     - 10
+    - 20
+    - 21
     type: integer
     x-enum-varnames:
     - UtxoTypeDummy
     - UtxoTypeBidY
     - UtxoTypeFakerInscription
     - UtxoTypeMultiInscription
+    - UtxoTypeRewardInscription
+    - UtxoTypeRewardSend
   request.Brc20CommitReq:
     properties:
       feeAddress:
@@ -339,6 +369,18 @@ definitions:
       tick:
         type: string
     type: object
+  request.PoolBrc20ClaimRewardReq:
+    properties:
+      address:
+        type: string
+      net:
+        description: livenet/signet/testnet
+        type: string
+      rewardAmount:
+        type: integer
+      tick:
+        type: string
+    type: object
   request.PoolBrc20ClaimUpdateReq:
     properties:
       poolOrderId:
@@ -355,6 +397,13 @@ definitions:
         type: string
       amount:
         type: integer
+      btcPoolMode:
+        allOf:
+        - $ref: '#/definitions/model.PoolMode'
+        description: 1-psbt,2-custody, default:custody
+      btcUtxoId:
+        description: txId_index
+        type: string
       coinAmount:
         type: integer
       coinPsbtRaw:
@@ -373,7 +422,11 @@ definitions:
         - $ref: '#/definitions/model.PoolType'
         description: 1-tick,2-btc,3-both
       psbtRaw:
+        description: BTC
         type: string
+      ratio:
+        description: 'ratio: 12/15/18'
+        type: integer
       tick:
         type: string
     type: object
@@ -758,11 +811,27 @@ definitions:
       coinPsbtRaw:
         description: coin PSBT Raw
         type: string
+      dealInscriptionId:
+        description: InscriptionId
+        type: string
+      dealInscriptionTime:
+        type: integer
+      dealInscriptionTx:
+        type: string
+      dealInscriptionTxIndex:
+        type: integer
+      dealInscriptionTxOutValue:
+        type: integer
       decimalNum:
         type: integer
       inscriptionId:
         description: InscriptionId
         type: string
+      multiSigScriptAddress:
+        type: string
+      multiSigScriptAddressTickAvailableState:
+        description: 0-no, 1-available
+        type: integer
       net:
         description: Net env
         type: string
@@ -783,11 +852,33 @@ definitions:
       psbtRaw:
         description: PSBT Raw
         type: string
+      rewardCoinAmount:
+        type: integer
       tick:
         description: Brc20 symbol
         type: string
       timestamp:
         description: Create time
+        type: integer
+      utxoId:
+        description: UtxoId
+        type: string
+    type: object
+  respond.PoolBrc20RewardResp:
+    properties:
+      hadClaimRewardAmount:
+        description: |-
+          ClaimedOwnCoinAmount     uint64 `json:"claimedOwnCoinAmount"`
+          ClaimedOwnAmount         uint64 `json:"claimedOwnAmount"`
+          ClaimedOwnCount          uint64 `json:"claimedOwnCount"`
+        type: integer
+      net:
+        description: Net env
+        type: string
+      tick:
+        description: Brc20 symbol
+        type: string
+      totalRewardAmount:
         type: integer
     type: object
   respond.PoolInfoItem:
@@ -854,6 +945,12 @@ definitions:
     type: object
   respond.PoolKeyInfoResp:
     properties:
+      btcPublicKey:
+        description: key for btc
+        type: string
+      btcReceiveAddress:
+        description: key
+        type: string
       net:
         description: Net env
         type: string
@@ -868,6 +965,36 @@ definitions:
       results:
         items:
           $ref: '#/definitions/respond.PoolBrc20Item'
+        type: array
+      total:
+        type: integer
+    type: object
+  respond.PoolRewardOrderItem:
+    properties:
+      address:
+        type: string
+      net:
+        type: string
+      orderId:
+        type: string
+      pair:
+        type: string
+      rewardCoinAmount:
+        type: integer
+      rewardState:
+        $ref: '#/definitions/model.RewardState'
+      tick:
+        type: string
+      timestamp:
+        type: integer
+    type: object
+  respond.PoolRewardOrderResponse:
+    properties:
+      flag:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/respond.PoolRewardOrderItem'
         type: array
       total:
         type: integer
@@ -1712,6 +1839,104 @@ paths:
           schema:
             $ref: '#/definitions/respond.PoolKeyInfoResp'
       summary: Fetch pool key
+      tags:
+      - brc20
+  /brc20/pool/reward/claim:
+    post:
+      description: create one claim reward order
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.PoolBrc20ClaimRewardReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Message'
+      summary: create one claim reward order
+      tags:
+      - brc20
+  /brc20/pool/reward/info:
+    get:
+      description: Fetch pool reward info
+      parameters:
+      - description: net
+        in: query
+        name: net
+        required: true
+        type: string
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: address
+        in: query
+        name: address
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolBrc20RewardResp'
+      summary: Fetch pool reward info
+      tags:
+      - brc20
+  /brc20/pool/reward/orders:
+    get:
+      description: Fetch pool reward orders
+      parameters:
+      - description: net:mainnet/signet/testnet
+        in: query
+        name: net
+        type: string
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: address
+        in: query
+        name: address
+        type: string
+      - description: 'rewardState: 1-create,2-inscription,3-send,100-all'
+        in: query
+        name: rewardState
+        type: integer
+      - description: 'limit: Max-50'
+        in: query
+        name: limit
+        type: integer
+      - description: page
+        in: query
+        name: page
+        type: integer
+      - description: flag
+        in: query
+        name: flag
+        type: integer
+      - description: 'sortKey: timestamp, default:timestamp'
+        in: query
+        name: sortKey
+        type: string
+      - description: 'sortType: 1/-1'
+        in: query
+        name: sortType
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolRewardOrderResponse'
+      summary: Fetch pool reward orders
       tags:
       - brc20
   /brc20/tickers:

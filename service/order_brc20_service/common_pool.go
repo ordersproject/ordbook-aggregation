@@ -11,6 +11,8 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/shopspring/decimal"
+	"ordbook-aggregation/config"
 	"ordbook-aggregation/major"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/inscription_service"
@@ -135,9 +137,9 @@ func getPoolBrc20PsbtOrder(net, tick string, limit, page, flag int64) ([]*model.
 		entityList []*model.PoolBrc20Model
 		total      int64 = 0
 	)
-	total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", "", model.PoolTypeTick, model.PoolStateAdd)
-	entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", "", model.PoolTypeTick, model.PoolStateAdd,
-		limit, flag, page, "", 0)
+	total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", "", model.PoolTypeAll, model.PoolStateAdd)
+	entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", "", model.PoolTypeAll, model.PoolStateAdd,
+		limit, flag, page, "coinRatePrice", 1)
 	return entityList, total, nil
 }
 
@@ -164,12 +166,51 @@ func setCoinStatusPoolBrc20Order(bidOrder *model.OrderBrc20Model, poolCoinState 
 	if err != nil {
 		major.Println(fmt.Sprintf("SetPoolBrc20ModelForStatus err:%s", err))
 	}
-	inscriptionMultiSigTransfer(bidOrder.Net, bidOrder.PoolOrderId)
+	setRewardForPoolBrc20Order(bidOrder.PoolOrderId)
 }
 
-func inscriptionMultiSigTransfer(net, poolOrderId string) error {
+func setRewardForPoolBrc20Order(poolOrderId string) {
 	var (
-		poolOrder                   *model.PoolBrc20Model
+		entityPool   *model.PoolBrc20Model
+		rewardAmount int64 = 0
+		dayTime      int64 = 1000 * 60 * 60 * 24
+	)
+	entityPool, _ = mongo_service.FindPoolBrc20ModelByOrderId(poolOrderId)
+	if entityPool == nil {
+		return
+	}
+
+	if entityPool.PoolType == model.PoolTypeTick {
+		rewardAmount = getSinglePoolReward()
+	} else {
+		rewardAmount = getDoublePoolReward(entityPool.Ratio)
+		dis := entityPool.DealTime - entityPool.Timestamp
+		days := dis / dayTime
+		count := days / config.PlatformRewardExtraRewardDuration
+
+		entity, _ := mongo_service.FindPoolInfoModelByPair(entityPool.Net, strings.ToUpper(entityPool.Pair))
+		if entity == nil || entity.Id == 0 {
+			return
+		}
+		_, amountTotal, _, _ := getOwnPoolInfo(entityPool.Net, entityPool.Tick, strings.ToUpper(entityPool.Pair), entityPool.CoinAddress)
+		ownerAmountTotalDe := decimal.NewFromInt(int64(amountTotal))
+		amountTotalDe := decimal.NewFromInt(int64(entity.Amount))
+		rewardAmountDe := decimal.NewFromInt(rewardAmount)
+		extraReward := ownerAmountTotalDe.Div(amountTotalDe).Mul(rewardAmountDe).IntPart()
+		extraReward = extraReward * count
+		rewardAmount = rewardAmount + extraReward
+	}
+	entityPool.RewardAmount = rewardAmount
+	err := mongo_service.SetPoolBrc20ModelForReward(entityPool)
+	if err != nil {
+		major.Println(fmt.Sprintf("SetPoolBrc20ModelForReward err: %s", err.Error()))
+	}
+	updatePoolInfo(entityPool)
+}
+
+func inscriptionMultiSigTransfer(poolOrder *model.PoolBrc20Model) error {
+	var (
+		//poolOrder                   *model.PoolBrc20Model
 		utxoMultiSigInscriptionList []*model.OrderUtxoModel
 		inscriptionAddress          string = ""
 		brc20BalanceResult          *oklink_service.OklinkBrc20BalanceDetails
@@ -182,18 +223,18 @@ func inscriptionMultiSigTransfer(net, poolOrderId string) error {
 		transferContent                                                           string                              = ""
 		feeRate                                                                   int64                               = 10
 		inscribeUtxoList                                                          []*inscription_service.InscribeUtxo = make([]*inscription_service.InscribeUtxo, 0)
-		_, platformAddressReceiveBidValue                                         string                              = GetPlatformKeyAndAddressReceiveBidValue(net)
-		platformPrivateKeyMultiSigInscription, platformAddressMultiSigInscription string                              = GetPlatformKeyAndAddressForMultiSigInscription(net)
-		netParams                                                                 *chaincfg.Params                    = GetNetParams(net)
+		_, platformAddressReceiveBidValue                                         string                              = GetPlatformKeyAndAddressReceiveBidValue(poolOrder.Net)
+		platformPrivateKeyMultiSigInscription, platformAddressMultiSigInscription string                              = GetPlatformKeyAndAddressForMultiSigInscription(poolOrder.Net)
+		netParams                                                                 *chaincfg.Params                    = GetNetParams(poolOrder.Net)
 		changeAddress                                                             string                              = platformAddressReceiveBidValue
 
 		dealInscriptionId, dealInscriptionTx                                   string = "", ""
 		dealInscriptionTxIndex, dealInscriptionTxOutValue, dealInscriptionTime int64  = 0, 1000, 0
 	)
-	poolOrder, _ = mongo_service.FindPoolBrc20ModelByOrderId(poolOrderId)
-	if poolOrder == nil {
-		return errors.New("[POOL-INSCRIPTION]poolOrder is empty")
-	}
+	//poolOrder, _ = mongo_service.FindPoolBrc20ModelByOrderId(poolOrderId)
+	//if poolOrder == nil {
+	//	return errors.New("[POOL-INSCRIPTION]poolOrder is empty")
+	//}
 	if poolOrder.DealInscriptionId != "" {
 		return errors.New("[POOL-INSCRIPTION]poolOrder DealInscription has been done")
 	}
@@ -226,10 +267,29 @@ func inscriptionMultiSigTransfer(net, poolOrderId string) error {
 	}
 	availableBalance, _ = strconv.ParseInt(brc20BalanceResult.AvailableBalance, 10, 64)
 	fmt.Printf("availableBalance:%d, coinAmount: %d\n", availableBalance, poolOrder.CoinAmount)
+	if availableBalance < int64(poolOrder.CoinAmount) {
+		return errors.New("[POOL-INSCRIPTION] AvailableBalance not enough. ")
+	}
+
+	has := false
+	brc20TxResp, _ := oklink_service.GetAddressBrc20BalanceTransactionList(inscriptionAddress, poolOrder.Tick, 0, 100)
+	if brc20TxResp != nil && brc20TxResp.InscriptionsList != nil {
+		for _, tx := range brc20TxResp.InscriptionsList {
+			if tx.TxId == poolOrder.DealCoinTx && tx.State == "success" {
+				has = true
+				break
+			}
+		}
+	} else {
+		return errors.New("[POOL-INSCRIPTION] get brc20 tx list err. ")
+	}
+	if !has {
+		return errors.New("[POOL-INSCRIPTION] receive brc20 not confirm. ")
+	}
 
 	transferContent = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, poolOrder.Tick, poolOrder.CoinAmount)
 
-	utxoMultiSigInscriptionList, err = GetUnoccupiedUtxoList(net, 1, 0, model.UtxoTypeMultiInscription)
+	utxoMultiSigInscriptionList, err = GetUnoccupiedUtxoList(poolOrder.Net, 1, 0, model.UtxoTypeMultiInscription)
 	defer ReleaseUtxoList(utxoMultiSigInscriptionList)
 	if err != nil {
 		return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] get utxo err:%s", err.Error()))
@@ -260,13 +320,18 @@ func inscriptionMultiSigTransfer(net, poolOrderId string) error {
 	dealInscriptionTx = revealTxHashList[0]
 	dealInscriptionTxIndex = 0
 	dealInscriptionTime = tool.MakeTimestamp()
-	err = mongo_service.SetPoolBrc20ModelForDealInscription(poolOrderId, dealInscriptionId, dealInscriptionTx, dealInscriptionTxIndex, dealInscriptionTxOutValue, dealInscriptionTime)
+
+	poolOrder.DealInscriptionId = dealInscriptionId
+	poolOrder.DealInscriptionTx = dealInscriptionTx
+	poolOrder.DealInscriptionTxIndex = dealInscriptionTxIndex
+	poolOrder.DealInscriptionTime = dealInscriptionTime
+
+	err = mongo_service.SetPoolBrc20ModelForDealInscription(poolOrder.OrderId, dealInscriptionId, dealInscriptionTx, dealInscriptionTxIndex, dealInscriptionTxOutValue, dealInscriptionTime)
 	if err != nil {
 		major.Println(fmt.Sprintf("SetPoolBrc20ModelForDealInscription err:%s", err))
 		return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] save data err:%s", err.Error()))
 	}
 	setUsedMultiSigInscriptionUtxo(utxoMultiSigInscriptionList, commitTxHash)
-
 	major.Println(fmt.Sprintf("[POOL] inscription for multiSigAddress success"))
 	return nil
 }
@@ -318,7 +383,8 @@ func claimPoolBrc20Order(orderId, claimAddress string, poolType model.PoolType, 
 		claimMultiSigScript = entity.MultiSigScript
 	} else if poolType == model.PoolTypeMultiSigInscription {
 		if entity.DealInscriptionTx == "" {
-			err := inscriptionMultiSigTransfer(entity.Net, entity.OrderId)
+			//err := inscriptionMultiSigTransfer(entity.Net, entity.OrderId)
+			err := inscriptionMultiSigTransfer(entity)
 			if err != nil {
 				fmt.Println(err)
 				return nil, "", err
@@ -502,8 +568,11 @@ func getMyPoolInscription(net, tick, address string) ([]*model.PoolBrc20Model, i
 		total      int64 = 0
 		entityList []*model.PoolBrc20Model
 	)
-	total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", address, model.PoolTypeTick, model.PoolStateAdd)
-	entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", address, model.PoolTypeTick, model.PoolStateAdd,
+	//total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", address, model.PoolTypeTick, model.PoolStateAdd)
+	//entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", address, model.PoolTypeTick, model.PoolStateAdd,
+	//	1000, 0, 0, "", 0)
+	total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", address, model.PoolTypeAll, model.PoolStateAdd)
+	entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", address, model.PoolTypeAll, model.PoolStateAdd,
 		1000, 0, 0, "", 0)
 	return entityList, total
 }
@@ -516,12 +585,16 @@ func updateClaim(poolOrder *model.PoolBrc20Model, rawTx string) error {
 	_ = txPsbtResp
 
 	poolOrder.ClaimTx = txPsbtResp.Result
+	poolOrder.ClaimTime = tool.MakeTimestamp()
 	if poolOrder.PoolState == model.PoolStateUsed {
 		poolOrder.PoolState = model.PoolStateClaim
 	}
 	if poolOrder.PoolCoinState == model.PoolStateUsed {
 		poolOrder.PoolCoinState = model.PoolStateClaim
 	}
+
+	rewardNowAmount := getRealNowReward(poolOrder)
+	poolOrder.RewardRealAmount = rewardNowAmount
 	err = mongo_service.SetPoolBrc20ModelForClaim(poolOrder)
 	if err != nil {
 		return err
@@ -588,6 +661,7 @@ func makePoolRewardPsbt(net, receiveAddress string) (string, error) {
 	if inscriptionId == "" {
 		return "", errors.New("InscriptionId of Pool Claim Order is empty. ")
 	}
+	fmt.Printf("PoolReward:[%s]\n", inscriptionId)
 	addr, err := btcutil.DecodeAddress(platformAddressRewardBrc20, netParams)
 	if err != nil {
 		return "", err
@@ -610,7 +684,8 @@ func makePoolRewardPsbt(net, receiveAddress string) (string, error) {
 	outputs := make([]Output, 0)
 	outputs = append(outputs, Output{
 		Address: receiveAddress,
-		Amount:  entityPoolClaimOrder.Amount,
+		//Amount:  entityPoolClaimOrder.Amount,
+		Amount: 546,
 	})
 	inputSigns := make([]*InputSign, 0)
 
@@ -621,14 +696,15 @@ func makePoolRewardPsbt(net, receiveAddress string) (string, error) {
 		SighashType: txscript.SigHashSingle | txscript.SigHashAnyOneCanPay,
 		PriHex:      platformPrivateKeyRewardBrc20,
 		UtxoType:    Witness,
-		Amount:      546,
+		//Amount:      entityPoolClaimOrder.Amount,
+		Amount: 546,
 	})
 
 	builder, err := CreatePsbtBuilder(netParams, inputs, outputs)
 	if err != nil {
 		return "", err
 	}
-	err = builder.UpdateAndSignInput(inputSigns)
+	err = builder.UpdateAndSignInputNoFinalize(inputSigns)
 	if err != nil {
 		return "", err
 	}
@@ -708,4 +784,44 @@ func addPoolRewardPsbt(net, receiveAddress, claimPsbtRaw string) (*PsbtBuilder, 
 	}
 
 	return builder, nil
+}
+
+func makeBtcRefundTx(netParams *chaincfg.Params, refundUtxoList []*model.OrderUtxoModel, refundAmount uint64, refundAddress, changeAddress string) (*wire.MsgTx, error) {
+	fee := int64(14)
+	inputs := make([]*TxInputUtxo, 0)
+	for _, u := range refundUtxoList {
+		inputs = append(inputs, &TxInputUtxo{
+			TxId:     u.TxId,
+			TxIndex:  u.Index,
+			PkScript: u.PkScript,
+			Amount:   u.Amount,
+			PriHex:   u.PrivateKeyHex,
+		})
+	}
+
+	outputs := make([]*TxOutput, 0)
+	outputs = append(outputs, &TxOutput{
+		Address: refundAddress,
+		Amount:  int64(refundAmount),
+	})
+	tx, err := BuildCommonTx(netParams, inputs, outputs, changeAddress, fee)
+	if err != nil {
+		fmt.Printf("BuildCommonTx err:%s\n", err.Error())
+		return nil, err
+	}
+	return tx, nil
+}
+
+func getRewardRatio(ratio int64) int64 {
+	var (
+		rewardRatio int64 = 0
+	)
+	if ratio >= 12 && ratio < 15 {
+		rewardRatio = 1
+	} else if ratio >= 15 && ratio < 18 {
+		rewardRatio = 12
+	} else if ratio >= 18 {
+		rewardRatio = 15
+	}
+	return rewardRatio
 }

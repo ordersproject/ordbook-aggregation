@@ -27,8 +27,9 @@ const (
 
 func LoopCheckPlatformAddressForBidValue(net string) {
 	var (
-		LoopName                                                          string = "BidValue"
-		platformPrivateKeyReceiveBidValue, platformAddressReceiveBidValue string = order_brc20_service.GetPlatformKeyAndAddressReceiveBidValue(net)
+		LoopName                                                          string         = "BidValue"
+		utxoType                                                          model.UtxoType = model.UtxoTypeBidY
+		platformPrivateKeyReceiveBidValue, platformAddressReceiveBidValue string         = order_brc20_service.GetPlatformKeyAndAddressReceiveBidValue(net)
 		err                                                               error
 		utxoResp                                                          *oklink_service.OklinkUtxoDetails
 		totalUtxoAmount                                                   int64                   = 0
@@ -39,11 +40,12 @@ func LoopCheckPlatformAddressForBidValue(net string) {
 		changeAddress                                                     string                  = platformAddressReceiveBidValue
 		count                                                             int64                   = 0
 		//todo 1w/utxo 5w/utxo 10w/utxo, 50w/utxo, 100w/utxo
-		perAmount         uint64        = 10000
+		perAmount         int64         = 10000
+		min               int64         = 0
 		feeRate           int64         = 20
 		totalSize         int64         = 0
 		utxoInterfaceList []interface{} = make([]interface{}, 0)
-		startIndex        int64         = order_brc20_service.GetSaveStartIndex(net, model.UtxoTypeBidY, int64(perAmount))
+		startIndex        int64         = order_brc20_service.GetSaveStartIndex(net, utxoType, int64(perAmount))
 	)
 	utxoResp, err = oklink_service.GetAddressUtxo(platformAddressReceiveBidValue, 1, 50)
 	if err != nil {
@@ -61,7 +63,15 @@ func LoopCheckPlatformAddressForBidValue(net string) {
 		totalUtxoAmount = totalUtxoAmount + amount
 	}
 
-	if totalUtxoAmount <= MaxTotalUtxoAmount {
+	//countUtxo1w, _ := mongo_service.CountUtxoList(net, order_brc20_service.DoBidUtxoPerAmount1w, utxoType)
+	//countUtxo5w, _ := mongo_service.CountUtxoList(net, order_brc20_service.DoBidUtxoPerAmount5w, utxoType)
+	//countUtxo10w, _ := mongo_service.CountUtxoList(net, order_brc20_service.DoBidUtxoPerAmount10w, utxoType)
+	//countUtxo50w, _ := mongo_service.CountUtxoList(net, order_brc20_service.DoBidUtxoPerAmount50w, utxoType)
+	//countUtxo100w, _ := mongo_service.CountUtxoList(net, order_brc20_service.DoBidUtxoPerAmount100w, utxoType)
+	//min, perAmount = compareCountForPerAmount(countUtxo1w, countUtxo5w, countUtxo10w)
+	_ = min
+
+	if totalUtxoAmount < MaxTotalUtxoAmount {
 		fmt.Printf("[LOOP][%s]address utxo list: totalUtxoAmount[%d], not enough, waiting for next time\n", LoopName, totalUtxoAmount)
 		return
 	}
@@ -131,8 +141,8 @@ func LoopCheckPlatformAddressForBidValue(net string) {
 
 		utxoList = append(utxoList, &model.OrderUtxoModel{
 			Net:           net,
-			UtxoType:      model.UtxoTypeBidY,
-			Amount:        perAmount,
+			UtxoType:      utxoType,
+			Amount:        uint64(perAmount),
 			Address:       fromSegwitAddress,
 			PrivateKeyHex: fromPriKeyHex,
 			TxId:          "",
@@ -393,4 +403,27 @@ func LoopCheckPlatformAddressForDummyValue(net string) {
 	}
 
 	fmt.Printf("[LOOP][%s] Replenish Utxo success, txId:%s\n", LoopName, txId)
+}
+
+func compareCountForPerAmount(count1w, count5w, count10w int64) (int64, int64) {
+	var (
+		perAmount       = order_brc20_service.DoBidUtxoPerAmount1w
+		total1W   int64 = count1w * 1
+		total5W   int64 = count5w * 5
+		total10W  int64 = count10w * 10
+		min       int64 = total1W
+		co        int64 = 1
+	)
+	if total5W < min {
+		min = total5W
+		perAmount = order_brc20_service.DoBidUtxoPerAmount5w
+		co = 5
+	}
+	if total10W < min {
+		min = total10W
+		perAmount = order_brc20_service.DoBidUtxoPerAmount10w
+		co = 10
+	}
+
+	return min / co, perAmount
 }

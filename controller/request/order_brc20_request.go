@@ -50,6 +50,12 @@ type TickKlineFetchReq struct {
 	Interval string `json:"interval"` //1m/1s/15m/1h/4h/1d/1w/
 }
 
+type TickRecentlyInfoFetchReq struct {
+	Net        string `json:"net"` //livenet/signet/testnet
+	Tick       string `json:"tick"`
+	RecentTime string `json:"RecentTime"` //24h
+}
+
 type OrderBrc20GetBidReq struct {
 	Net               string `json:"net"` //livenet/signet/testnet
 	Pair              string `json:"pair"`

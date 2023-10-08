@@ -1284,6 +1284,155 @@ const docTemplate = `{
                 }
             }
         },
+        "/brc20/pool/reward/claim": {
+            "post": {
+                "description": "create one claim reward order",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "create one claim reward order",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.PoolBrc20ClaimRewardReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/pool/reward/info": {
+            "get": {
+                "description": "Fetch pool reward info",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch pool reward info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "net",
+                        "name": "net",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "tick",
+                        "name": "tick",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.PoolBrc20RewardResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/pool/reward/orders": {
+            "get": {
+                "description": "Fetch pool reward orders",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch pool reward orders",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "net:mainnet/signet/testnet",
+                        "name": "net",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "tick",
+                        "name": "tick",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "rewardState: 1-create,2-inscription,3-send,100-all",
+                        "name": "rewardState",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "limit: Max-50",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "flag",
+                        "name": "flag",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "sortKey: timestamp, default:timestamp",
+                        "name": "sortKey",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "sortType: 1/-1",
+                        "name": "sortType",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.PoolRewardOrderResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/tickers": {
             "get": {
                 "description": "Fetch tick info",
@@ -1552,6 +1701,19 @@ const docTemplate = `{
                 "OrderTypeBuy"
             ]
         },
+        "model.PoolMode": {
+            "type": "integer",
+            "enum": [
+                0,
+                1,
+                2
+            ],
+            "x-enum-varnames": [
+                "PoolModeNone",
+                "PoolModePsbt",
+                "PoolModeCustody"
+            ]
+        },
         "model.PoolState": {
             "type": "integer",
             "enum": [
@@ -1573,13 +1735,32 @@ const docTemplate = `{
                 1,
                 2,
                 3,
-                4
+                4,
+                100
             ],
             "x-enum-varnames": [
                 "PoolTypeTick",
                 "PoolTypeBtc",
                 "PoolTypeBoth",
-                "PoolTypeMultiSigInscription"
+                "PoolTypeMultiSigInscription",
+                "PoolTypeAll"
+            ]
+        },
+        "model.RewardState": {
+            "type": "integer",
+            "enum": [
+                0,
+                1,
+                2,
+                3,
+                100
+            ],
+            "x-enum-varnames": [
+                "RewardStateNo",
+                "RewardStateCreate",
+                "RewardStateInscription",
+                "RewardStateSend",
+                "RewardStateAll"
             ]
         },
         "model.UtxoType": {
@@ -1588,13 +1769,17 @@ const docTemplate = `{
                 1,
                 2,
                 6,
-                10
+                10,
+                20,
+                21
             ],
             "x-enum-varnames": [
                 "UtxoTypeDummy",
                 "UtxoTypeBidY",
                 "UtxoTypeFakerInscription",
-                "UtxoTypeMultiInscription"
+                "UtxoTypeMultiInscription",
+                "UtxoTypeRewardInscription",
+                "UtxoTypeRewardSend"
             ]
         },
         "request.Brc20CommitReq": {
@@ -1985,6 +2170,24 @@ const docTemplate = `{
                 }
             }
         },
+        "request.PoolBrc20ClaimRewardReq": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "net": {
+                    "description": "livenet/signet/testnet",
+                    "type": "string"
+                },
+                "rewardAmount": {
+                    "type": "integer"
+                },
+                "tick": {
+                    "type": "string"
+                }
+            }
+        },
         "request.PoolBrc20ClaimUpdateReq": {
             "type": "object",
             "properties": {
@@ -2008,6 +2211,18 @@ const docTemplate = `{
                 },
                 "amount": {
                     "type": "integer"
+                },
+                "btcPoolMode": {
+                    "description": "1-psbt,2-custody, default:custody",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.PoolMode"
+                        }
+                    ]
+                },
+                "btcUtxoId": {
+                    "description": "txId_index",
+                    "type": "string"
                 },
                 "coinAmount": {
                     "type": "integer"
@@ -2039,7 +2254,12 @@ const docTemplate = `{
                     ]
                 },
                 "psbtRaw": {
+                    "description": "BTC",
                     "type": "string"
+                },
+                "ratio": {
+                    "description": "ratio: 12/15/18",
+                    "type": "integer"
                 },
                 "tick": {
                     "type": "string"
@@ -2608,12 +2828,35 @@ const docTemplate = `{
                     "description": "coin PSBT Raw",
                     "type": "string"
                 },
+                "dealInscriptionId": {
+                    "description": "InscriptionId",
+                    "type": "string"
+                },
+                "dealInscriptionTime": {
+                    "type": "integer"
+                },
+                "dealInscriptionTx": {
+                    "type": "string"
+                },
+                "dealInscriptionTxIndex": {
+                    "type": "integer"
+                },
+                "dealInscriptionTxOutValue": {
+                    "type": "integer"
+                },
                 "decimalNum": {
                     "type": "integer"
                 },
                 "inscriptionId": {
                     "description": "InscriptionId",
                     "type": "string"
+                },
+                "multiSigScriptAddress": {
+                    "type": "string"
+                },
+                "multiSigScriptAddressTickAvailableState": {
+                    "description": "0-no, 1-available",
+                    "type": "integer"
                 },
                 "net": {
                     "description": "Net env",
@@ -2647,12 +2890,39 @@ const docTemplate = `{
                     "description": "PSBT Raw",
                     "type": "string"
                 },
+                "rewardCoinAmount": {
+                    "type": "integer"
+                },
                 "tick": {
                     "description": "Brc20 symbol",
                     "type": "string"
                 },
                 "timestamp": {
                     "description": "Create time",
+                    "type": "integer"
+                },
+                "utxoId": {
+                    "description": "UtxoId",
+                    "type": "string"
+                }
+            }
+        },
+        "respond.PoolBrc20RewardResp": {
+            "type": "object",
+            "properties": {
+                "hadClaimRewardAmount": {
+                    "description": "ClaimedOwnCoinAmount     uint64 ` + "`" + `json:\"claimedOwnCoinAmount\"` + "`" + `\nClaimedOwnAmount         uint64 ` + "`" + `json:\"claimedOwnAmount\"` + "`" + `\nClaimedOwnCount          uint64 ` + "`" + `json:\"claimedOwnCount\"` + "`" + `",
+                    "type": "integer"
+                },
+                "net": {
+                    "description": "Net env",
+                    "type": "string"
+                },
+                "tick": {
+                    "description": "Brc20 symbol",
+                    "type": "string"
+                },
+                "totalRewardAmount": {
                     "type": "integer"
                 }
             }
@@ -2752,6 +3022,14 @@ const docTemplate = `{
         "respond.PoolKeyInfoResp": {
             "type": "object",
             "properties": {
+                "btcPublicKey": {
+                    "description": "key for btc",
+                    "type": "string"
+                },
+                "btcReceiveAddress": {
+                    "description": "key",
+                    "type": "string"
+                },
                 "net": {
                     "description": "Net env",
                     "type": "string"
@@ -2772,6 +3050,52 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/respond.PoolBrc20Item"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "respond.PoolRewardOrderItem": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "net": {
+                    "type": "string"
+                },
+                "orderId": {
+                    "type": "string"
+                },
+                "pair": {
+                    "type": "string"
+                },
+                "rewardCoinAmount": {
+                    "type": "integer"
+                },
+                "rewardState": {
+                    "$ref": "#/definitions/model.RewardState"
+                },
+                "tick": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "integer"
+                }
+            }
+        },
+        "respond.PoolRewardOrderResponse": {
+            "type": "object",
+            "properties": {
+                "flag": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/respond.PoolRewardOrderItem"
                     }
                 },
                 "total": {

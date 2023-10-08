@@ -142,7 +142,7 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error) {
 	return txId, nil
 }
 
-func saveNewDummyFromBid(net string, out Output, priKeyHex string, index int64, txId string) error {
+func SaveNewDummyFromBid(net string, out Output, priKeyHex string, index int64, txId string) error {
 	startIndex := GetSaveStartIndex(net, model.UtxoTypeDummy, 0)
 	netParams := GetNetParams(net)
 	addr, err := btcutil.DecodeAddress(out.Address, netParams)

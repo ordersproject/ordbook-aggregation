@@ -1,6 +1,7 @@
 package order_brc20_service
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -9,14 +10,17 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/shopspring/decimal"
+	"ordbook-aggregation/config"
 	"ordbook-aggregation/controller/request"
 	"ordbook-aggregation/controller/respond"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/service/oklink_service"
+	"ordbook-aggregation/service/unisat_service"
 	"ordbook-aggregation/tool"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func FetchPoolPairInfo(req *request.PoolPairFetchOneReq) (*respond.PoolInfoResponse, error) {
@@ -87,22 +91,47 @@ func FetchPoolOrders(req *request.PoolBrc20FetchReq) (*respond.PoolResponse, err
 	entityList, _ = mongo_service.FindPoolBrc20ModelList(req.Net, req.Tick, req.Pair, req.Address, req.PoolType, req.PoolState,
 		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType)
 	for _, v := range entityList {
+		multiSigScriptAddressTickAvailableState := int64(0)
+		if v.PoolState == model.PoolStateUsed {
+			brc20TxResp, _ := oklink_service.GetAddressBrc20BalanceTransactionList(v.MultiSigScriptAddress, v.Tick, 0, 100)
+			if brc20TxResp != nil && brc20TxResp.InscriptionsList != nil {
+				for _, tx := range brc20TxResp.InscriptionsList {
+					if tx.TxId == v.DealCoinTx && tx.State == "success" {
+						multiSigScriptAddressTickAvailableState = 1
+						break
+					}
+				}
+			}
+			time.Sleep(800 * time.Millisecond)
+		}
+
+		rewardNowAmount := getRealNowReward(v)
+
 		item := &respond.PoolBrc20Item{
-			Net:            v.Net,
-			OrderId:        v.OrderId,
-			Tick:           v.Tick,
-			Pair:           v.Pair,
-			CoinAmount:     v.CoinAmount,
-			CoinDecimalNum: v.CoinDecimalNum,
-			CoinAddress:    v.CoinAddress,
-			Amount:         v.Amount,
-			DecimalNum:     v.DecimalNum,
-			Address:        v.Address,
-			PoolType:       v.PoolType,
-			PoolState:      v.PoolState,
-			InscriptionId:  v.InscriptionId,
+			Net:                                     v.Net,
+			OrderId:                                 v.OrderId,
+			Tick:                                    v.Tick,
+			Pair:                                    v.Pair,
+			CoinAmount:                              v.CoinAmount,
+			CoinDecimalNum:                          v.CoinDecimalNum,
+			CoinAddress:                             v.CoinAddress,
+			Amount:                                  v.Amount,
+			DecimalNum:                              v.DecimalNum,
+			Address:                                 v.Address,
+			PoolType:                                v.PoolType,
+			PoolState:                               v.PoolState,
+			MultiSigScriptAddress:                   v.MultiSigScriptAddress,
+			DealInscriptionId:                       v.DealInscriptionId,
+			DealInscriptionTx:                       v.DealInscriptionTx,
+			DealInscriptionTxIndex:                  v.DealInscriptionTxIndex,
+			DealInscriptionTxOutValue:               v.DealInscriptionTxOutValue,
+			DealInscriptionTime:                     v.DealInscriptionTime,
+			InscriptionId:                           v.InscriptionId,
+			MultiSigScriptAddressTickAvailableState: multiSigScriptAddressTickAvailableState,
+			UtxoId:                                  v.UtxoId,
 			//PsbtRaw:       v.PsbtRaw,
-			Timestamp: v.Timestamp,
+			Timestamp:        v.Timestamp,
+			RewardCoinAmount: rewardNowAmount,
 		}
 		if req.SortKey == "todo" {
 			//flag = int64(v.CoinRatePrice)
@@ -159,11 +188,15 @@ func FetchOnePoolOrder(req *request.PoolBrc20FetchOneReq, publicKey, ip string) 
 
 func FetchPoolPlatformPublicKey(req *request.PoolBrc20PushReq) (*respond.PoolKeyInfoResp, error) {
 	var (
-		_, platformPublicKeyMultiSig = GetPlatformKeyMultiSig(req.Net)
+		_, platformPublicKeyMultiSig                       = GetPlatformKeyMultiSig(req.Net)
+		_, platformPublicKeyMultiSigBtc                    = GetPlatformKeyMultiSigForBtc(req.Net)
+		_, platformAddressReceiveBidValueForPoolBtc string = GetPlatformKeyAndAddressReceiveValueForPoolBtc(req.Net)
 	)
 	return &respond.PoolKeyInfoResp{
-		Net:       req.Net,
-		PublicKey: platformPublicKeyMultiSig,
+		Net:               req.Net,
+		PublicKey:         platformPublicKeyMultiSig,
+		BtcPublicKey:      platformPublicKeyMultiSigBtc,
+		BtcReceiveAddress: platformAddressReceiveBidValueForPoolBtc,
 	}, nil
 }
 
@@ -174,27 +207,46 @@ func PushPoolOrder(req *request.PoolBrc20PushReq, publicKey string) (string, err
 		err               error
 		orderId           string = ""
 		psbtBuilder       *PsbtBuilder
+		btcPsbtBuilder    *PsbtBuilder
 		coinAddress       string = ""
 		coinAmount        uint64 = 0
 		coinDec           int    = 18
 		outAmount         uint64 = 0
+		btcOutAmount      uint64 = 0
 		amountDec         int    = 8
 		coinRatePrice     uint64 = 0
 		inscriptionId     string = ""
 		inscriptionNumber string = ""
 
-		_, platformPublicKeyMultiSig             = GetPlatformKeyMultiSig(req.Net)
-		_, platformAddressReceiveBidValue string = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
+		_, platformPublicKeyMultiSig                       = GetPlatformKeyMultiSig(req.Net)
+		_, platformAddressReceiveBidValue           string = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
+		_, platformPublicKeyMultiSigBtc                    = GetPlatformKeyMultiSigForBtc(req.Net)
+		_, platformAddressReceiveBidValueForPoolBtc string = GetPlatformKeyAndAddressReceiveValueForPoolBtc(req.Net)
 
-		multiSigScript        string = ""
-		multiSigAddress       string = ""
-		multiSigSegWitAddress string = ""
-		inValue               uint64 = 0
+		multiSigScript           string = ""
+		multiSigAddress          string = ""
+		multiSigSegWitAddress    string = ""
+		multiSigScriptBtc        string = ""
+		multiSigAddressBtc       string = ""
+		multiSigSegWitAddressBtc string = ""
+		inValue                  uint64 = 0
 
 		address string = "" //btc pair
-		utxoId  string = ""
+		utxoId  string = req.BtcUtxoId
 		amount  uint64 = 0
+
+		marketPrice uint64 = 0
 	)
+
+	if req.Tick == "rdex" {
+		return "", errors.New("rdex not in pool")
+	}
+
+	if req.Ratio != 0 {
+		if req.Ratio < 10 || req.Ratio > 20 {
+			return "", errors.New("ratio invalid")
+		}
+	}
 
 	multiSigScript, multiSigAddress, multiSigSegWitAddress, err = createMultiSigAddress(netParams, []string{publicKey, platformPublicKeyMultiSig}...)
 	if err != nil {
@@ -203,6 +255,14 @@ func PushPoolOrder(req *request.PoolBrc20PushReq, publicKey string) (string, err
 	_ = multiSigScript
 	_ = multiSigSegWitAddress
 	_ = multiSigAddress
+
+	multiSigScriptBtc, multiSigAddressBtc, multiSigSegWitAddressBtc, err = createMultiSigAddress(netParams, []string{publicKey, platformPublicKeyMultiSigBtc}...)
+	if err != nil {
+		return "", err
+	}
+	_ = multiSigScriptBtc
+	_ = multiSigSegWitAddressBtc
+	_ = multiSigAddressBtc
 	//fmt.Printf("PublicKeyList:%+v\n", []string{publicKey, platformPublicKeyMultiSig})
 	//fmt.Printf("multiSigScript:%+v\n", multiSigScript)
 	//fmt.Printf("multiSigSegWitAddress:%+v\n", multiSigSegWitAddress)
@@ -211,6 +271,13 @@ func PushPoolOrder(req *request.PoolBrc20PushReq, publicKey string) (string, err
 	if err != nil {
 		return "", err
 	}
+	if req.PsbtRaw != "" {
+		btcPsbtBuilder, err = NewPsbtBuilder(netParams, req.PsbtRaw)
+		if err != nil {
+			return "", err
+		}
+	}
+
 	switch req.PoolType {
 	case model.PoolTypeTick:
 		var (
@@ -280,11 +347,6 @@ func PushPoolOrder(req *request.PoolBrc20PushReq, publicKey string) (string, err
 				return "", errors.New("Wrong Psbt: wrong multiSigScript of out in pool psbt. ")
 			}
 			outAmount = uint64(v.Value)
-			//_, addrs, _, err := txscript.ExtractPkScriptAddrs(v.PkScript, netParams)
-			//if err != nil {
-			//	return "", err
-			//}
-			//fmt.Printf("multiSigSegWitAddress parse:%s\n", addrs[0].EncodeAddress())
 		}
 
 		outAmountDe := decimal.NewFromInt(int64(outAmount))
@@ -304,7 +366,7 @@ func PushPoolOrder(req *request.PoolBrc20PushReq, publicKey string) (string, err
 		)
 		coinAddress = req.Address
 		coinAmount = req.CoinAmount
-		address = platformAddressReceiveBidValue
+		address = req.Address
 
 		preOutList := psbtBuilder.GetInputs()
 		if preOutList == nil || len(preOutList) == 0 {
@@ -352,11 +414,18 @@ func PushPoolOrder(req *request.PoolBrc20PushReq, publicKey string) (string, err
 			return "", errors.New("Wrong Psbt: empty outputs. ")
 		}
 		for _, v := range outList {
-			if hex.EncodeToString(v.PkScript) != multiSigScript {
+			addr, err := btcutil.DecodeAddress(multiSigSegWitAddress, netParams)
+			if err != nil {
+				return "", err
+			}
+			pkScript, err := txscript.PayToAddrScript(addr)
+			if err != nil {
+				return "", err
+			}
+			if hex.EncodeToString(v.PkScript) != hex.EncodeToString(pkScript) {
 				return "", errors.New("Wrong Psbt: wrong multiSigScript of out in pool psbt. ")
 			}
 			outAmount = uint64(v.Value)
-
 		}
 
 		outAmountDe := decimal.NewFromInt(int64(outAmount))
@@ -367,12 +436,92 @@ func PushPoolOrder(req *request.PoolBrc20PushReq, publicKey string) (string, err
 		orderId = fmt.Sprintf("%s_%s_%s_%s_%d_%d_%s_%s_%d", req.Net, req.Tick, inscriptionId, coinAddress, outAmount, coinAmount, utxoId, address, amount)
 		orderId = hex.EncodeToString(tool.SHA256([]byte(orderId)))
 
-		return "", errors.New("Not yet. ")
+		if btcPsbtBuilder == nil {
+			return "", errors.New("PsbtRaw is empty")
+		}
+
+		switch req.BtcPoolMode {
+		case model.PoolModePsbt:
+			btcOutList := btcPsbtBuilder.GetOutputs()
+			if btcOutList == nil || len(btcOutList) == 0 {
+				return "", errors.New("Wrong Psbt(btc): empty outputs. ")
+			}
+			for _, v := range btcOutList {
+				addr, err := btcutil.DecodeAddress(multiSigSegWitAddressBtc, netParams)
+				if err != nil {
+					return "", err
+				}
+				pkScript, err := txscript.PayToAddrScript(addr)
+				if err != nil {
+					return "", err
+				}
+				if hex.EncodeToString(v.PkScript) != hex.EncodeToString(pkScript) {
+					return "", errors.New("Wrong Psbt(btc): wrong multiSigScript of out in pool psbt. ")
+				}
+				btcOutAmount = uint64(v.Value)
+			}
+			//todo check btcOutAmount
+
+			break
+		case model.PoolModeCustody, model.PoolModeNone:
+			addr, err := btcutil.DecodeAddress(platformAddressReceiveBidValueForPoolBtc, netParams)
+			if err != nil {
+				return "", nil
+			}
+			pkScriptBtc, err := txscript.PayToAddrScript(addr)
+			if err != nil {
+				return "", nil
+			}
+
+			btcOutList := btcPsbtBuilder.GetOutputs()
+			if btcOutList == nil || len(btcOutList) == 0 {
+				return "", errors.New("Wrong Psbt(btc): empty outputs. ")
+			}
+			btcOutIndex := int64(0)
+			for i, v := range btcOutList {
+				if hex.EncodeToString(v.PkScript) == hex.EncodeToString(pkScriptBtc) {
+					btcOutIndex = int64(i)
+					btcOutAmount = uint64(v.Value)
+				}
+			}
+			if btcOutAmount == 0 {
+				return "", errors.New("Wrong Psbt(btc): empty value of out in pool psbt. ")
+			}
+
+			txRawPsbtBtc, err := btcPsbtBuilder.ExtractPsbtTransaction()
+			if err != nil {
+				return "", errors.New(fmt.Sprintf("Wrong Psbt(btc): ExtractPsbtTransaction err:%s", err.Error()))
+			}
+			txRawPsbtBtcByte, _ := hex.DecodeString(txRawPsbtBtc)
+
+			txPsbtBtc := wire.NewMsgTx(2)
+			err = txPsbtBtc.Deserialize(bytes.NewReader(txRawPsbtBtcByte))
+			if err != nil {
+				return "", errors.New(fmt.Sprintf("Wrong Psbt(btc): txRawPsbt Deserialize err:%s", err.Error()))
+			}
+			psbtBtcTxId := txPsbtBtc.TxHash().String()
+			if utxoId != fmt.Sprintf("%s_%d", psbtBtcTxId, btcOutIndex) {
+				return "", errors.New(fmt.Sprintf("Wrong Psbt(btc): wrong utxoId"))
+			}
+
+			_, err = unisat_service.BroadcastTx(req.Net, txRawPsbtBtc)
+			if err != nil {
+				return "", errors.New(fmt.Sprintf("Broadcast Psbt(btc) %s err:%s", req.Net, err.Error()))
+			}
+			break
+		default:
+			return "", errors.New("invalid BtcPoolMode")
+		}
 	default:
 		return "", errors.New("Wrong OrderState. ")
 	}
 
-	//todo Fix pool
+	marketPrice = GetMarketPrice(req.Net, req.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(req.Tick)))
+
+	if coinRatePrice <= marketPrice {
+		return "", errors.New("The liquidity price must not be lower than the market price. ")
+	}
+
 	entity = &model.PoolBrc20Model{
 		Net:            req.Net,
 		OrderId:        orderId,
@@ -389,16 +538,21 @@ func PushPoolOrder(req *request.PoolBrc20PushReq, publicKey string) (string, err
 		DecimalNum: amountDec,
 		Address:    address,
 
-		MultiSigScript:        multiSigScript,
-		MultiSigScriptAddress: multiSigSegWitAddress,
-		CoinPsbtRaw:           req.CoinPsbtRaw,
-		PsbtRaw:               req.PsbtRaw,
-		InscriptionId:         inscriptionId,
-		InscriptionNumber:     inscriptionNumber,
-		UtxoId:                utxoId,
-		PoolType:              req.PoolType,
-		PoolState:             req.PoolState,
-		Timestamp:             tool.MakeTimestamp(),
+		MultiSigScript:           multiSigScript,
+		MultiSigScriptAddress:    multiSigSegWitAddress,
+		CoinPsbtRaw:              req.CoinPsbtRaw,
+		MultiSigScriptBtc:        multiSigScriptBtc,
+		MultiSigScriptAddressBtc: multiSigSegWitAddressBtc,
+		PsbtRaw:                  req.PsbtRaw,
+		InscriptionId:            inscriptionId,
+		InscriptionNumber:        inscriptionNumber,
+		BtcPoolMode:              req.BtcPoolMode,
+		UtxoId:                   utxoId,
+		PoolType:                 req.PoolType,
+		PoolState:                req.PoolState,
+		Ratio:                    req.Ratio,
+		RewardRatio:              getRewardRatio(req.Ratio),
+		Timestamp:                tool.MakeTimestamp(),
 	}
 	_, err = mongo_service.SetPoolBrc20Model(entity)
 	if err != nil {
@@ -412,8 +566,15 @@ func PushPoolOrder(req *request.PoolBrc20PushReq, publicKey string) (string, err
 
 func UpdatePoolOrder(req *request.OrderPoolBrc20UpdateReq, publicKey, ip string) (string, error) {
 	var (
-		netParams   *chaincfg.Params = GetNetParams(req.Net)
-		entityOrder *model.PoolBrc20Model
+		netParams                                                                             *chaincfg.Params = GetNetParams(req.Net)
+		entityOrder                                                                           *model.PoolBrc20Model
+		limitTime                                                                             int64                   = 1000 * 60 * 60 * 24 * 15
+		_, platformAddressReceiveBidValue                                                     string                  = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
+		platformPrivateKeyReceiveBidValueForPoolBtc, platformAddressReceiveBidValueForPoolBtc string                  = GetPlatformKeyAndAddressReceiveValueForPoolBtc(req.Net)
+		refundUtxoList                                                                        []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
+		utxoListForRefundFee                                                                  []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
+		refundTx                                                                              string                  = ""
+		txRaw                                                                                 string                  = ""
 	)
 	entityOrder, _ = mongo_service.FindPoolBrc20ModelByOrderId(req.OrderId)
 	if entityOrder == nil || entityOrder.Id == 0 {
@@ -421,6 +582,10 @@ func UpdatePoolOrder(req *request.OrderPoolBrc20UpdateReq, publicKey, ip string)
 	}
 
 	if req.PoolState == model.PoolStateRemove {
+		if entityOrder.PoolState != model.PoolStateAdd {
+			return "", errors.New("Order not in add state. ")
+		}
+
 		verified, err := CheckPublicKeyAddress(netParams, publicKey, entityOrder.CoinAddress)
 		if err != nil {
 			return "", errors.New(fmt.Sprintf("Check address err: %s. ", err.Error()))
@@ -429,11 +594,85 @@ func UpdatePoolOrder(req *request.OrderPoolBrc20UpdateReq, publicKey, ip string)
 			return "", errors.New(fmt.Sprintf("Check address verified: %v. ", verified))
 		}
 
+		// refund btc
+		switch entityOrder.PoolType {
+		case model.PoolTypeBoth, model.PoolTypeBtc:
+			if entityOrder.BtcPoolMode == model.PoolModeCustody {
+				addr, err := btcutil.DecodeAddress(platformAddressReceiveBidValueForPoolBtc, netParams)
+				if err != nil {
+					return "", nil
+				}
+				pkScriptBtc, err := txscript.PayToAddrScript(addr)
+				if err != nil {
+					return "", nil
+				}
+				if entityOrder.UtxoId == "" {
+					return "", errors.New("utxoId is empty")
+				}
+				btcUtxoIdStrs := strings.Split(entityOrder.UtxoId, "_")
+				if len(btcUtxoIdStrs) != 2 {
+					return "", errors.New("utxoId format error")
+				}
+				btcTxId := btcUtxoIdStrs[0]
+				btcTxOutIndex, _ := strconv.ParseInt(btcUtxoIdStrs[1], 10, 64)
+				//liveUtxoList := make([]*oklink_service.UtxoItem, 0)
+				//utxoResp, err := oklink_service.GetAddressUtxo(platformAddressReceiveBidValueForPoolBtc, 1, 50)
+				//if err != nil {
+				//	return "", errors.New(fmt.Sprintf("Recheck address utxo list err:%s", err.Error()))
+				//}
+				//if utxoResp.UtxoList != nil && len(utxoResp.UtxoList) != 0 {
+				//	liveUtxoList = append(liveUtxoList, utxoResp.UtxoList...)
+				//}
+
+				//utxoList, err := unisat_service.GetAddressUtxo(platformAddressReceiveBidValueForPoolBtc)
+				refundUtxoList = append(refundUtxoList, &model.OrderUtxoModel{
+					TxId:          btcTxId,
+					Index:         btcTxOutIndex,
+					Amount:        entityOrder.Amount,
+					PrivateKeyHex: platformPrivateKeyReceiveBidValueForPoolBtc,
+					PkScript:      hex.EncodeToString(pkScriptBtc),
+				})
+				refundAmount := entityOrder.Amount
+
+				utxoListForRefundFee, err = GetUnoccupiedUtxoList(req.Net, 1, 0, model.UtxoTypeBidY)
+				defer ReleaseUtxoList(utxoListForRefundFee)
+				refundUtxoList = append(refundUtxoList, utxoListForRefundFee...)
+				//todo
+				if tool.MakeTimestamp()-entityOrder.CreateTime >= limitTime {
+
+				} else {
+
+				}
+
+				tx, err := makeBtcRefundTx(netParams, refundUtxoList, refundAmount, entityOrder.Address, platformAddressReceiveBidValue)
+				if err != nil {
+					fmt.Printf("BuildCommonTx err:%s\n", err.Error())
+					return "", err
+				}
+				txRaw, err = ToRaw(tx)
+				if err != nil {
+					return "", err
+				}
+				txResp, err := unisat_service.BroadcastTx(req.Net, txRaw)
+				if err != nil {
+					return "", err
+				}
+				setUsedBidYUtxo(utxoListForRefundFee, txResp.Result)
+
+				refundTx = txResp.Result
+				entityOrder.RefundTx = refundTx
+			}
+			break
+		}
+
 		entityOrder.PoolState = req.PoolState
+
 		_, err = mongo_service.SetPoolBrc20Model(entityOrder)
 		if err != nil {
 			return "", err
 		}
+
+		updatePoolInfo(entityOrder)
 	} else {
 		return "", errors.New("Wrong state. ")
 	}
@@ -479,7 +718,9 @@ func ClaimPool(req *request.PoolBrc20ClaimReq, publicKey, ip string) (*respond.P
 		_, platformAddressReceiveBidValue     string = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
 		_, platformAddressMultiSigInscription string = GetPlatformKeyAndAddressForMultiSigInscription(req.Net)
 		//_, platformAddressMultiSigInscriptionForReceiveValue string = GetPlatformKeyAndAddressForMultiSigInscriptionAndReceiveValue(req.Net)
-		rewardPsbtRaw string = ""
+		rewardPsbtRaw     string = ""
+		rewardNowAmount   int64  = 0
+		btcReceiveAddress string = platformAddressReceiveBidValue
 	)
 
 	entityOrder, _ = mongo_service.FindPoolBrc20ModelByOrderId(req.PoolOrderId)
@@ -519,7 +760,10 @@ func ClaimPool(req *request.PoolBrc20ClaimReq, publicKey, ip string) (*respond.P
 	_ = coinTransferPsbtRaw
 
 	//btc
-	tx, psbtRaw, err = claimPoolBrc20Order(req.PoolOrderId, platformAddressReceiveBidValue, model.PoolTypeBtc, preSigScriptByte)
+	if entityOrder.PoolType == model.PoolTypeBoth && entityOrder.UtxoId != "" {
+		btcReceiveAddress = entityOrder.Address
+	}
+	tx, psbtRaw, err = claimPoolBrc20Order(req.PoolOrderId, btcReceiveAddress, model.PoolTypeBtc, preSigScriptByte)
 	if err != nil {
 		return nil, err
 	}
@@ -529,6 +773,8 @@ func ClaimPool(req *request.PoolBrc20ClaimReq, publicKey, ip string) (*respond.P
 	//if err != nil {
 	//	major.Println(fmt.Sprintf("[POOL-CLAIM] makePoolRewardPsbt err:%s\n", err.Error()))
 	//}
+
+	rewardNowAmount = getRealNowReward(entityOrder)
 
 	return &respond.PoolBrc20ClaimResp{
 		Net:     entityOrder.Net,
@@ -541,7 +787,7 @@ func ClaimPool(req *request.PoolBrc20ClaimReq, publicKey, ip string) (*respond.P
 		PsbtRaw:             psbtRaw,
 		CoinTransferPsbtRaw: coinTransferPsbtRaw,
 		RewardPsbtRaw:       rewardPsbtRaw,
-		RewardCoinAmount:    1500,
+		RewardCoinAmount:    rewardNowAmount,
 	}, nil
 }
 
@@ -556,6 +802,8 @@ func UpdateClaim(req *request.PoolBrc20ClaimUpdateReq, publicKey, ip string) (st
 		platformAddressMultiSigInscription                       string = ""
 		hasAddressMultiSigInscription, hasAddressReceiveBidValue bool   = false, false
 		multiSigInscriptionTxIndex, multiSigInscriptionTxAmount  int64  = 0, 0
+
+		rewardEntity *model.OrderBrc20Model
 	)
 	entityOrder, _ = mongo_service.FindPoolBrc20ModelByOrderId(req.PoolOrderId)
 	if entityOrder == nil || entityOrder.Id == 0 {
@@ -592,8 +840,8 @@ func UpdateClaim(req *request.PoolBrc20ClaimUpdateReq, publicKey, ip string) (st
 				multiSigInscriptionTxIndex = int64(k)
 				hasAddressMultiSigInscription = true
 				multiSigInscriptionTxAmount = v.Value
-				if v.Value != 4000 {
-					return "", errors.New(fmt.Sprintf("Wrong Psbt: value of output[%d] is not 4000", k))
+				if v.Value != 4000 && v.Value != 5000 {
+					return "", errors.New(fmt.Sprintf("Wrong Psbt: value of output[%d] is not 4000 or 5000", k))
 				}
 			} else if addrs[0].EncodeAddress() == platformAddressReceiveBidValue {
 				hasAddressReceiveBidValue = true
@@ -601,6 +849,19 @@ func UpdateClaim(req *request.PoolBrc20ClaimUpdateReq, publicKey, ip string) (st
 		}
 		if !(hasAddressMultiSigInscription && hasAddressReceiveBidValue) {
 			return "", errors.New(fmt.Sprintf("Wrong PSBT: outputs missing"))
+		}
+
+		if finalClaimPsbtBuilder.GetInputs() == nil || len(finalClaimPsbtBuilder.GetInputs()) == 0 {
+			return "", errors.New(fmt.Sprintf("Wrong PSBT: inputs are empty"))
+		}
+
+		//get reward input
+		for _, v := range finalClaimPsbtBuilder.GetInputs() {
+			inscriptionId := fmt.Sprintf("%si%d", v.PreviousOutPoint.Hash.String(), v.PreviousOutPoint.Index)
+			rewardEntity, _ = mongo_service.FindOrderBrc20ModelByInscriptionId(inscriptionId, model.OrderStatePoolPreClaim)
+			if rewardEntity != nil {
+				break
+			}
 		}
 
 		txRaw, err = finalClaimPsbtBuilder.ExtractPsbtTransaction()
@@ -614,5 +875,178 @@ func UpdateClaim(req *request.PoolBrc20ClaimUpdateReq, publicKey, ip string) (st
 		return "", err
 	}
 	saveNewMultiSigInscriptionUtxo(entityOrder.Net, entityOrder.ClaimTx, multiSigInscriptionTxIndex, uint64(multiSigInscriptionTxAmount))
+
+	if rewardEntity != nil {
+		rewardEntity.OrderState = model.OrderStatePoolFinishClaim
+		rewardEntity.PsbtRawFinalAsk = req.PsbtRaw
+		rewardEntity.PsbtAskTxId = entityOrder.ClaimTx
+		rewardEntity.DealTime = tool.MakeTimestamp()
+		_, err = mongo_service.SetOrderBrc20Model(rewardEntity)
+		if err != nil {
+			//return "", err
+		}
+	}
+
 	return "success", err
+}
+
+func FetchOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20RewardResp, error) {
+	var (
+		entityBlockReward      *model.PoolRewardBlockUserCount
+		entityReward           *model.PoolRewardCount
+		entityRewardOrderCount *model.PoolRewardOrderCount
+		totalRewardAmount      uint64 = 0
+		//claimedOwnCoinAmount   uint64 = 0
+		//claimedOwnAmount       uint64 = 0
+		//claimedOwnCount        uint64 = 0
+		hadClaimRewardAmount uint64 = 0
+		//hadClaimRewardOrderCount uint64 = 0
+	)
+
+	if req.Tick != config.PlatformRewardTick {
+		return nil, errors.New(fmt.Sprintf("tick wrong:%s", config.PlatformRewardTick))
+	}
+
+	_ = entityBlockReward
+	//entityBlockReward, _ = mongo_service.CountPoolRewardBlockUser(req.Net, req.Address)
+	//if entityBlockReward != nil {
+	//	totalRewardAmount = uint64(entityBlockReward.RewardCoinAmountTotal)
+	//	entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, "", "", req.Address)
+	//	if entityRewardOrderCount != nil {
+	//		hadClaimCoinAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
+	//		hadClaimCoinOrderCount = uint64(entityRewardOrderCount.RewardCoinOrderCount)
+	//	}
+	//}
+
+	_ = entityReward
+
+	entityReward, _ = mongo_service.CountOwnPoolReward(req.Net, req.Tick, "", req.Address)
+	if entityReward != nil {
+		totalRewardAmount = uint64(entityReward.RewardAmountTotal)
+		//claimedOwnCoinAmount = uint64(entityReward.CoinAmountTotal)
+		//claimedOwnAmount = uint64(entityReward.AmountTotal)
+		//claimedOwnCount = uint64(entityReward.OrderCounts)
+
+		entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, req.Tick, "", req.Address)
+		if entityRewardOrderCount != nil {
+			hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
+			//hadClaimRewardOrderCount = uint64(entityRewardOrderCount.RewardCoinOrderCount)
+		}
+	}
+	return &respond.PoolBrc20RewardResp{
+		Net:               req.Net,
+		Tick:              req.Tick,
+		TotalRewardAmount: totalRewardAmount,
+		//ClaimedOwnCoinAmount:   claimedOwnCoinAmount,
+		//ClaimedOwnAmount:       claimedOwnAmount,
+		//ClaimedOwnCount:        claimedOwnCount,
+		HadClaimRewardAmount: hadClaimRewardAmount,
+		//HadClaimRewardOrderCount: hadClaimCoinOrderCount,
+	}, nil
+}
+
+func ClaimReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string) (string, error) {
+	var (
+		netParams              *chaincfg.Params = GetNetParams(req.Net)
+		orderId                string           = ""
+		entityOrder            *model.PoolRewardOrderModel
+		nowTime                int64 = tool.MakeTimestamp()
+		entityReward           *model.PoolRewardCount
+		entityRewardOrderCount *model.PoolRewardOrderCount
+		totalRewardAmount      uint64 = 0
+		hadClaimRewardAmount   uint64 = 0
+		remainingRewardAmount  int64  = 0
+	)
+	if req.Tick != config.PlatformRewardTick {
+		return "", errors.New(fmt.Sprintf("tick wrong:%s", config.PlatformRewardTick))
+	}
+
+	verified, err := CheckPublicKeyAddress(netParams, publicKey, req.Address)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("Check address err: %s. ", err.Error()))
+	}
+	if !verified {
+		return "", errors.New(fmt.Sprintf("Check address verified: %v. ", verified))
+	}
+
+	entityReward, _ = mongo_service.CountOwnPoolReward(req.Net, req.Tick, "", req.Address)
+	if entityReward != nil {
+		totalRewardAmount = uint64(entityReward.RewardAmountTotal)
+		entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, req.Tick, "", req.Address)
+		if entityRewardOrderCount != nil {
+			hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
+
+			remainingRewardAmount = int64(totalRewardAmount) - int64(hadClaimRewardAmount)
+		}
+	}
+	if remainingRewardAmount < 0 {
+		remainingRewardAmount = 0
+	}
+	if remainingRewardAmount < req.RewardAmount {
+		return "", errors.New(fmt.Sprintf("You only have %d rdex to claim.", remainingRewardAmount))
+	}
+
+	orderId = fmt.Sprintf("%s_%s_%s_%d_%d", req.Net, req.Tick, req.Address, req.RewardAmount, nowTime)
+	orderId = hex.EncodeToString(tool.SHA256([]byte(orderId)))
+	entityOrder, _ = mongo_service.FindPoolRewardOrderModelByOrderId(orderId)
+	if entityOrder != nil {
+		return "", errors.New("already exist")
+	}
+
+	entityOrder = &model.PoolRewardOrderModel{
+		Net:              req.Net,
+		Tick:             req.Tick,
+		OrderId:          orderId,
+		Pair:             fmt.Sprintf("%s_BTC", strings.ToUpper(req.Tick)),
+		RewardCoinAmount: req.RewardAmount,
+		Address:          req.Address,
+		RewardState:      model.RewardStateCreate,
+		Timestamp:        nowTime,
+	}
+
+	_, err = mongo_service.SetPoolRewardOrderModel(entityOrder)
+	if err != nil {
+		return "", errors.New("create order err")
+	}
+
+	return "success", nil
+}
+
+func FetchPoolRewardOrders(req *request.PoolRewardOrderFetchReq) (*respond.PoolRewardOrderResponse, error) {
+	var (
+		entityList []*model.PoolRewardOrderModel
+		total      int64                          = 0
+		list       []*respond.PoolRewardOrderItem = make([]*respond.PoolRewardOrderItem, 0)
+		flag       int64                          = 0
+	)
+	if req.Tick != config.PlatformRewardTick {
+		return nil, errors.New(fmt.Sprintf("tick wrong:%s", config.PlatformRewardTick))
+	}
+
+	total, _ = mongo_service.CountPoolRewardOrderModelList(req.Net, req.Tick, req.Pair, req.Address, req.RewardState)
+	entityList, _ = mongo_service.FindPoolRewardOrderModelList(req.Net, req.Tick, req.Pair, req.Address, req.RewardState,
+		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType)
+	for _, v := range entityList {
+		item := &respond.PoolRewardOrderItem{
+			Net:              v.Net,
+			Tick:             v.Tick,
+			OrderId:          v.OrderId,
+			Pair:             v.Pair,
+			RewardCoinAmount: v.RewardCoinAmount,
+			Address:          v.Address,
+			RewardState:      v.RewardState,
+			Timestamp:        v.Timestamp,
+		}
+		if req.SortKey == "todo" {
+			//flag = int64(v.CoinRatePrice)
+		} else {
+			flag = v.Timestamp
+		}
+		list = append(list, item)
+	}
+	return &respond.PoolRewardOrderResponse{
+		Total:   total,
+		Results: list,
+		Flag:    flag,
+	}, nil
 }

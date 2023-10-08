@@ -9,6 +9,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 	"ordbook-aggregation/config"
+	"ordbook-aggregation/major"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/tool"
@@ -28,6 +29,11 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel {
 		sellTotal   uint64 = 0
 		buyPrice    uint64 = 0
 		buyTotal    uint64 = 0
+
+		lastPrice uint64 = 0
+
+		askLastFinish *model.OrderBrc20Model
+		bidLastFinish *model.OrderBrc20Model
 	)
 	askList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeSell, model.OrderStateCreate, 10, 0, 0,
 		"coinRatePrice", 1, 0, 0)
@@ -62,6 +68,20 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel {
 		marketPrice = totalPrice / total
 	}
 
+	askLastFinish, _ = mongo_service.FindLastOrderBrc20ModelFinish(net, tick, model.OrderTypeSell, model.OrderStateFinish)
+	bidLastFinish, _ = mongo_service.FindLastOrderBrc20ModelFinish(net, tick, model.OrderTypeBuy, model.OrderStateFinish)
+	if askLastFinish != nil && bidLastFinish != nil {
+		if askLastFinish.DealTime > bidLastFinish.DealTime {
+			lastPrice = askLastFinish.CoinRatePrice
+		} else {
+			lastPrice = bidLastFinish.CoinRatePrice
+		}
+	} else if askLastFinish != nil && bidLastFinish == nil {
+		lastPrice = askLastFinish.CoinRatePrice
+	} else if askLastFinish == nil && bidLastFinish != nil {
+		lastPrice = bidLastFinish.CoinRatePrice
+	}
+
 	tickInfo, _ = mongo_service.FindBrc20TickModelByPair(net, pair)
 	if tickInfo == nil {
 		tickInfo = &model.Brc20TickModel{
@@ -76,6 +96,8 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel {
 	tickInfo.Buy = buyPrice
 	tickInfo.Sell = sellPrice
 	tickInfo.AvgPrice = marketPrice
+	tickInfo.Last = lastPrice
+
 	_, err := mongo_service.SetBrc20TickModel(tickInfo)
 	if err != nil {
 		return nil
@@ -192,6 +214,13 @@ func GetPlatformKeyAndAddressReceiveBidValue(net string) (string, string) {
 	return config.PlatformMainnetPrivateKeyReceiveBidValue, config.PlatformMainnetAddressReceiveBidValue
 }
 
+func GetPlatformKeyAndAddressReceiveBidValueToX(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyReceiveBidValueToX, config.PlatformTestnetAddressReceiveBidValueToX
+	}
+	return config.PlatformMainnetPrivateKeyReceiveBidValueToX, config.PlatformMainnetAddressReceiveBidValueToX
+}
+
 func GetPlatformKeyAndAddressReceiveDummyValue(net string) (string, string) {
 	if strings.ToLower(net) == "testnet" {
 		return config.PlatformTestnetPrivateKeyReceiveDummyValue, config.PlatformTestnetAddressReceiveDummyValue
@@ -206,11 +235,25 @@ func GetPlatformKeyAndAddressReceiveFee(net string) (string, string) {
 	return config.PlatformMainnetPrivateKeyReceiveFee, config.PlatformMainnetAddressReceiveFee
 }
 
+func GetPlatformKeyAndAddressReceiveValueForPoolBtc(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyReceiveValueForPoolBtc, config.PlatformTestnetAddressReceiveValueForPoolBtc
+	}
+	return config.PlatformMainnetPrivateKeyReceiveValueForPoolBtc, config.PlatformMainnetAddressReceiveValueForPoolBtc
+}
+
 func GetPlatformKeyMultiSig(net string) (string, string) {
 	if strings.ToLower(net) == "testnet" {
 		return config.PlatformTestnetPrivateKeyMultiSig, config.PlatformTestnetPublicKeyMultiSig
 	}
 	return config.PlatformMainnetPrivateKeyMultiSig, config.PlatformMainnetPublicKeyMultiSig
+}
+
+func GetPlatformKeyMultiSigForBtc(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyMultiSigBtc, config.PlatformTestnetPublicKeyMultiSigBtc
+	}
+	return config.PlatformMainnetPrivateKeyMultiSigBtc, config.PlatformMainnetPublicKeyMultiSigBtc
 }
 
 func GetPlatformKeyAndAddressForMultiSigInscription(net string) (string, string) {
@@ -234,6 +277,20 @@ func GetPlatformKeyAndAddressForRewardBrc20(net string) (string, string) {
 	return config.PlatformMainnetPrivateKeyRewardBrc20, config.PlatformMainnetAddressRewardBrc20
 }
 
+func GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyRewardBrc20FeeUtxos, config.PlatformTestnetAddressRewardBrc20FeeUtxos
+	}
+	return config.PlatformMainnetPrivateKeyRewardBrc20FeeUtxos, config.PlatformMainnetAddressRewardBrc20FeeUtxos
+}
+
+func GetPlatformKeyAndAddressForRepurchaseReceiveBrc20(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyRepurchaseReceiveBrc20, config.PlatformTestnetAddressRepurchaseReceiveBrc20
+	}
+	return config.PlatformMainnetPrivateKeyRepurchaseReceiveBrc20, config.PlatformMainnetAddressRepurchaseReceiveBrc20
+}
+
 func CheckBidInscriptionIdExist(inscriptionId string) bool {
 	entity, _ := mongo_service.FindOrderBrc20ModelByInscriptionId(inscriptionId, model.OrderStateCreate)
 	if entity == nil || entity.Id == 0 {
@@ -242,7 +299,7 @@ func CheckBidInscriptionIdExist(inscriptionId string) bool {
 	return true
 }
 
-func setUsedDummyUtxo(utxoDummyList []*model.OrderUtxoModel, useTx string) {
+func SetUsedDummyUtxo(utxoDummyList []*model.OrderUtxoModel, useTx string) {
 	for _, v := range utxoDummyList {
 		v.UseTx = useTx
 		v.UsedState = model.UsedYes
@@ -266,6 +323,17 @@ func setUsedBidYUtxo(utxoBidYList []*model.OrderUtxoModel, useTx string) {
 
 func setUsedMultiSigInscriptionUtxo(utxoMultiSigInscriptionList []*model.OrderUtxoModel, useTx string) {
 	for _, v := range utxoMultiSigInscriptionList {
+		v.UseTx = useTx
+		v.UsedState = model.UsedYes
+		err := mongo_service.UpdateOrderUtxoModelForUsed(v.UtxoId, useTx, v.UsedState)
+		if err != nil {
+			continue
+		}
+	}
+}
+
+func SetUsedRewardUtxo(utxoRewardInscriptionList []*model.OrderUtxoModel, useTx string) {
+	for _, v := range utxoRewardInscriptionList {
 		v.UseTx = useTx
 		v.UsedState = model.UsedYes
 		err := mongo_service.UpdateOrderUtxoModelForUsed(v.UtxoId, useTx, v.UsedState)
@@ -320,4 +388,82 @@ func CheckPublicKeyAddress(netParams *chaincfg.Params, publicKeyStr, checkAddres
 		return true, nil
 	}
 	return false, nil
+}
+
+func UpdateTickRecentlyInfo(net, tick string) {
+	var (
+		limit                   int64 = 5000
+		entityList              []*model.OrderBrc20Model
+		lastFinish              *model.OrderBrc20Model
+		lastFinish24Ago         *model.OrderBrc20Model
+		highest, lowest, volume uint64 = 0, 0, 0
+		err                     error
+		startTime, endTime      int64  = 0, 0
+		orderLastTime           int64  = 0
+		percentage              string = ""
+		nowPrice, lastPrice     int64  = 0, 0
+		dis                     int64  = 1000 * 60 * 60 * 24
+		entity                  *model.Brc20TickRecentlyInfoModel
+		tickId                  string = fmt.Sprintf("%s_%s_%s", net, tick, model.RecentlyType24h)
+	)
+	_ = lastFinish24Ago
+	_ = percentage
+	_ = nowPrice
+	_ = lastPrice
+	endTime = tool.MakeTimestamp()
+	startTime = endTime - dis
+
+	entityList, _ = mongo_service.FindOrderBrc20ModelListByDealTimestamp(net, tick, 0, model.OrderStateFinish,
+		limit, startTime, endTime)
+	if entityList == nil || len(entityList) == 0 {
+		lastFinish, _ = mongo_service.FindLastOrderBrc20ModelFinish(net, tick, 0, model.OrderStateFinish)
+		if lastFinish == nil {
+			return
+		}
+		startTime, endTime = lastFinish.DealTime-dis, lastFinish.DealTime
+		entityList, _ = mongo_service.FindOrderBrc20ModelListByDealTimestamp(net, tick, 0, model.OrderStateFinish,
+			limit, startTime, endTime)
+		if entityList == nil || len(entityList) == 0 {
+			return
+		}
+	}
+	volume = uint64(len(entityList))
+	for _, v := range entityList {
+		if orderLastTime == 0 || orderLastTime < v.DealTime {
+			orderLastTime = v.DealTime
+			nowPrice = int64(v.CoinRatePrice)
+		}
+		if highest == 0 || v.CoinRatePrice > highest {
+			highest = v.CoinRatePrice
+		}
+		if lowest == 0 || lowest > v.CoinRatePrice {
+			lowest = v.CoinRatePrice
+		}
+	}
+
+	entity, _ = mongo_service.FindBrc20TickRecentlyInfoModelByTickId(tickId)
+	if entity == nil {
+		entity = &model.Brc20TickRecentlyInfoModel{
+			TickId:        tickId,
+			Net:           net,
+			Tick:          tick,
+			RecentlyType:  model.RecentlyType24h,
+			OrderLastTime: orderLastTime,
+			Timestamp:     tool.MakeTimestamp(),
+		}
+	}
+	if entity.Highest != fmt.Sprintf("%d", highest) {
+		entity.Highest = fmt.Sprintf("%d", highest)
+	}
+	if entity.Lowest != fmt.Sprintf("%d", lowest) {
+		entity.Lowest = fmt.Sprintf("%d", lowest)
+	}
+	if entity.Volume != int64(volume) {
+		entity.Volume = int64(volume)
+	}
+
+	_, err = mongo_service.SetBrc20TickRecentlyInfoModel(entity)
+	if err != nil {
+		major.Println(fmt.Sprintf("SetBrc20TickRecentlyInfoModel err:%s", err))
+	}
 }

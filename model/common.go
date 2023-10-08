@@ -41,3 +41,11 @@ const (
 	FreeStateClaim     FreeState = 2
 	FreeStatePoolClaim FreeState = 3
 )
+
+type InscriptionState int
+
+const (
+	InscriptionStateNull    InscriptionState = 0
+	InscriptionStateSuccess InscriptionState = 1
+	InscriptionStateFail    InscriptionState = 2
+)

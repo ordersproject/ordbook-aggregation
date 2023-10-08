@@ -284,20 +284,25 @@ func createBrc20TickKlineModel(brc20TickKline *model.Brc20TickKlineModel) (*mode
 	CreateIndex(collection, "tick")
 	CreateIndex(collection, "volume")
 	CreateIndex(collection, "timestamp")
+	CreateIndex(collection, "timeType")
+	CreateIndex(collection, "date")
 
 	entity := &model.Brc20TickKlineModel{
-		Id:         util.GetUUIDInt64(),
-		TickId:     brc20TickKline.TickId,
-		Net:        brc20TickKline.Net,
-		Tick:       brc20TickKline.Tick,
-		Open:       brc20TickKline.Open,
-		High:       brc20TickKline.High,
-		Low:        brc20TickKline.Low,
-		Close:      brc20TickKline.Close,
-		Volume:     brc20TickKline.Volume,
-		Timestamp:  brc20TickKline.Timestamp,
-		CreateTime: util.Time(),
-		State:      model.STATE_EXIST,
+		Id:            util.GetUUIDInt64(),
+		TickId:        brc20TickKline.TickId,
+		Net:           brc20TickKline.Net,
+		Tick:          brc20TickKline.Tick,
+		Open:          brc20TickKline.Open,
+		High:          brc20TickKline.High,
+		Low:           brc20TickKline.Low,
+		Close:         brc20TickKline.Close,
+		Volume:        brc20TickKline.Volume,
+		Date:          brc20TickKline.Date,
+		DateTimestamp: brc20TickKline.DateTimestamp,
+		Timestamp:     brc20TickKline.Timestamp,
+		TimeType:      brc20TickKline.TimeType,
+		CreateTime:    util.Time(),
+		State:         model.STATE_EXIST,
 	}
 
 	_, err = collection.InsertOne(context.TODO(), entity)
@@ -330,7 +335,10 @@ func SetBrc20TickKlineModel(brc20TickKline *model.Brc20TickKlineModel) (*model.B
 		bsonData = append(bsonData, bson.E{Key: "low", Value: brc20TickKline.Low})
 		bsonData = append(bsonData, bson.E{Key: "close", Value: brc20TickKline.Close})
 		bsonData = append(bsonData, bson.E{Key: "volume", Value: brc20TickKline.Volume})
+		bsonData = append(bsonData, bson.E{Key: "date", Value: brc20TickKline.Date})
+		bsonData = append(bsonData, bson.E{Key: "dateTimestamp", Value: brc20TickKline.DateTimestamp})
 		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: brc20TickKline.Timestamp})
+		bsonData = append(bsonData, bson.E{Key: "timeType", Value: brc20TickKline.TimeType})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",
 			bsonData,
@@ -397,4 +405,96 @@ func FindBrc20TickKlineModelList(net, tick string, startTime, endTime int64) ([]
 		return nil, errors.New("Get Brc20TickKlineModel Error")
 	}
 	return models, nil
+}
+
+func FindBrc20TickRecentlyInfoModelByTickId(tickId string) (*model.Brc20TickRecentlyInfoModel, error) {
+	collection, err := model.Brc20TickRecentlyInfoModel{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.D{
+		{"tickId", tickId},
+		//{"state", model.STATE_EXIST},
+	}
+	entity := &model.Brc20TickRecentlyInfoModel{}
+	err = collection.FindOne(context.TODO(), queryBson).Decode(entity)
+	if err != nil {
+		return nil, err
+	}
+	return entity, nil
+}
+
+func createBrc20TickRecentlyInfoModel(brc20TickRecentlyInfo *model.Brc20TickRecentlyInfoModel) (*model.Brc20TickRecentlyInfoModel, error) {
+	collection, err := model.Brc20TickRecentlyInfoModel{}.GetWriteDB()
+	if err != nil {
+		return nil, err
+	}
+
+	CreateUniqueIndex(collection, "tickId")
+	CreateIndex(collection, "net")
+	CreateIndex(collection, "tick")
+	CreateIndex(collection, "volume")
+	CreateIndex(collection, "timestamp")
+	CreateIndex(collection, "recentlyType")
+
+	entity := &model.Brc20TickRecentlyInfoModel{
+		Id:            util.GetUUIDInt64(),
+		TickId:        brc20TickRecentlyInfo.TickId,
+		Net:           brc20TickRecentlyInfo.Net,
+		Tick:          brc20TickRecentlyInfo.Tick,
+		Highest:       brc20TickRecentlyInfo.Highest,
+		Lowest:        brc20TickRecentlyInfo.Lowest,
+		Volume:        brc20TickRecentlyInfo.Volume,
+		Percentage:    brc20TickRecentlyInfo.Percentage,
+		RecentlyType:  brc20TickRecentlyInfo.RecentlyType,
+		OrderLastTime: brc20TickRecentlyInfo.OrderLastTime,
+		Timestamp:     brc20TickRecentlyInfo.Timestamp,
+		CreateTime:    util.Time(),
+		State:         model.STATE_EXIST,
+	}
+
+	_, err = collection.InsertOne(context.TODO(), entity)
+	if err != nil {
+		return nil, err
+	} else {
+		//id := res.InsertedID
+		//fmt.Println("insert id :", id)
+		return entity, nil
+	}
+}
+
+func SetBrc20TickRecentlyInfoModel(brc20TickRecentlyInfo *model.Brc20TickRecentlyInfoModel) (*model.Brc20TickRecentlyInfoModel, error) {
+	entity, err := FindBrc20TickRecentlyInfoModelByTickId(brc20TickRecentlyInfo.TickId)
+	if err == nil && entity != nil {
+		collection, err := model.Brc20TickRecentlyInfoModel{}.GetWriteDB()
+		if err != nil {
+			return nil, err
+		}
+		filter := bson.D{
+			{"tickId", brc20TickRecentlyInfo.TickId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "tickId", Value: brc20TickRecentlyInfo.TickId})
+		bsonData = append(bsonData, bson.E{Key: "net", Value: brc20TickRecentlyInfo.Net})
+		bsonData = append(bsonData, bson.E{Key: "tick", Value: brc20TickRecentlyInfo.Tick})
+		bsonData = append(bsonData, bson.E{Key: "highest", Value: brc20TickRecentlyInfo.Highest})
+		bsonData = append(bsonData, bson.E{Key: "lowest", Value: brc20TickRecentlyInfo.Lowest})
+		bsonData = append(bsonData, bson.E{Key: "volume", Value: brc20TickRecentlyInfo.Volume})
+		bsonData = append(bsonData, bson.E{Key: "percentage", Value: brc20TickRecentlyInfo.Percentage})
+		bsonData = append(bsonData, bson.E{Key: "recentlyType", Value: brc20TickRecentlyInfo.RecentlyType})
+		bsonData = append(bsonData, bson.E{Key: "orderLastTime", Value: brc20TickRecentlyInfo.OrderLastTime})
+		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: brc20TickRecentlyInfo.Timestamp})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return nil, err
+		}
+		return brc20TickRecentlyInfo, nil
+	} else {
+		return createBrc20TickRecentlyInfoModel(brc20TickRecentlyInfo)
+	}
 }

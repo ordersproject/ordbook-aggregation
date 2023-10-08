@@ -80,6 +80,9 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 		total      int64 = 0
 		flag       int64 = 0
 	)
+	if req.Limit < 0 || req.Limit >= 500 {
+		req.Limit = 500
+	}
 	total, _ = mongo_service.CountOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress, req.OrderType, req.OrderState)
 	entityList, _ = mongo_service.FindOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress,
 		req.OrderType, req.OrderState,
@@ -168,12 +171,41 @@ func GetBrc20BalanceDetail(req *request.Brc20AddressReq) (*respond.BalanceDetail
 		balanceDetail *oklink_service.OklinkBrc20BalanceDetails
 		err           error
 		list          []*respond.BalanceItem = make([]*respond.BalanceItem, 0)
+		//utxoList      []*unisat_service.UtxoDetailItem
 	)
 	balanceDetail, err = oklink_service.GetAddressBrc20BalanceResult(req.Address, req.Tick, req.Page, req.Limit)
 	if err != nil {
 		return nil, err
 	}
+	//utxoList, _ = unisat_service.GetAddressUtxo(req.Address)
+
 	for _, v := range balanceDetail.TransferBalanceList {
+		//fmt.Printf("Transfer:[%s]\n", v.InscriptionId)
+		//has := false
+		//if utxoList != nil && len(utxoList) != 0 {
+		//	for _, u := range utxoList {
+		//		inscriptionId := fmt.Sprintf("%si%d", u.TxId, u.OutputIndex)
+		//		fmt.Printf("Live inscriptionId:[%s]\n", inscriptionId)
+		//		if inscriptionId == v.InscriptionId {
+		//			has = true
+		//			break
+		//		}
+		//	}
+		//}
+		//if has {
+		//	list = append(list, &respond.BalanceItem{
+		//		InscriptionId:     v.InscriptionId,
+		//		InscriptionNumber: v.InscriptionNumber,
+		//		Amount:            v.Amount,
+		//	})
+		//}
+
+		usedCount, _ := mongo_service.FindUsedInscriptionPool(v.InscriptionId)
+		if usedCount != 0 {
+			fmt.Printf("Used InscriptionPool: [%s]\n", v.InscriptionId)
+			continue
+		}
+
 		list = append(list, &respond.BalanceItem{
 			InscriptionId:     v.InscriptionId,
 			InscriptionNumber: v.InscriptionNumber,
@@ -346,4 +378,14 @@ func FetchTickKline(req *request.TickKlineFetchReq) (*respond.Brc20KlineInfo, er
 		Interval: req.Interval,
 		List:     list,
 	}, nil
+}
+
+func FetchTickRecentlyInfo(req *request.TickRecentlyInfoFetchReq) {
+	//var (
+	//	entityList         []*model.OrderBrc20Model
+	//	list               []*respond.KlineItem = make([]*respond.KlineItem, 0)
+	//	startTime, endTime int64                = 0, tool.MakeTimestamp() //1m/1s/15m/1h/4h/1d/1w/
+	//	limit              int64                = req.Limit
+	//	dis                int64                = 1000 * 60 * 15
+	//)
 }

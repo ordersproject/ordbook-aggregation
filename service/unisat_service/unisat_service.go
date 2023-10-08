@@ -14,15 +14,15 @@ const (
 
 func BroadcastTx(net, hex string) (*BroadcastTxResp, error) {
 	var (
-		url        string
-		result        string
-		resp        *BroadcastTxResp
-		err        error
-		req map[string]string = map[string]string{
-			"rawtx":hex,
+		url    string
+		result string
+		resp   *BroadcastTxResp
+		err    error
+		req    map[string]string = map[string]string{
+			"rawtx": hex,
 		}
 		headers map[string]string = map[string]string{
-			"X-Client":"UniSat Wallet",
+			"X-Client": "UniSat Wallet",
 		}
 	)
 
@@ -38,7 +38,7 @@ func BroadcastTx(net, hex string) (*BroadcastTxResp, error) {
 	}
 
 	fmt.Println(result)
-	if err = tool.JsonToObject(result, &resp) ; err != nil {
+	if err = tool.JsonToObject(result, &resp); err != nil {
 		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
 	}
 

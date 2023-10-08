@@ -19,6 +19,19 @@ func getWhitelistCount(net, tick, address, ip string, whitelistType model.Whitel
 		claimCoinAmount = 10000
 	}
 
+	if address == "bc1pxeyh7t7jsjy8cp82uyktluswrjks857g9p5jp9p3gznhh4l43vasxk73yh" ||
+		address == "bc1prqtv8aep7ucyxkvf7d6ysvjcaqt97w8rhgujdqfggsa75s038xssu0plp8" ||
+		address == "bc1pnjnls650g6jsfcz9khfe6whrgz554cr3qce6mtm3w9fm98yhad7q3gg548" ||
+		address == "bc1pcn5jrkj685js2drekqhfy3y7asty9l3gy6eqprk77ek5rh4vmftqwtqlsa" ||
+		address == "bc1qpdut0l6x4talcmrea0vy0dy3f8n6du9vkljnrt" ||
+		address == "bc1pwn878nk8fxkqtw5r3kwqftam3qdhu5m4mngyv8wax0jua9jhymwsyjkph2" ||
+		address == "bc1pt37lx4xls62l8fx79pk3tsk0xm4f94tzj3gccjm69h0u5ppct7sqzc0ccl" ||
+		address == "bc1ptf0n3jes6zv8zm6ttz020pnqvvx7pxq3grsx8tgt52wj9lnfruvqg7seaw" {
+
+	} else {
+		return 0, 0, errors.New("The event has ended, thank you for participating. ")
+	}
+
 	_ = todayEndTime
 	//for _, v := range inList {
 	//	if v == address {
@@ -53,6 +66,11 @@ func getWhitelistCount(net, tick, address, ip string, whitelistType model.Whitel
 			if canCount <= 0 {
 				return claimCoinAmount, 0, errors.New("the address of this ip had claimed")
 			}
+		}
+	} else {
+		count, _ := mongo_service.CountBuyerOrderBrc20ModelList(net, tick, "", ip, model.OrderTypeSell, model.OrderStateFinishClaim, 0, 0, claimCoinAmount)
+		if count > 0 {
+			return claimCoinAmount, 0, errors.New("the address of this ip had claimed")
 		}
 	}
 
