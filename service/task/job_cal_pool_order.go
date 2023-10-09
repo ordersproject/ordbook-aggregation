@@ -2,6 +2,7 @@ package task
 
 import (
 	"errors"
+	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"ordbook-aggregation/config"
 	"ordbook-aggregation/model"
@@ -19,14 +20,17 @@ func jobForCalPoolOrder() {
 	processingBigBlock = getCurrentProcessingBigBlock()
 	currentBigBlock = getCurrentBigBlock()
 
+	fmt.Printf("[JOP][CalPoolOrder] processingBigBlock:%d, currentBigBlock:%d\n", processingBigBlock, currentBigBlock)
+
 	for i := processingBigBlock; i <= currentBigBlock; i++ {
+		fmt.Printf("[JOP][CalPoolOrder] processingBigBlock:%d, currentBigBlock:%d, bigBlock:%d\n", processingBigBlock, currentBigBlock, i)
 		if i <= 0 {
 			continue
 		}
 		startBlock, endBlock := getStartBlockAndEndBlockByBigBlock(i)
 		order_brc20_service.CalAllPoolOrder(net, startBlock, endBlock, nowTime)
+		order_brc20_service.UpdatePoolBlockInfo(startBlock, (endBlock-startBlock)+1, nowTime)
 	}
-
 }
 
 func getCurrentProcessingBigBlock() int64 {

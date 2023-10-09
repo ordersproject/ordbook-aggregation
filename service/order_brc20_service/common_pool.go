@@ -359,6 +359,9 @@ func claimPoolBrc20Order(orderId, claimAddress string, poolType model.PoolType, 
 	}
 	netParams = GetNetParams(entity.Net)
 	platformPrivateKeyMultiSig, platformPublicKeyMultiSig = GetPlatformKeyMultiSig(entity.Net)
+	//if poolType == model.PoolTypeBtc {
+	//	platformPrivateKeyMultiSig, platformPublicKeyMultiSig = GetPlatformKeyMultiSigForBtc(entity.Net)
+	//}
 	platformPublicKeyMultiSigByte, err := hex.DecodeString(platformPublicKeyMultiSig)
 	if err != nil {
 		return nil, "", err
@@ -381,6 +384,7 @@ func claimPoolBrc20Order(orderId, claimAddress string, poolType model.PoolType, 
 		claimTxIndex = entity.DealTxIndex
 		claimTxValue = entity.DealTxOutValue
 		claimMultiSigScript = entity.MultiSigScript
+		//claimMultiSigScript = entity.MultiSigScriptBtc
 	} else if poolType == model.PoolTypeMultiSigInscription {
 		if entity.DealInscriptionTx == "" {
 			//err := inscriptionMultiSigTransfer(entity.Net, entity.OrderId)
@@ -595,6 +599,7 @@ func updateClaim(poolOrder *model.PoolBrc20Model, rawTx string) error {
 
 	rewardNowAmount := getRealNowReward(poolOrder)
 	poolOrder.RewardRealAmount = rewardNowAmount
+	poolOrder.ClaimTxBlockState = model.ClaimTxBlockStateUnconfirmed
 	err = mongo_service.SetPoolBrc20ModelForClaim(poolOrder)
 	if err != nil {
 		return err
@@ -817,7 +822,7 @@ func getRewardRatio(ratio int64) int64 {
 		rewardRatio int64 = 0
 	)
 	if ratio >= 12 && ratio < 15 {
-		rewardRatio = 1
+		rewardRatio = 10
 	} else if ratio >= 15 && ratio < 18 {
 		rewardRatio = 12
 	} else if ratio >= 18 {

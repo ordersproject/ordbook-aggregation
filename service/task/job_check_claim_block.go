@@ -17,9 +17,9 @@ func jobForCheckClaimBlock() {
 	)
 
 	poolOrderList, _ = mongo_service.FindPoolBrc20ModelListByClaimTime(net, "", "", "", model.PoolStateClaim,
-		limit, 1, model.ClaimTxBlockStateUnconfirmed)
+		limit, 0, model.ClaimTxBlockStateUnconfirmed)
 
-	if poolOrderList == nil || len(poolOrderList) == 0 {
+	if poolOrderList != nil && len(poolOrderList) != 0 {
 		for _, v := range poolOrderList {
 			if v.ClaimTxBlock != 0 {
 				continue

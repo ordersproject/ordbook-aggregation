@@ -12,7 +12,6 @@ import (
 	_ "ordbook-aggregation/service/cache_service"
 	"ordbook-aggregation/service/order_brc20_service"
 	"ordbook-aggregation/service/task"
-	"ordbook-aggregation/service/tool_service"
 	"ordbook-aggregation/ws_service/ws"
 )
 
@@ -69,7 +68,7 @@ func main() {
 
 	go ws.StartWS()
 	task.Run()
-	tool_service.RunAllJob()
+	//tool_service.RunAllJob()
 	task.RunJob()
 	controller.Run()
 	//run()

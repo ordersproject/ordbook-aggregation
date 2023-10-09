@@ -34,20 +34,19 @@ func NewClientController(net string) *ClientController {
 		if _, ok := MyClientController.ClientMap[net]; ok {
 			return MyClientController
 		}
-	}else {
+	} else {
 		MyClientController = &ClientController{
 			ClientMap: make(map[string]*Client),
 		}
 	}
 
-
 	RPC_url, RPC_username, RPC_password = getNetRpcParams(net)
 
-	fmt.Println( "*******RPC_url : [ ", RPC_url, " ]")
+	fmt.Println("*******RPC_url : [ ", RPC_url, " ]")
 
 	accessToken := BasicAuth(RPC_username, RPC_password)
 	MyClientController.ClientMap[net] = NewClientNode(RPC_url, accessToken, false)
-	fmt.Println( "****** Build new Client completed ******")
+	fmt.Println("****** Build new Client completed ******")
 
 	return MyClientController
 }
@@ -89,7 +88,6 @@ func (c *ClientController) GetBlockHeight(net string) (uint64, error) {
 	return result.Uint(), nil
 }
 
-
 func (c *ClientController) GetBlock(net string, hash string, format ...uint64) (*Block, error) {
 
 	request := []interface{}{
@@ -107,7 +105,6 @@ func (c *ClientController) GetBlock(net string, hash string, format ...uint64) (
 
 	return NewBlock(result), nil
 }
-
 
 func (c *ClientController) GetTxIDsInMemPool(net string) ([]string, error) {
 
@@ -130,7 +127,6 @@ func (c *ClientController) GetTxIDsInMemPool(net string) ([]string, error) {
 
 	return txids, nil
 }
-
 
 func (c *ClientController) GetTransaction(net string, txid string) (*Transaction, error) {
 
@@ -189,4 +185,3 @@ func (c *ClientController) GetTransactionHex(net string, txid string) (string, e
 
 	return result.String(), nil
 }
-

@@ -27,7 +27,7 @@ func initPoolPair() {
 
 	for _, net := range netList {
 		for _, tick := range tickList {
-			pair := fmt.Sprintf("%s_BTC", strings.ToUpper(tick))
+			pair := fmt.Sprintf("%s-BTC", strings.ToUpper(tick))
 			entity, _ := mongo_service.FindPoolInfoModelByPair(net, pair)
 			if entity != nil && entity.Id != 0 {
 				continue

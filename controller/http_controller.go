@@ -71,7 +71,8 @@ func Run() {
 		brc20.GET("/pool/inscription", FetchPoolInscription)
 		//brc20.GET("/pool/reward/info", auth.AuthSignMiddleware(), FetchOwnerReward)
 		brc20.GET("/pool/reward/info", FetchOwnerReward)
-		brc20.POST("/pool/reward/claim", auth.AuthSignMiddleware(), ClaimReward)
+		//brc20.POST("/pool/reward/claim", auth.AuthSignMiddleware(), ClaimReward)
+		brc20.POST("/pool/reward/claim", ClaimReward)
 		brc20.GET("/pool/reward/orders", FetchPoolRewardOrders)
 
 	}

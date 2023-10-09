@@ -280,6 +280,7 @@ func SetPoolBrc20ModelForClaim(poolBrc20 *model.PoolBrc20Model) error {
 		}
 		bsonData := bson.D{}
 		bsonData = append(bsonData, bson.E{Key: "claimTx", Value: poolBrc20.ClaimTx})
+		bsonData = append(bsonData, bson.E{Key: "claimTxBlockState", Value: poolBrc20.ClaimTxBlockState})
 		bsonData = append(bsonData, bson.E{Key: "claimTime", Value: poolBrc20.ClaimTime})
 		bsonData = append(bsonData, bson.E{Key: "poolState", Value: poolBrc20.PoolState})
 		bsonData = append(bsonData, bson.E{Key: "poolCoinState", Value: poolBrc20.PoolCoinState})
@@ -1173,7 +1174,7 @@ func CountPoolRewardOrderModelList(net, tick, pair, address string, rewardState 
 	//	find["poolType"] = poolType
 	//}
 	if rewardState != 0 {
-		if rewardState == model.RewardStateCreate {
+		if rewardState == model.RewardStateAll {
 			find["rewardState"] = bson.M{IN_: []model.RewardState{
 				model.RewardStateCreate,
 				model.RewardStateInscription,
@@ -1303,7 +1304,7 @@ func CountOwnPoolRewardOrder(net, tick, pair, address string) (*model.PoolReward
 		},
 		{
 			{"$group", bson.D{
-				{"_id", "$coinAddress"},
+				{"_id", "$address"},
 				{"rewardCoinAmountTotal", bson.D{
 					{"$sum", "$rewardCoinAmount"},
 				}},

@@ -1,8 +1,11 @@
 package order_brc20_service
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/txscript"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/redis"
 	"ordbook-aggregation/service/cache_service"
@@ -114,6 +117,18 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 		return nil, errors.New(fmt.Sprintf("Unoccupied-Utxo[%d]: Not enough - have[%d], need[%d]", utxoType, len(unoccupiedUtxoList), limit))
 	}
 	unoccupiedUtxoList = unoccupiedUtxoList[:limit]
+	for _, v := range unoccupiedUtxoList {
+		addr, err := btcutil.DecodeAddress(v.Address, GetNetParams(v.Net))
+		if err != nil {
+			return nil, err
+		}
+		pkScriptByte, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			return nil, err
+		}
+		v.PkScript = hex.EncodeToString(pkScriptByte)
+	}
+
 	cacheUtxoList(unoccupiedUtxoList)
 	return unoccupiedUtxoList, nil
 }

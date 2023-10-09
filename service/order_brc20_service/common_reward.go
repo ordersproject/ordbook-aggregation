@@ -110,7 +110,7 @@ func CalAllPoolOrder(net string, startBlock, endBlock, nowTime int64) {
 		addressAmountInfoNoUsed     map[string]int64                         = make(map[string]int64)
 		addressBlockInfoNoUsed      map[string]*model.PoolBlockUserInfoModel = make(map[string]*model.PoolBlockUserInfoModel)
 
-		//coinPrice int64 = int64(GetMarketPrice(net, tick, fmt.Sprintf("%s_BTC", strings.ToUpper(tick))))
+		//coinPrice int64 = int64(GetMarketPrice(net, tick, fmt.Sprintf("%s-BTC", strings.ToUpper(tick))))
 		coinPriceMap map[string]int64 = make(map[string]int64)
 
 		endTime   int64 = nowTime - 1000*60*60*24*config.PlatformRewardExtraRewardDuration
@@ -129,7 +129,7 @@ func CalAllPoolOrder(net string, startBlock, endBlock, nowTime int64) {
 			if _, ok := coinPriceMap[v.Tick]; ok {
 				coinPrice = coinPriceMap[v.Tick]
 			} else {
-				coinPrice = int64(GetMarketPrice(net, v.Tick, fmt.Sprintf("%s_BTC", strings.ToUpper(v.Tick))))
+				coinPrice = int64(GetMarketPrice(net, v.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(v.Tick))))
 				if coinPrice == 0 {
 					coinPrice = 1
 				}
@@ -210,7 +210,7 @@ func CalAllPoolOrder(net string, startBlock, endBlock, nowTime int64) {
 		if _, ok := coinPriceMap[v.Tick]; ok {
 			coinPrice = coinPriceMap[v.Tick]
 		} else {
-			coinPrice = int64(GetMarketPrice(net, v.Tick, fmt.Sprintf("%s_BTC", strings.ToUpper(v.Tick))))
+			coinPrice = int64(GetMarketPrice(net, v.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(v.Tick))))
 			if coinPrice == 0 {
 				coinPrice = 1
 			}
@@ -282,6 +282,7 @@ func CalAllPoolOrder(net string, startBlock, endBlock, nowTime int64) {
 		}
 		major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBlockUserInfoModel success [%s]", address))
 	}
+
 }
 
 func GetCurrentBigBlock(startBlock int64) int64 {
@@ -329,4 +330,19 @@ func getUserBlockRewardAmountNoUser(percentage int64) int64 {
 	dayBaseRewardAmountDe = dayBaseRewardAmountDe.Mul(extraRewardDurationRateDe).Div(decimal.NewFromInt(100))
 	rewardAmount = dayBaseRewardAmountDe.Mul(percentageDe).Div(decimal.NewFromInt(10000)).IntPart()
 	return rewardAmount
+}
+
+func UpdatePoolBlockInfo(startBlock, cycleBlock, nowTime int64) {
+	var (
+		entity   *model.PoolBlockInfoModel
+		bigBlock int64 = GetCurrentBigBlock(startBlock)
+	)
+	entity = &model.PoolBlockInfoModel{
+		BigBlockId: fmt.Sprintf("%d_%d", bigBlock, cycleBlock),
+		BigBlock:   bigBlock,
+		StartBlock: startBlock,
+		CycleBlock: cycleBlock,
+		Timestamp:  nowTime,
+	}
+	mongo_service.SetPoolBlockInfoModel(entity)
 }

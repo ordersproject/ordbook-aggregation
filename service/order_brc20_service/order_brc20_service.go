@@ -415,7 +415,8 @@ func FetchBidPsbt(req *request.OrderBrc20GetBidReq) (*respond.BidPsbt, error) {
 	coinAmountDe := decimal.NewFromInt(int64(coinAmountInt))
 	coinRatePriceStr := outAmountDe.Div(coinAmountDe).StringFixed(0)
 	coinRatePrice, _ = strconv.ParseUint(coinRatePriceStr, 10, 64)
-	orderId = fmt.Sprintf("%s_%s_%s_%s_%d_%d", req.Net, req.Tick, inscriptionId, req.Address, req.Amount, coinAmountInt)
+	//orderId = fmt.Sprintf("%s_%s_%s_%s_%d_%d", req.Net, req.Tick, inscriptionId, req.Address, req.Amount, coinAmountInt)
+	orderId = fmt.Sprintf("%s_%s_%s_%s_%d", req.Net, req.Tick, inscriptionId, req.Address, coinAmountInt)
 	orderId = hex.EncodeToString(tool.SHA256([]byte(orderId)))
 	entityOrder = &model.OrderBrc20Model{
 		Net:               req.Net,
@@ -681,6 +682,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		poolBtcAmount          uint64                  = 0
 		poolBtcPsbtInput       Input
 		poolBtcPsbtSigIn       SigIn
+		poolBtcOutput          Output
 
 		dealTxIndex, dealTxOutValue         int64 = 0, 0 // receive btc
 		dealCoinTxIndex, dealCoinTxOutValue int64 = 0, 0 // receive brc20
@@ -819,9 +821,13 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 					if err != nil {
 						return nil, err
 					}
-					btcPreOutList := psbtBuilder.GetInputs()
+					btcPreOutList := btcPsbtBuilder.GetInputs()
 					if btcPreOutList == nil || len(btcPreOutList) == 0 {
 						return nil, errors.New("Wrong Psbt: empty inputs in btc psbt. ")
+					}
+					btcOutputList := btcPsbtBuilder.GetOutputs()
+					if btcOutputList == nil || len(btcOutputList) == 0 {
+						return nil, errors.New("Wrong Psbt: empty outputs in btc psbt. ")
 					}
 					poolBtcPsbtInput = Input{
 						OutTxId:  btcPreOutList[0].PreviousOutPoint.Hash.String(),
@@ -838,6 +844,11 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 					}
 					bidYOffsetIndex = bidYOffsetIndex + 1
 					poolBtcAmount = poolOrder.Amount
+
+					poolBtcOutput = Output{
+						Amount: uint64(btcOutputList[0].Value),
+						Script: hex.EncodeToString(btcOutputList[0].PkScript),
+					}
 					break
 				default:
 					return nil, errors.New("pool order has wrong poolMode")
@@ -925,11 +936,6 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		if err != nil {
 			return nil, err
 		}
-		//segwitPkScript, err := txscript.PayToAddrScript(segwitAddr)
-		//if err != nil {
-		//	return nil, err
-		//}
-
 		receiveBrc20 = Output{
 			Address: segwitAddr.EncodeAddress(),
 			//Script: multiSigScript,
@@ -943,15 +949,21 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		Address: sellerReceiveAddress,
 		Amount:  sellerReceiveValue,
 	})
+
+	if poolBtcOutput.Script != "" || poolBtcOutput.Address != "" {
+		//add receive pool btc outs - idnex: 3
+		outputs = append(outputs, poolBtcOutput)
+	}
+
 	_ = marketPrice
-	//add receive exchange psbtX outs - idnex: 3
+	//add receive exchange psbtX outs - idnex: 3/4
 	psbtXValue := entity.MarketAmount - sellerReceiveValue
 	exchangePsbtXOut := Output{
 		Address: platformAddressReceiveBidValueToX,
 		Amount:  psbtXValue,
 	}
 	outputs = append(outputs, exchangePsbtXOut)
-	//add new dummy outs - idnex: 4,5
+	//add new dummy outs - idnex: 4,5 / 5,6
 	newDummyOut := Output{
 		Address: newDummyOutSegwitAddress,
 		Amount:  600,
@@ -999,6 +1011,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			UtxoType:    Witness,
 		})
 	}
+	fmt.Printf("bidYOffsetIndex: %d\n", bidYOffsetIndex)
 	//add Exchange pay value ins - index: 3,3+
 	for k, payBid := range utxoBidYList {
 		inSigns = append(inSigns, &InputSign{
@@ -1033,6 +1046,16 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	}
 
 	psbtYTxId := txPsbtY.TxHash().String()
+	//
+	fmt.Printf("Tx:\n")
+	fmt.Printf("%+v\n", txPsbtY)
+	for _, in := range txPsbtY.TxIn {
+		fmt.Printf("%+v\n", *in)
+	}
+	for _, out := range txPsbtY.TxOut {
+		fmt.Printf("%+v\n", *out)
+	}
+	fmt.Printf("\n")
 
 	//finish PSBT(X)
 	bidPsbtBuilder, err := NewPsbtBuilder(netParams, entity.PsbtRawMidBid)
@@ -1227,8 +1250,8 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	}
 
 	UpdateForOrderBidDummy(entity.OrderId, model.DummyStateFinish)
-	SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, 4, psbtXTxId)
-	SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, 5, psbtXTxId)
+	SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, 4, psbtYTxId)
+	SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, 5, psbtYTxId)
 
 	entity.DealTime = tool.MakeTimestamp()
 	entity.OrderState = model.OrderStateFinish

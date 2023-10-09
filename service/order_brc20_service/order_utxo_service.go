@@ -35,6 +35,10 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error) {
 
 	if req.UtxoType == model.UtxoTypeMultiInscription {
 		_, fromSegwitAddress = GetPlatformKeyAndAddressForMultiSigInscription(req.Net)
+	} else if req.UtxoType == model.UtxoTypeRewardInscription {
+		_, fromSegwitAddress = GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(req.Net)
+	} else if req.UtxoType == model.UtxoTypeRewardSend {
+		_, fromSegwitAddress = GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(req.Net)
 	} else {
 		fromPriKeyHex, fromSegwitAddress, err = create_key.CreateSegwitKey(netParams)
 		if err != nil {
@@ -149,11 +153,12 @@ func SaveNewDummyFromBid(net string, out Output, priKeyHex string, index int64, 
 	if err != nil {
 		return err
 	}
-	addrHash, err := btcutil.NewAddressPubKeyHash(addr.ScriptAddress(), netParams)
-	if err != nil {
-		return err
-	}
-	pkScriptByte, err := txscript.PayToAddrScript(addrHash)
+	//addrHash, err := btcutil.NewAddressWitnessPubKeyHash(addr.ScriptAddress(), netParams)
+	//if err != nil {
+	//	return err
+	//}
+	//pkScriptByte, err := txscript.PayToAddrScript(addrHash)
+	pkScriptByte, err := txscript.PayToAddrScript(addr)
 	if err != nil {
 		return err
 	}
