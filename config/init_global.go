@@ -38,6 +38,8 @@ var (
 	PlatformMainnetAddressReceiveBidValue                              = "" // address for receive bid value
 	PlatformMainnetPrivateKeyReceiveBidValueToX                        = ""
 	PlatformMainnetAddressReceiveBidValueToX                           = "" // address for receive bid value to x
+	PlatformMainnetPrivateKeyReceiveBidValueToReturn                   = ""
+	PlatformMainnetAddressReceiveBidValueToReturn                      = "" // address for receive bid value to return
 	PlatformMainnetPrivateKeyReceiveDummyValue                         = ""
 	PlatformMainnetAddressReceiveDummyValue                            = "" // address for receive dummy 1200 value
 	PlatformMainnetPrivateKeyReceiveFee                                = ""
@@ -72,6 +74,8 @@ var (
 	PlatformTestnetAddressReceiveBidValue                              = "" // address for receive bid value
 	PlatformTestnetPrivateKeyReceiveBidValueToX                        = ""
 	PlatformTestnetAddressReceiveBidValueToX                           = "" // address for receive bid value to x
+	PlatformTestnetPrivateKeyReceiveBidValueToReturn                   = ""
+	PlatformTestnetAddressReceiveBidValueToReturn                      = "" // address for receive bid value to return
 	PlatformTestnetPrivateKeyReceiveDummyValue                         = ""
 	PlatformTestnetAddressReceiveDummyValue                            = "" // address for receive dummy 1200 value
 	PlatformTestnetPrivateKeyReceiveFee                                = ""
@@ -126,6 +130,7 @@ func InitConfig() {
 		PlatformTestnetPrivateKeyReceiveBrc20, PlatformTestnetAddressReceiveBrc20,
 		PlatformTestnetPrivateKeyReceiveBidValue, PlatformTestnetAddressReceiveBidValue,
 		PlatformTestnetPrivateKeyReceiveBidValueToX, PlatformTestnetAddressReceiveBidValueToX,
+		PlatformTestnetPrivateKeyReceiveBidValueToReturn, PlatformTestnetAddressReceiveBidValueToReturn,
 		PlatformTestnetPrivateKeyReceiveDummyValue, PlatformTestnetAddressReceiveDummyValue,
 		PlatformTestnetPrivateKeyReceiveFee, PlatformTestnetAddressReceiveFee,
 		PlatformTestnetPrivateKeyReceiveValueForPoolBtc, PlatformTestnetAddressReceiveValueForPoolBtc,
@@ -142,6 +147,7 @@ func InitConfig() {
 		viper.GetString("platform.testnet.private_key_receive_brc20"), viper.GetString("platform.testnet.address_receive_brc20"),
 		viper.GetString("platform.testnet.private_key_receive_bid_value"), viper.GetString("platform.testnet.address_receive_bid_value"),
 		viper.GetString("platform.testnet.private_key_receive_bid_value_to_x"), viper.GetString("platform.testnet.address_receive_bid_value_to_x"),
+		viper.GetString("platform.testnet.private_key_receive_bid_value_to_return"), viper.GetString("platform.testnet.address_receive_bid_value_to_return"),
 		viper.GetString("platform.testnet.private_key_receive_dummy_value"), viper.GetString("platform.testnet.address_receive_dummy_value"),
 		viper.GetString("platform.testnet.private_key_receive_fee"), viper.GetString("platform.testnet.address_receive_fee"),
 		viper.GetString("platform.testnet.private_key_receive_value_for_pool_btc"), viper.GetString("platform.testnet.address_receive_value_for_pool_btc"),
@@ -158,6 +164,7 @@ func InitConfig() {
 		PlatformMainnetPrivateKeyReceiveBrc20, PlatformMainnetAddressReceiveBrc20,
 		PlatformMainnetPrivateKeyReceiveBidValue, PlatformMainnetAddressReceiveBidValue,
 		PlatformMainnetPrivateKeyReceiveBidValueToX, PlatformMainnetAddressReceiveBidValueToX,
+		PlatformMainnetPrivateKeyReceiveBidValueToReturn, PlatformMainnetAddressReceiveBidValueToReturn,
 		PlatformMainnetPrivateKeyReceiveDummyValue, PlatformMainnetAddressReceiveDummyValue,
 		PlatformMainnetPrivateKeyReceiveFee, PlatformMainnetAddressReceiveFee,
 		PlatformMainnetPrivateKeyReceiveValueForPoolBtc, PlatformMainnetAddressReceiveValueForPoolBtc,
@@ -174,6 +181,7 @@ func InitConfig() {
 		viper.GetString("platform.mainnet.private_key_receive_brc20"), viper.GetString("platform.mainnet.address_receive_brc20"),
 		viper.GetString("platform.mainnet.private_key_receive_bid_value"), viper.GetString("platform.mainnet.address_receive_bid_value"),
 		viper.GetString("platform.mainnet.private_key_receive_bid_value_to_x"), viper.GetString("platform.mainnet.address_receive_bid_value_to_x"),
+		viper.GetString("platform.mainnet.private_key_receive_bid_value_to_return"), viper.GetString("platform.mainnet.address_receive_bid_value_to_return"),
 		viper.GetString("platform.mainnet.private_key_receive_dummy_value"), viper.GetString("platform.mainnet.address_receive_dummy_value"),
 		viper.GetString("platform.mainnet.private_key_receive_fee"), viper.GetString("platform.mainnet.address_receive_fee"),
 		viper.GetString("platform.mainnet.private_key_receive_value_for_pool_btc"), viper.GetString("platform.mainnet.address_receive_value_for_pool_btc"),

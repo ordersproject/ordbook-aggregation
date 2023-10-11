@@ -20,15 +20,15 @@ func loopUtxoService() {
 		}
 	}()
 
-	go func() {
-		logger.Logger.Infof(" \n")
-		timeTickerChan := time.Tick(time.Minute * 30)
-		for {
-			logger.Logger.Infof("Check utxo receive \n")
-			LoopCheckPlatformAddressForDummyValue("livenet")
-			<-timeTickerChan
-		}
-	}()
+	//go func() {
+	//	logger.Logger.Infof(" \n")
+	//	timeTickerChan := time.Tick(time.Minute * 30)
+	//	for {
+	//		logger.Logger.Infof("Check utxo receive \n")
+	//		LoopCheckPlatformAddressForDummyValue("livenet")
+	//		<-timeTickerChan
+	//	}
+	//}()
 
 	//go func() {
 	//	logger.Logger.Infof(" \n")

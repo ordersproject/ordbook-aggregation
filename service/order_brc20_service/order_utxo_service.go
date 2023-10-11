@@ -39,6 +39,8 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error) {
 		_, fromSegwitAddress = GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(req.Net)
 	} else if req.UtxoType == model.UtxoTypeRewardSend {
 		_, fromSegwitAddress = GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(req.Net)
+	} else if req.UtxoType == model.UtxoTypeDummy1200 {
+		fromPriKeyHex, fromSegwitAddress = GetPlatformKeyAndAddressReceiveDummyValue(req.Net)
 	} else {
 		fromPriKeyHex, fromSegwitAddress, err = create_key.CreateSegwitKey(netParams)
 		if err != nil {
@@ -153,11 +155,6 @@ func SaveNewDummyFromBid(net string, out Output, priKeyHex string, index int64, 
 	if err != nil {
 		return err
 	}
-	//addrHash, err := btcutil.NewAddressWitnessPubKeyHash(addr.ScriptAddress(), netParams)
-	//if err != nil {
-	//	return err
-	//}
-	//pkScriptByte, err := txscript.PayToAddrScript(addrHash)
 	pkScriptByte, err := txscript.PayToAddrScript(addr)
 	if err != nil {
 		return err
@@ -179,6 +176,82 @@ func SaveNewDummyFromBid(net string, out Output, priKeyHex string, index int64, 
 		Timestamp:     tool.MakeTimestamp(),
 	}
 
+	_, err = mongo_service.SetOrderUtxoModel(newDummy)
+	if err != nil {
+		major.Println(fmt.Sprintf("SetOrderUtxoModel from bid err:%s", err.Error()))
+		return nil
+	}
+	return nil
+}
+
+func SaveNewDummy1200FromBid(net string, out Output, priKeyHex string, index int64, txId string) error {
+	if out.Script == "" && out.Address == "" {
+		return nil
+	}
+	startIndex := GetSaveStartIndex(net, model.UtxoTypeDummy1200, 0)
+	netParams := GetNetParams(net)
+	addr, err := btcutil.DecodeAddress(out.Address, netParams)
+	if err != nil {
+		return err
+	}
+	pkScriptByte, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return err
+	}
+	pkScript := hex.EncodeToString(pkScriptByte)
+
+	newDummy := &model.OrderUtxoModel{
+		UtxoId:        fmt.Sprintf("%s_%d", txId, index),
+		Net:           net,
+		UtxoType:      model.UtxoTypeDummy1200,
+		Amount:        out.Amount,
+		Address:       out.Address,
+		PrivateKeyHex: priKeyHex,
+		TxId:          txId,
+		Index:         index,
+		PkScript:      pkScript,
+		UsedState:     model.UsedNo,
+		SortIndex:     startIndex + 1,
+		Timestamp:     tool.MakeTimestamp(),
+	}
+	_, err = mongo_service.SetOrderUtxoModel(newDummy)
+	if err != nil {
+		major.Println(fmt.Sprintf("SetOrderUtxoModel from bid err:%s", err.Error()))
+		return nil
+	}
+	return nil
+}
+
+func SaveNewBidYUtxo10000FromBid(net string, out Output, priKeyHex string, index int64, txId string) error {
+	if out.Script == "" && out.Address == "" {
+		return nil
+	}
+	startIndex := GetSaveStartIndex(net, model.UtxoTypeBidY, 0)
+	netParams := GetNetParams(net)
+	addr, err := btcutil.DecodeAddress(out.Address, netParams)
+	if err != nil {
+		return err
+	}
+	pkScriptByte, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return err
+	}
+	pkScript := hex.EncodeToString(pkScriptByte)
+
+	newDummy := &model.OrderUtxoModel{
+		UtxoId:        fmt.Sprintf("%s_%d", txId, index),
+		Net:           net,
+		UtxoType:      model.UtxoTypeBidY,
+		Amount:        out.Amount,
+		Address:       out.Address,
+		PrivateKeyHex: priKeyHex,
+		TxId:          txId,
+		Index:         index,
+		PkScript:      pkScript,
+		UsedState:     model.UsedNo,
+		SortIndex:     startIndex + 1,
+		Timestamp:     tool.MakeTimestamp(),
+	}
 	_, err = mongo_service.SetOrderUtxoModel(newDummy)
 	if err != nil {
 		major.Println(fmt.Sprintf("SetOrderUtxoModel from bid err:%s", err.Error()))

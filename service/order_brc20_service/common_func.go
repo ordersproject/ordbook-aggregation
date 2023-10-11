@@ -222,6 +222,13 @@ func GetPlatformKeyAndAddressReceiveBidValueToX(net string) (string, string) {
 	return config.PlatformMainnetPrivateKeyReceiveBidValueToX, config.PlatformMainnetAddressReceiveBidValueToX
 }
 
+func GetPlatformKeyAndAddressReceiveBidValueToReturn(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyReceiveBidValueToReturn, config.PlatformTestnetAddressReceiveBidValueToReturn
+	}
+	return config.PlatformMainnetPrivateKeyReceiveBidValueToReturn, config.PlatformMainnetAddressReceiveBidValueToReturn
+}
+
 func GetPlatformKeyAndAddressReceiveDummyValue(net string) (string, string) {
 	if strings.ToLower(net) == "testnet" {
 		return config.PlatformTestnetPrivateKeyReceiveDummyValue, config.PlatformTestnetAddressReceiveDummyValue
@@ -301,6 +308,9 @@ func CheckBidInscriptionIdExist(inscriptionId string) bool {
 }
 
 func SetUsedDummyUtxo(utxoDummyList []*model.OrderUtxoModel, useTx string) {
+	if utxoDummyList == nil || len(utxoDummyList) == 0 {
+		return
+	}
 	for _, v := range utxoDummyList {
 		v.UseTx = useTx
 		v.UsedState = model.UsedYes
@@ -312,6 +322,9 @@ func SetUsedDummyUtxo(utxoDummyList []*model.OrderUtxoModel, useTx string) {
 }
 
 func setUsedBidYUtxo(utxoBidYList []*model.OrderUtxoModel, useTx string) {
+	if utxoBidYList == nil || len(utxoBidYList) == 0 {
+		return
+	}
 	for _, v := range utxoBidYList {
 		v.UseTx = useTx
 		v.UsedState = model.UsedYes
@@ -467,4 +480,19 @@ func UpdateTickRecentlyInfo(net, tick string) {
 	if err != nil {
 		major.Println(fmt.Sprintf("SetBrc20TickRecentlyInfoModel err:%s", err))
 	}
+}
+
+// address to pkScript
+func AddressToPkScript(net, address string) (string, error) {
+	netParams := GetNetParams(net)
+	addr, err := btcutil.DecodeAddress(address, netParams)
+	if err != nil {
+		return "", err
+	}
+	pkScriptByte, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return "", err
+	}
+	pkScript := hex.EncodeToString(pkScriptByte)
+	return pkScript, nil
 }

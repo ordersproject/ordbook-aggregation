@@ -10,15 +10,17 @@ import (
 )
 
 const (
-	ex                           = "86400"
-	CacheGetUtxo_                = "cache_get_utxo_"
-	UtxoTypeDummy_               = "dummy_"
-	UtxoTypeBidY_                = "bid_y_"
-	UtxoTypeMultiSigInscription_ = "multi_sig_inscription_"
-	UtxoTypeRewardInscription_   = "reward_inscription_"
-	UtxoTypeRewardSend_          = "reward_send_"
-	CacheGetClaimOrder_          = "cache_get_claim_order_"
-	CacheGetPoolClaimOrder_      = "cache_get_pool_claim_order_"
+	ex                                      = "86400"
+	CacheGetUtxo_                           = "cache_get_utxo_"
+	UtxoTypeDummy_                          = "dummy_"
+	UtxoTypeDummy1200_                      = "dummy_1200_"
+	UtxoTypeBidY_                           = "bid_y_"
+	UtxoTypeMultiSigInscription_            = "multi_sig_inscription_"
+	UtxoTypeMultiSigInscriptionFromRelease_ = "multi_sig_inscription_from_release"
+	UtxoTypeRewardInscription_              = "reward_inscription_"
+	UtxoTypeRewardSend_                     = "reward_send_"
+	CacheGetClaimOrder_                     = "cache_get_claim_order_"
+	CacheGetPoolClaimOrder_                 = "cache_get_pool_claim_order_"
 )
 
 var addressEndpoint = ""

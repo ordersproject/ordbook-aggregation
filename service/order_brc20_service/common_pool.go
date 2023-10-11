@@ -398,6 +398,10 @@ func claimPoolBrc20Order(orderId, claimAddress string, poolType model.PoolType, 
 		claimTxIndex = entity.DealInscriptionTxIndex
 		claimTxValue = entity.DealInscriptionTxOutValue
 		claimMultiSigScript = entity.MultiSigScript
+
+		//check brc20 valid
+		//todo
+
 	}
 
 	if claimTxId == "" || claimMultiSigScript == "" {
@@ -608,7 +612,7 @@ func updateClaim(poolOrder *model.PoolBrc20Model, rawTx string) error {
 }
 
 func saveNewMultiSigInscriptionUtxo(net, txId string, txIndex int64, amount uint64) error {
-	startIndex := GetSaveStartIndex(net, model.UtxoTypeMultiInscription, 0)
+	startIndex := GetSaveStartIndex(net, model.UtxoTypeMultiInscriptionFromRelease, 0)
 	_, fromSegwitAddress := GetPlatformKeyAndAddressForMultiSigInscription(net)
 	addr, err := btcutil.DecodeAddress(fromSegwitAddress, GetNetParams(net))
 	if err != nil {
@@ -622,7 +626,7 @@ func saveNewMultiSigInscriptionUtxo(net, txId string, txIndex int64, amount uint
 	newUtxo := &model.OrderUtxoModel{
 		//UtxoId:     "",
 		Net:           net,
-		UtxoType:      model.UtxoTypeMultiInscription,
+		UtxoType:      model.UtxoTypeMultiInscriptionFromRelease,
 		Amount:        amount,
 		Address:       fromSegwitAddress,
 		PrivateKeyHex: "",

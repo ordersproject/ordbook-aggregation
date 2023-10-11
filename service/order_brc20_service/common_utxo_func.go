@@ -45,6 +45,10 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 		cacheType = cache_service.CacheLockUtxoTypeDummy
 		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeDummy_)
 		break
+	case model.UtxoTypeDummy1200:
+		cacheType = cache_service.CacheLockUtxoTypeDummy1200
+		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeDummy1200_)
+		break
 	case model.UtxoTypeBidY:
 		cacheType = cache_service.CacheLockUtxoTypeBidpay
 		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeBidY_)
@@ -68,6 +72,11 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 		perAmount = 5000
 		cacheType = cache_service.CacheLockUtxoTypeMultiSigInscription
 		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeMultiSigInscription_)
+		break
+	case model.UtxoTypeMultiInscriptionFromRelease:
+		perAmount = 5000
+		cacheType = cache_service.CacheLockUtxoTypeMultiSigInscriptionFromRelease
+		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeMultiSigInscriptionFromRelease_)
 		break
 	case model.UtxoTypeRewardInscription:
 		cacheType = cache_service.CacheLockUtxoTypeRewardInscription
@@ -140,11 +149,17 @@ func ReleaseUtxoList(utxoList []*model.OrderUtxoModel) {
 		case model.UtxoTypeDummy:
 			cacheUtxoType = redis.UtxoTypeDummy_
 			break
+		case model.UtxoTypeDummy1200:
+			cacheUtxoType = redis.UtxoTypeDummy1200_
+			break
 		case model.UtxoTypeBidY:
 			cacheUtxoType = redis.UtxoTypeBidY_
 			break
 		case model.UtxoTypeMultiInscription:
 			cacheUtxoType = redis.UtxoTypeMultiSigInscription_
+			break
+		case model.UtxoTypeMultiInscriptionFromRelease:
+			cacheUtxoType = redis.UtxoTypeMultiSigInscriptionFromRelease_
 			break
 		case model.UtxoTypeRewardInscription:
 			cacheUtxoType = redis.UtxoTypeRewardInscription_
@@ -169,11 +184,17 @@ func cacheUtxoList(utxoList []*model.OrderUtxoModel) {
 		case model.UtxoTypeDummy:
 			cacheUtxoType = redis.UtxoTypeDummy_
 			break
+		case model.UtxoTypeDummy1200:
+			cacheUtxoType = redis.UtxoTypeDummy1200_
+			break
 		case model.UtxoTypeBidY:
 			cacheUtxoType = redis.UtxoTypeBidY_
 			break
 		case model.UtxoTypeMultiInscription:
 			cacheUtxoType = redis.UtxoTypeMultiSigInscription_
+			break
+		case model.UtxoTypeMultiInscriptionFromRelease:
+			cacheUtxoType = redis.UtxoTypeMultiSigInscriptionFromRelease_
 			break
 		case model.UtxoTypeRewardInscription:
 			cacheUtxoType = redis.UtxoTypeRewardInscription_

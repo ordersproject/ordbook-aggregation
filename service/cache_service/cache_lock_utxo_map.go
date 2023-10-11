@@ -5,11 +5,13 @@ import (
 )
 
 const (
-	CacheLockUtxoTypeDummy               = "dummy"
-	CacheLockUtxoTypeBidpay              = "bidpay"
-	CacheLockUtxoTypeMultiSigInscription = "multisiginscriptionpay"
-	CacheLockUtxoTypeRewardInscription   = "rewardinscriptionpay"
-	CacheLockUtxoTypeRewardSend          = "rewardsendpay"
+	CacheLockUtxoTypeDummy                          = "dummy"
+	CacheLockUtxoTypeDummy1200                      = "dummy1200"
+	CacheLockUtxoTypeBidpay                         = "bidpay"
+	CacheLockUtxoTypeMultiSigInscription            = "multisiginscriptionpay"
+	CacheLockUtxoTypeMultiSigInscriptionFromRelease = "multisiginscriptionpayfromrelease"
+	CacheLockUtxoTypeRewardInscription              = "rewardinscriptionpay"
+	CacheLockUtxoTypeRewardSend                     = "rewardsendpay"
 )
 
 var _lockUtxoItemMap *LockUtxoItemMap
