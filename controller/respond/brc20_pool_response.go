@@ -97,6 +97,7 @@ type PoolBrc20RewardResp struct {
 	//ClaimedOwnCount          uint64 `json:"claimedOwnCount"`
 	HadClaimRewardAmount uint64 `json:"hadClaimRewardAmount"`
 	//HadClaimRewardOrderCount uint64 `json:"HadClaimRewardOrderCount"`
+	HasReleasePoolOrderCount int64 `json:"hasReleasePoolOrderCount"`
 }
 
 type PoolRewardOrderResponse struct {

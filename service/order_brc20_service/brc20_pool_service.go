@@ -907,6 +907,7 @@ func FetchOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20Reward
 		//claimedOwnCount        uint64 = 0
 		hadClaimRewardAmount uint64 = 0
 		//hadClaimRewardOrderCount uint64 = 0
+		hasReleasePoolOrderCount int64 = 0
 	)
 
 	if req.Tick != config.PlatformRewardTick {
@@ -924,6 +925,8 @@ func FetchOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20Reward
 	}
 
 	_ = entityReward
+
+	hasReleasePoolOrderCount, _ = mongo_service.CountPoolBrc20ModelList(req.Net, req.Tick, "", req.Address, model.PoolTypeAll, model.PoolStateUsed)
 
 	//entityReward, _ = mongo_service.CountOwnPoolReward(req.Net, req.Tick, "", req.Address)
 	//if entityReward != nil {
@@ -947,6 +950,7 @@ func FetchOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20Reward
 		//ClaimedOwnCount:        claimedOwnCount,
 		HadClaimRewardAmount: hadClaimRewardAmount,
 		//HadClaimRewardOrderCount: hadClaimCoinOrderCount,
+		HasReleasePoolOrderCount: hasReleasePoolOrderCount,
 	}, nil
 }
 

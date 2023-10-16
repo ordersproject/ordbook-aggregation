@@ -346,3 +346,9 @@ func UpdatePoolBlockInfo(startBlock, cycleBlock, nowTime int64) {
 	}
 	mongo_service.SetPoolBlockInfoModel(entity)
 }
+
+// calculate the proportion of the total amount of the pool in release order
+// pool order in state-used
+func calEstimatedProportion() {
+
+}

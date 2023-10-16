@@ -324,6 +324,7 @@ func inscriptionMultiSigTransfer(poolOrder *model.PoolBrc20Model) error {
 	poolOrder.DealInscriptionId = dealInscriptionId
 	poolOrder.DealInscriptionTx = dealInscriptionTx
 	poolOrder.DealInscriptionTxIndex = dealInscriptionTxIndex
+	poolOrder.DealInscriptionTxOutValue = dealInscriptionTxOutValue
 	poolOrder.DealInscriptionTime = dealInscriptionTime
 
 	err = mongo_service.SetPoolBrc20ModelForDealInscription(poolOrder.OrderId, dealInscriptionId, dealInscriptionTx, dealInscriptionTxIndex, dealInscriptionTxOutValue, dealInscriptionTime)
