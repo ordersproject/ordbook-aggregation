@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"ordbook-aggregation/major"
 	"ordbook-aggregation/model"
+	"time"
 )
 
 func FindOrderUtxoModelByUtxorId(utxoId string) (*model.OrderUtxoModel, error) {
@@ -234,7 +235,10 @@ func SetManyUtxoInSession(utxoList []*model.OrderUtxoModel, jop func() error) er
 		return err
 	}
 
-	if err = mongoDB.UseSession(context.Background(), func(sessionContext mongo.SessionContext) error {
+	timeout := time.Duration(3000) * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	if err = mongoDB.UseSession(ctx, func(sessionContext mongo.SessionContext) error {
 		if err := sessionContext.StartTransaction(); err != nil {
 			return err
 		}
@@ -259,7 +263,7 @@ func SetManyUtxoInSession(utxoList []*model.OrderUtxoModel, jop func() error) er
 				CreateTime:    util.Time(),
 				State:         model.STATE_EXIST,
 			}
-			if _, err = collection.InsertOne(context.TODO(), entity); err != nil {
+			if _, err = collection.InsertOne(context.Background(), entity); err != nil {
 				if err := sessionContext.AbortTransaction(context.Background()); err != nil {
 					fmt.Printf("mongo transaction rollback failed, %s\n", err.Error())
 					return err

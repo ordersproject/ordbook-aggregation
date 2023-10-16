@@ -17,6 +17,7 @@ const (
 	UtxoTypeMultiInscriptionFromRelease UtxoType = 11
 	UtxoTypeRewardInscription           UtxoType = 20
 	UtxoTypeRewardSend                  UtxoType = 21
+	UtxoTypeLoop                        UtxoType = 30
 )
 
 type UsedState int

@@ -16,3 +16,14 @@ func TestGetAddressUtxo(t *testing.T) {
 	}
 	fmt.Printf("Res:%+v\n", res)
 }
+
+func TestGetAddressInscriptions(t *testing.T) {
+	config.InitConfig()
+	address := "bc1qpau0rfvstjf8qzj3rgtcp34swlyukrchk9ddkn"
+	res, err := GetAddressInscriptions(address)
+	if err != nil {
+		fmt.Printf("Err:%s\n", err.Error())
+		return
+	}
+	fmt.Printf("Res:%+v\n", res)
+}

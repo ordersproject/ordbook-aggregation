@@ -22,6 +22,7 @@ const (
 	PoolStateRemove PoolState = 2
 	PoolStateUsed   PoolState = 3
 	PoolStateClaim  PoolState = 4
+	PoolStateErr    PoolState = 5
 
 	PoolModeNone    PoolMode = 0
 	PoolModePsbt    PoolMode = 1

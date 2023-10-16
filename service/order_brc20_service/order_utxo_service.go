@@ -29,8 +29,9 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error) {
 		fromPriKeyHex, fromSegwitAddress string = "", ""
 		txRaw                            string = ""
 		//latestUtxo *model.OrderUtxoModel
-		utxoList   []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
-		startIndex int64                   = GetSaveStartIndex(req.Net, req.UtxoType, int64(req.PerAmount))
+		utxoList          []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
+		startIndex        int64                   = GetSaveStartIndex(req.Net, req.UtxoType, int64(req.PerAmount))
+		utxoInterfaceList []interface{}           = make([]interface{}, 0)
 	)
 
 	if req.UtxoType == model.UtxoTypeMultiInscription {
@@ -111,11 +112,12 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error) {
 		u.TxId = tx.TxHash().String()
 		u.UtxoId = fmt.Sprintf("%s_%d", u.TxId, u.Index)
 
-		_, err := mongo_service.SetOrderUtxoModel(u)
-		if err != nil {
-			major.Println(fmt.Sprintf("SetOrderUtxoModel for cold down err:%s", err.Error()))
-			return "", err
-		}
+		//_, err := mongo_service.SetOrderUtxoModel(u)
+		//if err != nil {
+		//	major.Println(fmt.Sprintf("SetOrderUtxoModel for cold down err:%s", err.Error()))
+		//	return "", err
+		//}
+		utxoInterfaceList = append(utxoInterfaceList, u)
 	}
 
 	txId := ""
@@ -132,12 +134,46 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error) {
 	//	}
 	//	txId = txResp.TxId
 	//}
+	sendJop := func() error {
+		//if req.Net == "testnet" {
+		//	txResp, err := mempool_space_service.BroadcastTx(req.Net, txRaw)
+		//	if err != nil {
+		//		return "", err
+		//	}
+		//	txId = txResp
+		//}else {
+		//	txResp, err := oklink_service.BroadcastTx(txRaw)
+		//	if err != nil {
+		//		return "", err
+		//	}
+		//	txId = txResp.TxId
+		//}
 
-	txResp, err := unisat_service.BroadcastTx(req.Net, txRaw)
+		txResp, err := unisat_service.BroadcastTx(req.Net, txRaw)
+		if err != nil {
+			return err
+		}
+		txId = txResp.Result
+
+		//txResp, err := node.BroadcastTx(req.Net, txRaw)
+		//if err != nil {
+		//	return "", err
+		//}
+		//txId = txResp
+		return nil
+	}
+
+	//txResp, err := unisat_service.BroadcastTx(req.Net, txRaw)
+	//if err != nil {
+	//	return "", err
+	//}
+	//txId = txResp.Result
+
+	err = mongo_service.SetManyUtxoInSession(utxoList, sendJop)
 	if err != nil {
+		fmt.Printf("[Colddown]SetManyUtxoInSession in send err:%s\n", err.Error())
 		return "", err
 	}
-	txId = txResp.Result
 
 	//txResp, err := node.BroadcastTx(req.Net, txRaw)
 	//if err != nil {
@@ -215,6 +251,49 @@ func SaveNewDummy1200FromBid(net string, out Output, priKeyHex string, index int
 		Timestamp:     tool.MakeTimestamp(),
 	}
 	_, err = mongo_service.SetOrderUtxoModel(newDummy)
+	if err != nil {
+		major.Println(fmt.Sprintf("SetOrderUtxoModel from bid err:%s", err.Error()))
+		return nil
+	}
+	return nil
+}
+
+func SaveNewUtxoFromBid(net string, out Output, priKeyHex string, index int64, txId string, utxoType model.UtxoType) error {
+	if out.Script == "" && out.Address == "" {
+		return nil
+	}
+	startIndex := GetSaveStartIndex(net, utxoType, 0)
+	pkScript := ""
+	if out.Address != "" {
+		netParams := GetNetParams(net)
+		addr, err := btcutil.DecodeAddress(out.Address, netParams)
+		if err != nil {
+			return err
+		}
+		pkScriptByte, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			return err
+		}
+		pkScript = hex.EncodeToString(pkScriptByte)
+	} else {
+		pkScript = out.Script
+	}
+
+	newDummy := &model.OrderUtxoModel{
+		UtxoId:        fmt.Sprintf("%s_%d", txId, index),
+		Net:           net,
+		UtxoType:      utxoType,
+		Amount:        out.Amount,
+		Address:       out.Address,
+		PrivateKeyHex: priKeyHex,
+		TxId:          txId,
+		Index:         index,
+		PkScript:      pkScript,
+		UsedState:     model.UsedNo,
+		SortIndex:     startIndex + 1,
+		Timestamp:     tool.MakeTimestamp(),
+	}
+	_, err := mongo_service.SetOrderUtxoModel(newDummy)
 	if err != nil {
 		major.Println(fmt.Sprintf("SetOrderUtxoModel from bid err:%s", err.Error()))
 		return nil

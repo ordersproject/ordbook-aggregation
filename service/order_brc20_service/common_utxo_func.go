@@ -86,6 +86,10 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 		cacheType = cache_service.CacheLockUtxoTypeRewardSend
 		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeRewardSend_)
 		break
+	case model.UtxoTypeLoop:
+		cacheType = cache_service.CacheLockUtxoTypeLoop
+		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeLoop_)
+		break
 	default:
 		return nil, errors.New("Unoccupied-Utxo: wrong type")
 	}
@@ -167,6 +171,9 @@ func ReleaseUtxoList(utxoList []*model.OrderUtxoModel) {
 		case model.UtxoTypeRewardSend:
 			cacheUtxoType = redis.UtxoTypeRewardSend_
 			break
+		case model.UtxoTypeLoop:
+			cacheUtxoType = redis.UtxoTypeLoop_
+			break
 		default:
 			continue
 		}
@@ -201,6 +208,9 @@ func cacheUtxoList(utxoList []*model.OrderUtxoModel) {
 			break
 		case model.UtxoTypeRewardSend:
 			cacheUtxoType = redis.UtxoTypeRewardSend_
+			break
+		case model.UtxoTypeLoop:
+			cacheUtxoType = redis.UtxoTypeLoop_
 			break
 		default:
 			continue

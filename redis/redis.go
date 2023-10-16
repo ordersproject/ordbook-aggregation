@@ -19,6 +19,7 @@ const (
 	UtxoTypeMultiSigInscriptionFromRelease_ = "multi_sig_inscription_from_release"
 	UtxoTypeRewardInscription_              = "reward_inscription_"
 	UtxoTypeRewardSend_                     = "reward_send_"
+	UtxoTypeLoop_                           = "loop_"
 	CacheGetClaimOrder_                     = "cache_get_claim_order_"
 	CacheGetPoolClaimOrder_                 = "cache_get_pool_claim_order_"
 )

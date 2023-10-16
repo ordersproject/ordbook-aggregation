@@ -517,7 +517,7 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 
 	//check out: len-6 for no buyer changeWallet
 	outList := psbtBuilder.GetOutputs()
-	if len(outList) != 6 && len(outList) != 7 {
+	if len(outList) != 6 && len(outList) != 7 && len(outList) != 8 {
 		return "", errors.New("Wrong Psbt: No match outputs. ")
 	}
 
@@ -588,29 +588,27 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 		return "", errors.New("Wrong Psbt: wrong value of platform fee. ")
 	}
 	platformFee := uint64(platformFeeOut.Value)
-	if len(outList) == 8 {
-		platformFeeOut2 := outList[4]
-		if uint64(platformFeeOut2.Value) != 10000 {
-			return "", errors.New("Wrong Psbt: wrong value of platform fee2. ")
-		}
-		platformFee = platformFee + uint64(platformFeeOut2.Value)
-		if hex.EncodeToString(platformFeeOut.PkScript) != platformFeePkScript && hex.EncodeToString(platformFeeOut2.PkScript) != platformFeePkScript {
-			return "", errors.New("Wrong Psbt: wrong address of platform fee. ")
-		}
+	platformFeeOut2 := outList[4]
+	if uint64(platformFeeOut2.Value) != 10000 {
+		return "", errors.New("Wrong Psbt: wrong value of platform fee2. ")
+	}
+	platformFee = platformFee + uint64(platformFeeOut2.Value)
+	if hex.EncodeToString(platformFeeOut.PkScript) != platformFeePkScript && hex.EncodeToString(platformFeeOut2.PkScript) != platformFeePkScript {
+		return "", errors.New("Wrong Psbt: wrong address of platform fee. ")
 	}
 
 	//check out for buyer changeWallet
 	changeAmount := uint64(0)
 	if len(outList) == 7 {
-		changeOut := outList[6]
-		_, changeAddrs, _, err := txscript.ExtractPkScriptAddrs(changeOut.PkScript, netParams)
-		if err != nil {
-			return "", errors.New("Wrong Psbt: Extract address from out for buyer changeWallet. ")
-		}
-		if changeAddrs[0].EncodeAddress() != buyerAddress {
-			return "", errors.New("Wrong Psbt: wrong address of out for buyer changeWallet. ")
-		}
-		changeAmount = uint64(changeOut.Value)
+		//changeOut := outList[6]
+		//_, changeAddrs, _, err := txscript.ExtractPkScriptAddrs(changeOut.PkScript, netParams)
+		//if err != nil {
+		//	return "", errors.New("Wrong Psbt: Extract address from out for buyer changeWallet. ")
+		//}
+		//if changeAddrs[0].EncodeAddress() != buyerAddress {
+		//	return "", errors.New("Wrong Psbt: wrong address of out for buyer changeWallet. ")
+		//}
+		//changeAmount = uint64(changeOut.Value)
 	} else if len(outList) == 8 {
 		changeOut := outList[7]
 		_, changeAddrs, _, err := txscript.ExtractPkScriptAddrs(changeOut.PkScript, netParams)
@@ -682,6 +680,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		utxoDummy1200List []*model.OrderUtxoModel
 		utxoDummyList     []*model.OrderUtxoModel
 		utxoBidYList      []*model.OrderUtxoModel
+		addressUtxoMap    map[string][]*wire.TxIn = make(map[string][]*wire.TxIn)
 
 		//startIndexDummy int64 = -1
 		//startIndexBidY int64 = -1
@@ -698,9 +697,13 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		platformPrivateKeyReceiveDummyValue, platformAddressReceiveDummyValue                 string = GetPlatformKeyAndAddressReceiveDummyValue(req.Net)
 		_, platformAddressSendBrc20                                                           string = GetPlatformKeyAndAddressSendBrc20(req.Net)
 		platformPrivateKeyReceiveBidValueForPoolBtc, platformAddressReceiveBidValueForPoolBtc string = GetPlatformKeyAndAddressReceiveValueForPoolBtc(req.Net)
+		_, platformAddressForMultiSigInscription                                              string = GetPlatformKeyAndAddressForMultiSigInscription(req.Net)
+		_, platformAddressForRewardBrc20FeeUtxos                                              string = GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(req.Net)
+		_, platformAddressReceiveFee                                                          string = GetPlatformKeyAndAddressReceiveFee(req.Net)
 
 		sellerSendAddress string = req.Address
 		inValue           uint64 = req.Value
+		sellerPayFee      uint64 = 0
 
 		platformPayPerAmount uint64 = 10000
 		addressSendBrc20     string = platformAddressSendBrc20
@@ -713,15 +716,29 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		poolBtcPsbtSigIn       SigIn
 		poolBtcOutput          Output
 
-		feeOutput Output
+		feeOutputForReleaseInscription Output
+		feeOutputForRewardInscription  Output
+		feeOutputForRewardSend         Output
+		feeOutputForPlatform           Output
+		sellerChangeOutput             Output
+		feeAmountForReleaseInscription int64 = 5000
+		feeAmountForRewardInscription  int64 = 4000
+		feeAmountForRewardSend         int64 = 4000
+		feeAmountForPlatform           int64 = 3000
 
 		dealTxIndex, dealTxOutValue         int64 = 0, 0 // receive btc
 		dealCoinTxIndex, dealCoinTxOutValue int64 = 0, 0 // receive brc20
 
+		bidYUtxoOffsetIndex   int   = 4
 		bidYOffsetIndex       int   = 3
+		poolBtcInputIndex     int   = 3
 		dummy1200InputIndex   int   = 3
 		newDummy600Index      int64 = 4
 		newBidXUtxoOuputIndex int64 = 3
+
+		newBidXUtxoOuputIndexForReleaseInscription int64 = 0
+		newBidXUtxoOuputIndexForRewardInscription  int64 = 0
+		newBidXUtxoOuputIndexForRewardSend         int64 = 0
 	)
 	entity, _ = mongo_service.FindOrderBrc20ModelByOrderId(req.OrderId)
 	if entity == nil {
@@ -747,7 +764,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	if sellOuts == nil || len(sellOuts) == 0 {
 		return nil, errors.New("Wrong Psbt: empty outputs. ")
 	}
-	if len(preOutList) != 1 {
+	if len(preOutList) != 1 && len(preOutList) != 2 {
 		return nil, errors.New("Wrong Psbt: wrong length of inputs or length of outputs. ")
 	}
 	if strings.ToLower(req.Net) != "testnet" {
@@ -765,6 +782,25 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		}
 		sellerSendAddress = preSellBrc20Tx.OutputDetails[preOutList[0].PreviousOutPoint.Index].OutputHash
 		time.Sleep(1000 * time.Millisecond)
+
+		if len(preOutList) == 2 {
+			preSellFeeTx, err := oklink_service.GetTxDetail(preOutList[1].PreviousOutPoint.Hash.String())
+			if err != nil {
+				return nil, errors.New("Wrong Psbt: sellPayFee input is empty preTx. ")
+			}
+			feeInValueDe, err := decimal.NewFromString(preSellFeeTx.OutputDetails[preOutList[1].PreviousOutPoint.Index].Amount)
+			if err != nil {
+				return nil, errors.New("Wrong Psbt: The value of sellPayFee input decimal parse err. ")
+			}
+			feeInValue := uint64(feeInValueDe.Mul(decimal.New(1, 8)).IntPart())
+			if feeInValue == 0 {
+				return nil, errors.New("Wrong Psbt: sellPayFee out of preTx is empty amount. ")
+			}
+			if sellerSendAddress != preSellFeeTx.OutputDetails[preOutList[1].PreviousOutPoint.Index].OutputHash {
+				return nil, errors.New("Wrong Psbt: sellPayFee out of address dose not match. ")
+			}
+			sellerPayFee = feeInValue
+		}
 	}
 
 	sellerReceiveValue := uint64(sellOuts[0].Value)
@@ -777,20 +813,58 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		return nil, errors.New("Wrong Psbt: Seller receive value dose not match. ")
 	}
 
-	//if seller's psbt has platform fee out
+	//if seller's psbt has changeWallet out
 	if len(sellOuts) == 2 {
-		feeOut := sellOuts[1]
-		feeOutput = Output{
-			Amount: uint64(feeOut.Value),
-			Script: hex.EncodeToString(feeOut.PkScript),
+		//add seller's changeWallet out
+		sellerChangeOut := sellOuts[1]
+		sellerChangeOutput = Output{
+			Amount: uint64(sellerChangeOut.Value),
+			Script: hex.EncodeToString(sellerChangeOut.PkScript),
 		}
 
-		utxoDummy1200List, err = GetUnoccupiedUtxoList(req.Net, 1, 0, model.UtxoTypeDummy1200)
-		defer ReleaseUtxoList(utxoDummy1200List)
-		if err != nil {
-			return nil, err
+		if int64(sellerPayFee)-int64(sellerChangeOutput.Amount) != (feeAmountForReleaseInscription + feeAmountForRewardInscription + feeAmountForRewardSend + feeAmountForPlatform) {
+			return nil, errors.New("Wrong Psbt: seller's payFee amount dose not match. ")
 		}
+
+		//add fee output for release inscription and reward inscription and platform
+		platformPkScriptForMultiSigInscription, err := AddressToPkScript(req.Net, platformAddressForMultiSigInscription)
+		if err != nil {
+			return nil, errors.New("AddressToPkScript err: " + err.Error())
+		}
+		platformPkScriptForRewardBrc20FeeUtxos, err := AddressToPkScript(req.Net, platformAddressForRewardBrc20FeeUtxos)
+		if err != nil {
+			return nil, errors.New("AddressToPkScript err: " + err.Error())
+		}
+		platformPkScriptForReceiveFee, err := AddressToPkScript(req.Net, platformAddressReceiveFee)
+		if err != nil {
+			return nil, errors.New("AddressToPkScript err: " + err.Error())
+		}
+
+		feeOutputForReleaseInscription = Output{
+			Amount:  uint64(feeAmountForReleaseInscription),
+			Script:  platformPkScriptForMultiSigInscription,
+			Address: platformAddressForMultiSigInscription,
+		}
+		feeOutputForRewardInscription = Output{
+			Amount:  uint64(feeAmountForRewardInscription),
+			Script:  platformPkScriptForRewardBrc20FeeUtxos,
+			Address: platformAddressForRewardBrc20FeeUtxos,
+		}
+		feeOutputForRewardSend = Output{
+			Amount:  uint64(feeAmountForRewardSend),
+			Script:  platformPkScriptForRewardBrc20FeeUtxos,
+			Address: platformAddressForRewardBrc20FeeUtxos,
+		}
+		feeOutputForPlatform = Output{
+			Amount:  uint64(feeAmountForPlatform),
+			Script:  platformPkScriptForReceiveFee,
+			Address: platformAddressReceiveFee,
+		}
+
+		poolBtcInputIndex = poolBtcInputIndex + 1
+		bidYUtxoOffsetIndex = bidYUtxoOffsetIndex + 1
 		bidYOffsetIndex = bidYOffsetIndex + 1
+		dummy1200InputIndex = dummy1200InputIndex + 1
 	}
 
 	has := false
@@ -801,6 +875,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			continue
 		}
 		has = true
+		break
 	}
 	_ = inscriptionId
 
@@ -883,6 +958,60 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 						OutTxId:  btcPreOutList[0].PreviousOutPoint.Hash.String(),
 						OutIndex: btcPreOutList[0].PreviousOutPoint.Index,
 					}
+					//check btc psbt PreOut
+					liveBtcUtxoList := make([]*oklink_service.UtxoItem, 0)
+					utxoResp, err := oklink_service.GetAddressUtxo(poolOrder.Address, 1, 50)
+					if err != nil {
+						return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck address utxo list for pool err:%s", err.Error()))
+					}
+					if utxoResp.UtxoList != nil && len(utxoResp.UtxoList) != 0 {
+						liveBtcUtxoList = append(liveBtcUtxoList, utxoResp.UtxoList...)
+					}
+					utxoList, err := unisat_service.GetAddressUtxo(poolOrder.Address)
+					_ = err
+					//if err != nil {
+					//	return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck address utxo list err:%s", err.Error()))
+					//}
+					if utxoList != nil && len(utxoList) != 0 {
+						for _, uu := range utxoList {
+							liveBtcUtxoList = append(liveBtcUtxoList, &oklink_service.UtxoItem{
+								TxId:          uu.TxId,
+								Index:         strconv.FormatInt(uu.OutputIndex, 10),
+								Height:        "",
+								BlockTime:     "",
+								Address:       uu.ScriptPk,
+								UnspentAmount: strconv.FormatInt(uu.Satoshis, 10),
+							})
+						}
+					}
+
+					hasPoolUtxo := false
+					poolBtcUtxoId := fmt.Sprintf("%s_%d", poolBtcPsbtInput.OutTxId, poolBtcPsbtInput.OutIndex)
+					for _, utxo := range liveBtcUtxoList {
+						uId := fmt.Sprintf("%s_%s", utxo.TxId, utxo.Index)
+						if uId == poolBtcUtxoId {
+							hasPoolUtxo = true
+							break
+						}
+					}
+					if !hasPoolUtxo {
+						//set bid order err
+						entity.OrderState = model.OrderStateErr
+						_, err := mongo_service.SetOrderBrc20Model(entity)
+						if err != nil {
+							return nil, err
+						}
+						//set pool order err
+						poolOrder.PoolState = model.PoolStateRemove
+						poolOrder.PoolCoinState = model.PoolStateRemove
+						_, err = mongo_service.SetPoolBrc20Model(poolOrder)
+						if err != nil {
+							return nil, err
+						}
+						updatePoolInfo(poolOrder)
+						return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck address utxo list, pool utxo had been spent: %s", poolBtcUtxoId))
+					}
+
 					finalScriptWitness := btcPsbtBuilder.PsbtUpdater.Upsbt.Inputs[0].FinalScriptWitness
 					witnessUtxo := btcPsbtBuilder.PsbtUpdater.Upsbt.Inputs[0].WitnessUtxo
 					sighashType := btcPsbtBuilder.PsbtUpdater.Upsbt.Inputs[0].SighashType
@@ -890,9 +1019,11 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 						WitnessUtxo:        witnessUtxo,
 						SighashType:        sighashType,
 						FinalScriptWitness: finalScriptWitness,
-						Index:              bidYOffsetIndex,
+						Index:              poolBtcInputIndex,
 					}
+					bidYUtxoOffsetIndex = bidYUtxoOffsetIndex + 1
 					bidYOffsetIndex = bidYOffsetIndex + 1
+					dummy1200InputIndex = dummy1200InputIndex + 1
 					poolBtcAmount = poolOrder.Amount
 
 					poolBtcOutput = Output{
@@ -905,6 +1036,12 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 				}
 			}
 		}
+	}
+
+	utxoDummy1200List, err = GetUnoccupiedUtxoList(req.Net, 1, 0, model.UtxoTypeDummy1200)
+	defer ReleaseUtxoList(utxoDummy1200List)
+	if err != nil {
+		return nil, err
 	}
 
 	utxoDummyList, err = GetUnoccupiedUtxoList(req.Net, 2, 0, model.UtxoTypeDummy)
@@ -948,22 +1085,38 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		OutIndex: preOutList[0].PreviousOutPoint.Index,
 	})
 
-	//add dummy1200 ins - index: 3
-	if feeOutput.Script != "" {
-		for _, dummy := range utxoDummy1200List {
-			inputs = append(inputs, Input{
-				OutTxId:  dummy.TxId,
-				OutIndex: uint32(dummy.Index),
-			})
-		}
+	//add seller's payFee ins - index: 3
+	if len(preOutList) == 2 {
+		inputs = append(inputs, Input{
+			OutTxId:  preOutList[1].PreviousOutPoint.Hash.String(),
+			OutIndex: preOutList[1].PreviousOutPoint.Index,
+		})
 	}
+
+	////add dummy1200 ins - index: 3
+	//if feeOutput.Script != "" {
+	//	for _, dummy := range utxoDummy1200List {
+	//		inputs = append(inputs, Input{
+	//			OutTxId:  dummy.TxId,
+	//			OutIndex: uint32(dummy.Index),
+	//		})
+	//	}
+	//}
 
 	//add btc pool psbt ins - index: 3/4
 	if poolBtcPsbtInput.OutTxId != "" {
 		inputs = append(inputs, poolBtcPsbtInput)
 	}
 
-	//add Exchange pay value ins - index: 3,3+/4,4+
+	//add dummy1200 outs - idnex: 4/5
+	for _, dummy := range utxoDummy1200List {
+		inputs = append(inputs, Input{
+			OutTxId:  dummy.TxId,
+			OutIndex: uint32(dummy.Index),
+		})
+	}
+
+	//add Exchange pay value ins - index: 3,3+/4,4+/5,5+/6,6+
 	for _, payBid := range utxoBidYList {
 		inputs = append(inputs, Input{
 			OutTxId:  payBid.TxId,
@@ -1012,9 +1165,9 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		Amount:  sellerReceiveValue,
 	})
 
-	//add receive platform fee outs - idnex: 3
-	if feeOutput.Script != "" || feeOutput.Address != "" {
-		outputs = append(outputs, feeOutput)
+	//add receive seller change outs - idnex: 3
+	if sellerChangeOutput.Script != "" || sellerChangeOutput.Address != "" {
+		outputs = append(outputs, sellerChangeOutput)
 		newDummy600Index++
 	}
 
@@ -1040,6 +1193,23 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	outputs = append(outputs, newDummyOut)
 	outputs = append(outputs, newDummyOut)
 
+	//add fee output for release inscription and reward inscription
+	if feeOutputForReleaseInscription.Script != "" || feeOutputForReleaseInscription.Address != "" {
+		outputs = append(outputs, feeOutputForReleaseInscription)
+		newBidXUtxoOuputIndexForReleaseInscription = int64(len(outputs)) - 1
+	}
+	if feeOutputForRewardInscription.Script != "" || feeOutputForRewardInscription.Address != "" {
+		outputs = append(outputs, feeOutputForRewardInscription)
+		newBidXUtxoOuputIndexForRewardInscription = int64(len(outputs)) - 1
+	}
+	if feeOutputForRewardSend.Script != "" || feeOutputForRewardSend.Address != "" {
+		outputs = append(outputs, feeOutputForRewardSend)
+		newBidXUtxoOuputIndexForRewardSend = int64(len(outputs)) - 1
+	}
+	if feeOutputForPlatform.Script != "" || feeOutputForPlatform.Address != "" {
+		outputs = append(outputs, feeOutputForPlatform)
+	}
+
 	if changeAmount >= 546 {
 		outputs = append(outputs, Output{
 			Address: platformAddressReceiveBidValue,
@@ -1059,6 +1229,16 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	err = newPsbtBuilder.AddSigIn(witnessUtxo, sighashType, finalScriptWitness, 2)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("PSBT(Y): AddPartialSigIn err:%s", err.Error()))
+	}
+
+	if len(preOutList) == 2 {
+		finalScriptWitness2 := psbtBuilder.PsbtUpdater.Upsbt.Inputs[1].FinalScriptWitness
+		witnessUtxo2 := psbtBuilder.PsbtUpdater.Upsbt.Inputs[1].WitnessUtxo
+		sighashType2 := psbtBuilder.PsbtUpdater.Upsbt.Inputs[1].SighashType
+		err = newPsbtBuilder.AddSigIn(witnessUtxo2, sighashType2, finalScriptWitness2, 3)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("PSBT(Y): AddPartialSigIn2 err:%s", err.Error()))
+		}
 	}
 
 	if poolBtcPsbtSigIn.WitnessUtxo != nil {
@@ -1096,7 +1276,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	//add Exchange pay value ins - index: 3,3+ / 4,4+ / 5,5+
 	for k, payBid := range utxoBidYList {
 		inSigns = append(inSigns, &InputSign{
-			Index:       k + bidYOffsetIndex,
+			Index:       k + bidYUtxoOffsetIndex,
 			PkScript:    payBid.PkScript,
 			Amount:      payBid.Amount,
 			SighashType: txscript.SigHashAll,
@@ -1104,6 +1284,18 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			UtxoType:    Witness,
 		})
 	}
+	//
+	//txPsbt_t := newPsbtBuilder.PsbtUpdater.Upsbt.UnsignedTx
+	//fmt.Printf("Tx:\n")
+	//fmt.Printf("%+v\n", txPsbt_t)
+	//for _, in := range txPsbt_t.TxIn {
+	//	fmt.Printf("%+v\n", *in)
+	//}
+	//for _, out := range txPsbt_t.TxOut {
+	//	fmt.Printf("%+v\n", *out)
+	//}
+	//fmt.Printf("\n")
+
 	err = newPsbtBuilder.UpdateAndSignInput(inSigns)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("PSBT(Y): UpdateAndSignInput err:%s", err.Error()))
@@ -1145,7 +1337,6 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	}
 	//Check PSBT(X) utxo valid
 	insPsbtX := bidPsbtBuilder.GetInputs()
-	addressUtxoMap := make(map[string][]*wire.TxIn)
 	addressUtxoMap[entity.BuyerAddress] = make([]*wire.TxIn, 0)
 	addressUtxoMap[addressSendBrc20] = make([]*wire.TxIn, 0)
 	for k, v := range insPsbtX {
@@ -1159,7 +1350,8 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	//liveUtxoList := make([]*unisat_service.UtxoDetailItem, 0)
 	if entity.Net != "testnet" {
 		for address, _ := range addressUtxoMap {
-			utxoResp, err := oklink_service.GetAddressUtxo(address, 1, 50)
+			fmt.Printf("[DO][Check live utxo] address:%s\n", address)
+			utxoResp, err := oklink_service.GetAddressUtxo(address, 1, 100)
 			if err != nil {
 				return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck address utxo list err:%s", err.Error()))
 			}
@@ -1183,6 +1375,26 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 					})
 				}
 			}
+
+			utxoInscription, err := unisat_service.GetAddressInscriptions(address)
+			if utxoInscription != nil && len(utxoInscription) != 0 {
+				for _, ui := range utxoInscription {
+					output := ui.Output
+					outputStrs := strings.Split(output, ":")
+					if len(outputStrs) <= 2 {
+						continue
+					}
+					liveUtxoList = append(liveUtxoList, &oklink_service.UtxoItem{
+						TxId:          outputStrs[0],
+						Index:         outputStrs[1],
+						Height:        "",
+						BlockTime:     "",
+						Address:       ui.Address,
+						UnspentAmount: strconv.FormatInt(ui.OutputValue, 10),
+					})
+				}
+			}
+
 			time.Sleep(1200 * time.Millisecond)
 		}
 	}
@@ -1264,12 +1476,20 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	}
 	newBidXUtxoOuts := make([]Output, 0)
 	bidXOutputs := bidPsbtBuilder.GetOutputs()
+
 	if len(bidXOutputs) == 7 {
 		newBidXFeeOut := bidXOutputs[3]
 		if newBidXFeeOut.Value == 10000 && hex.EncodeToString(newBidXFeeOut.PkScript) == platformFeePkScript {
 			newBidXUtxoOuts = append(newBidXUtxoOuts, Output{
 				Address: platformAddressReceiveBidValueToReturn,
 				Amount:  uint64(newBidXFeeOut.Value),
+			})
+		}
+		newBidXFeeOut2 := bidXOutputs[4]
+		if newBidXFeeOut2.Value == 10000 && hex.EncodeToString(newBidXFeeOut2.PkScript) == platformFeePkScript {
+			newBidXUtxoOuts = append(newBidXUtxoOuts, Output{
+				Address: platformAddressReceiveBidValueToReturn,
+				Amount:  uint64(newBidXFeeOut2.Value),
 			})
 		}
 	} else if len(bidXOutputs) == 8 {
@@ -1372,6 +1592,9 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	SaveNewDummy1200FromBid(req.Net, newDummy1200Out, platformPrivateKeyReceiveDummyValue, 0, psbtYTxId)
 	SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, newDummy600Index, psbtYTxId)
 	SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, newDummy600Index+1, psbtYTxId)
+	SaveNewUtxoFromBid(req.Net, feeOutputForReleaseInscription, "", newBidXUtxoOuputIndexForReleaseInscription, psbtYTxId, model.UtxoTypeMultiInscription)
+	SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardInscription, psbtYTxId, model.UtxoTypeRewardInscription)
+	SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardSend, psbtYTxId, model.UtxoTypeRewardSend)
 
 	entity.DealTime = tool.MakeTimestamp()
 	entity.OrderState = model.OrderStateFinish

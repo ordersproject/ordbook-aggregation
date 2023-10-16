@@ -1239,13 +1239,13 @@ func FindPoolRewardOrderModelList(net, tick, pair, address string,
 	}
 
 	flagKey := GT_
-	if sortType >= 0 {
-		sortType = 1
-		flagKey = GT_
-	} else {
-		sortType = -1
-		flagKey = LT_
-	}
+	//if sortType >= 0 {
+	//	sortType = 1
+	//	flagKey = GT_
+	//} else {
+	//	sortType = -1
+	//	flagKey = LT_
+	//}
 
 	skip := int64(0)
 	if page != 0 {
@@ -1256,7 +1256,7 @@ func FindPoolRewardOrderModelList(net, tick, pair, address string,
 
 	models := make([]*model.PoolRewardOrderModel, 0)
 	pagination := options.Find().SetLimit(limit).SetSkip(skip)
-	sort := options.Find().SetSort(bson.M{sortKey: sortType})
+	sort := options.Find().SetSort(bson.M{sortKey: -1})
 	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
 		defer cursor.Close(context.Background())
 		for cursor.Next(context.Background()) {

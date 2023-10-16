@@ -108,6 +108,10 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel {
 
 func GetMarketPrice(net, tick, pair string) uint64 {
 	fmt.Printf("net:%s, tick:%s, pair:%s\n", net, tick, pair)
+	if strings.ToLower(tick) == "oxbt" {
+		return 20
+	}
+
 	tickInfo, _ := mongo_service.FindBrc20TickModelByPair(net, pair)
 	if tickInfo == nil {
 		tickInfo = UpdateMarketPrice(net, tick, pair)

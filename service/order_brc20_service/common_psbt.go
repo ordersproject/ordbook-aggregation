@@ -182,8 +182,8 @@ func (s *PsbtBuilder) UpdateAndSignInput(signIns []*InputSign) error {
 		//fmt.Printf("index:%d\n, pri:%s\n, pub:%s\n, sigScript: %s\n", v.Index, v.PriHex, publicKey, hex.EncodeToString(sigScript))
 		res, err := s.PsbtUpdater.Sign(v.Index, sigScript, pubByte, nil, nil)
 		if err != nil || res != 0 {
-			fmt.Printf("Index-[%d] %s\n", v.Index, s.PsbtUpdater.Upsbt.UnsignedTx.TxIn[v.Index].PreviousOutPoint.String())
-			return errors.New(fmt.Sprintf("Index-[%d] %s", v.Index, err))
+			fmt.Printf("Index-[%d] %s  %s, SignOutcome:%d\n", v.Index, s.PsbtUpdater.Upsbt.UnsignedTx.TxIn[v.Index].PreviousOutPoint.String(), err, res)
+			return errors.New(fmt.Sprintf("Index-[%d] %s, SignOutcome:%d", v.Index, err, res))
 		}
 		_, err = psbt.MaybeFinalize(s.PsbtUpdater.Upsbt, v.Index)
 		if err != nil {

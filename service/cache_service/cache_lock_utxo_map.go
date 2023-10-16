@@ -12,6 +12,7 @@ const (
 	CacheLockUtxoTypeMultiSigInscriptionFromRelease = "multisiginscriptionpayfromrelease"
 	CacheLockUtxoTypeRewardInscription              = "rewardinscriptionpay"
 	CacheLockUtxoTypeRewardSend                     = "rewardsendpay"
+	CacheLockUtxoTypeLoop                           = "looppay"
 )
 
 var _lockUtxoItemMap *LockUtxoItemMap
