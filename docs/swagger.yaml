@@ -64,12 +64,14 @@ definitions:
     - 2
     - 3
     - 4
+    - 5
     type: integer
     x-enum-varnames:
     - PoolStateAdd
     - PoolStateRemove
     - PoolStateUsed
     - PoolStateClaim
+    - PoolStateErr
   model.PoolType:
     enum:
     - 1
@@ -101,19 +103,25 @@ definitions:
   model.UtxoType:
     enum:
     - 1
+    - 3
     - 2
     - 6
     - 10
+    - 11
     - 20
     - 21
+    - 30
     type: integer
     x-enum-varnames:
     - UtxoTypeDummy
+    - UtxoTypeDummy1200
     - UtxoTypeBidY
     - UtxoTypeFakerInscription
     - UtxoTypeMultiInscription
+    - UtxoTypeMultiInscriptionFromRelease
     - UtxoTypeRewardInscription
     - UtxoTypeRewardSend
+    - UtxoTypeLoop
   request.Brc20CommitReq:
     properties:
       feeAddress:
@@ -852,6 +860,12 @@ definitions:
       psbtRaw:
         description: PSBT Raw
         type: string
+      releaseTime:
+        type: integer
+      releaseTx:
+        type: string
+      releaseTxBlock:
+        type: integer
       rewardCoinAmount:
         type: integer
       tick:
@@ -871,6 +885,9 @@ definitions:
           ClaimedOwnCoinAmount     uint64 `json:"claimedOwnCoinAmount"`
           ClaimedOwnAmount         uint64 `json:"claimedOwnAmount"`
           ClaimedOwnCount          uint64 `json:"claimedOwnCount"`
+        type: integer
+      hasReleasePoolOrderCount:
+        description: HadClaimRewardOrderCount uint64 `json:"HadClaimRewardOrderCount"`
         type: integer
       net:
         description: Net env
@@ -1324,6 +1341,7 @@ paths:
       - description: amount
         in: query
         name: amount
+        required: true
         type: integer
       - description: isPool for pool
         in: query

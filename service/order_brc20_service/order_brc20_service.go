@@ -960,7 +960,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 					}
 					//check btc psbt PreOut
 					liveBtcUtxoList := make([]*oklink_service.UtxoItem, 0)
-					utxoResp, err := oklink_service.GetAddressUtxo(poolOrder.Address, 1, 50)
+					utxoResp, err := oklink_service.GetAddressUtxo(poolOrder.Address, 1, 100)
 					if err != nil {
 						return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck address utxo list for pool err:%s", err.Error()))
 					}

@@ -366,7 +366,7 @@ func CountPoolBrc20ModelList(net, tick, pair, address string, poolType model.Poo
 		find["pair"] = pair
 	}
 	if address != "" {
-		find["address"] = address
+		find["coinAddress"] = address
 	}
 	//if poolType != 0 {
 	//	find["poolType"] = poolType

@@ -137,6 +137,9 @@ func FetchPoolOrders(req *request.PoolBrc20FetchReq) (*respond.PoolResponse, err
 			//PsbtRaw:       v.PsbtRaw,
 			Timestamp:        v.Timestamp,
 			RewardCoinAmount: rewardNowAmount,
+			ReleaseTx:        v.ClaimTx,
+			ReleaseTime:      v.ClaimTime,
+			ReleaseTxBlock:   v.ClaimTxBlock,
 		}
 		if req.SortKey == "todo" {
 			//flag = int64(v.CoinRatePrice)
@@ -910,9 +913,9 @@ func FetchOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20Reward
 		hasReleasePoolOrderCount int64 = 0
 	)
 
-	if req.Tick != config.PlatformRewardTick {
-		return nil, errors.New(fmt.Sprintf("tick wrong:%s", config.PlatformRewardTick))
-	}
+	//if req.Tick != config.PlatformRewardTick {
+	//	return nil, errors.New(fmt.Sprintf("tick wrong:%s", config.PlatformRewardTick))
+	//}
 
 	_ = entityBlockReward
 	entityBlockReward, _ = mongo_service.CountPoolRewardBlockUser(req.Net, req.Address)

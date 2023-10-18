@@ -125,6 +125,7 @@ func CalAllPoolOrder(net string, startBlock, endBlock, nowTime int64) {
 			if strings.ToLower(v.Tick) == "rdex" {
 				continue
 			}
+
 			coinPrice := int64(1)
 			if _, ok := coinPriceMap[v.Tick]; ok {
 				coinPrice = coinPriceMap[v.Tick]
@@ -206,6 +207,12 @@ func CalAllPoolOrder(net string, startBlock, endBlock, nowTime int64) {
 		if strings.ToLower(v.Tick) == "rdex" {
 			continue
 		}
+
+		coinAmount, amount, err := calculateDecrement(v)
+		if err != nil {
+			continue
+		}
+
 		coinPrice := int64(1)
 		if _, ok := coinPriceMap[v.Tick]; ok {
 			coinPrice = coinPriceMap[v.Tick]
@@ -217,23 +224,28 @@ func CalAllPoolOrder(net string, startBlock, endBlock, nowTime int64) {
 			coinPriceMap[v.Tick] = coinPrice
 		}
 
+		totalCoinAmount = totalCoinAmount + int64(coinAmount)*coinPrice
 		if _, ok := addressCoinAmountInfo[v.CoinAddress]; ok {
-			addressCoinAmountInfo[v.CoinAddress] = addressCoinAmountInfo[v.CoinAddress] + int64(v.CoinAmount)*coinPrice
+			addressCoinAmountInfo[v.CoinAddress] = addressCoinAmountInfo[v.CoinAddress] + int64(coinAmount)*coinPrice
 		} else {
-			addressCoinAmountInfo[v.CoinAddress] = int64(v.CoinAmount) * coinPrice
+			addressCoinAmountInfo[v.CoinAddress] = int64(coinAmount) * coinPrice
 		}
 
-		totalCoinAmount = totalCoinAmount + int64(v.CoinAmount)*coinPrice
 		if v.PoolType == model.PoolTypeBoth {
-			totalAmount = totalAmount + int64(v.Amount)
+			totalAmount = totalAmount + int64(amount)
 			if _, ok := addressAmountInfo[v.CoinAddress]; ok {
-				addressAmountInfo[v.Address] = addressAmountInfo[v.Address] + int64(v.Amount)
+				addressAmountInfo[v.Address] = addressAmountInfo[v.Address] + int64(amount)
 			} else {
-				addressAmountInfo[v.Address] = int64(v.Amount)
+				addressAmountInfo[v.Address] = int64(amount)
 			}
 		}
 	}
 	allTotalValue = totalCoinAmount + totalAmount
+	if allTotalValue == 0 {
+		major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBlockUserInfoModel success [allTotalValue is 0]"))
+		return
+	}
+
 	allTotalValueDe := decimal.NewFromInt(allTotalValue)
 
 	for address, coinAmount := range addressCoinAmountInfo {
@@ -345,6 +357,46 @@ func UpdatePoolBlockInfo(startBlock, cycleBlock, nowTime int64) {
 		Timestamp:  nowTime,
 	}
 	mongo_service.SetPoolBlockInfoModel(entity)
+}
+
+// Calculate decrement
+func calculateDecrement(poolOrder *model.PoolBrc20Model) (int64, int64, error) {
+	var (
+		coinAmount, amount                     int64 = 0, 0
+		decreasingCoinAmount, decreasingAmount int64 = 0, 0
+	)
+	if poolOrder == nil {
+		return 0, 0, fmt.Errorf("poolOrder is nil")
+	}
+	coinAmount, amount = int64(poolOrder.CoinAmount), int64(poolOrder.Amount)
+	coinAmountDe, amountDe := decimal.NewFromInt(coinAmount), decimal.NewFromInt(amount)
+	disTime := poolOrder.ClaimTime - poolOrder.DealTime
+	days := disTime / (1000 * 60 * 60 * 24)
+	for i := int64(1); i <= days; i++ {
+		if i <= config.PlatformRewardDiminishingDays {
+			continue
+		}
+		if i > config.PlatformRewardDiminishingDays && i <= config.PlatformRewardDiminishingPeriod+config.PlatformRewardDiminishingDays {
+			decreasingCoinAmount = decreasingCoinAmount + coinAmountDe.Mul(decimal.NewFromInt(config.PlatformRewardDiminishing1)).Div(decimal.NewFromInt(100)).IntPart()
+			decreasingAmount = decreasingAmount + amountDe.Mul(decimal.NewFromInt(config.PlatformRewardDiminishing1)).Div(decimal.NewFromInt(100)).IntPart()
+		} else if i > config.PlatformRewardDiminishingPeriod+config.PlatformRewardDiminishingDays && i <= config.PlatformRewardDiminishingPeriod*2+config.PlatformRewardDiminishingDays {
+			decreasingCoinAmount = decreasingCoinAmount + coinAmountDe.Mul(decimal.NewFromInt(config.PlatformRewardDiminishing2)).Div(decimal.NewFromInt(100)).IntPart()
+			decreasingAmount = decreasingAmount + amountDe.Mul(decimal.NewFromInt(config.PlatformRewardDiminishing2)).Div(decimal.NewFromInt(100)).IntPart()
+		} else if i > config.PlatformRewardDiminishingPeriod*2+config.PlatformRewardDiminishingDays {
+			decreasingCoinAmount = decreasingCoinAmount + coinAmountDe.Mul(decimal.NewFromInt(config.PlatformRewardDiminishing3)).Div(decimal.NewFromInt(100)).IntPart()
+			decreasingAmount = decreasingAmount + amountDe.Mul(decimal.NewFromInt(config.PlatformRewardDiminishing3)).Div(decimal.NewFromInt(100)).IntPart()
+		}
+	}
+	coinAmount = coinAmount - decreasingCoinAmount
+	amount = amount - decreasingAmount
+	if coinAmount <= 0 {
+		coinAmount = 0
+	}
+	if amount <= 0 {
+		amount = 0
+	}
+
+	return coinAmount, amount, nil
 }
 
 // calculate the proportion of the total amount of the pool in release order

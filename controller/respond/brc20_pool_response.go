@@ -34,6 +34,9 @@ type PoolBrc20Item struct {
 	MultiSigScriptAddressTickAvailableState int64           `json:"multiSigScriptAddressTickAvailableState"` //0-no, 1-available
 	Timestamp                               int64           `json:"timestamp"`                               //Create time
 	RewardCoinAmount                        int64           `json:"rewardCoinAmount,omitempty"`
+	ReleaseTx                               string          `json:"releaseTx"`
+	ReleaseTime                             int64           `json:"releaseTime"`
+	ReleaseTxBlock                          int64           `json:"releaseTxBlock"`
 }
 
 type PoolInfoResponse struct {

@@ -462,7 +462,8 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "amount",
                         "name": "amount",
-                        "in": "query"
+                        "in": "query",
+                        "required": true
                     },
                     {
                         "type": "boolean",
@@ -1720,13 +1721,15 @@ const docTemplate = `{
                 1,
                 2,
                 3,
-                4
+                4,
+                5
             ],
             "x-enum-varnames": [
                 "PoolStateAdd",
                 "PoolStateRemove",
                 "PoolStateUsed",
-                "PoolStateClaim"
+                "PoolStateClaim",
+                "PoolStateErr"
             ]
         },
         "model.PoolType": {
@@ -1767,19 +1770,25 @@ const docTemplate = `{
             "type": "integer",
             "enum": [
                 1,
+                3,
                 2,
                 6,
                 10,
+                11,
                 20,
-                21
+                21,
+                30
             ],
             "x-enum-varnames": [
                 "UtxoTypeDummy",
+                "UtxoTypeDummy1200",
                 "UtxoTypeBidY",
                 "UtxoTypeFakerInscription",
                 "UtxoTypeMultiInscription",
+                "UtxoTypeMultiInscriptionFromRelease",
                 "UtxoTypeRewardInscription",
-                "UtxoTypeRewardSend"
+                "UtxoTypeRewardSend",
+                "UtxoTypeLoop"
             ]
         },
         "request.Brc20CommitReq": {
@@ -2890,6 +2899,15 @@ const docTemplate = `{
                     "description": "PSBT Raw",
                     "type": "string"
                 },
+                "releaseTime": {
+                    "type": "integer"
+                },
+                "releaseTx": {
+                    "type": "string"
+                },
+                "releaseTxBlock": {
+                    "type": "integer"
+                },
                 "rewardCoinAmount": {
                     "type": "integer"
                 },
@@ -2912,6 +2930,10 @@ const docTemplate = `{
             "properties": {
                 "hadClaimRewardAmount": {
                     "description": "ClaimedOwnCoinAmount     uint64 ` + "`" + `json:\"claimedOwnCoinAmount\"` + "`" + `\nClaimedOwnAmount         uint64 ` + "`" + `json:\"claimedOwnAmount\"` + "`" + `\nClaimedOwnCount          uint64 ` + "`" + `json:\"claimedOwnCount\"` + "`" + `",
+                    "type": "integer"
+                },
+                "hasReleasePoolOrderCount": {
+                    "description": "HadClaimRewardOrderCount uint64 ` + "`" + `json:\"HadClaimRewardOrderCount\"` + "`" + `",
                     "type": "integer"
                 },
                 "net": {
