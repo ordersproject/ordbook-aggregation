@@ -371,7 +371,7 @@ func calculateDecrement(poolOrder *model.PoolBrc20Model) (int64, int64, error) {
 	coinAmount, amount = int64(poolOrder.CoinAmount), int64(poolOrder.Amount)
 	coinAmountDe, amountDe := decimal.NewFromInt(coinAmount), decimal.NewFromInt(amount)
 	disTime := poolOrder.ClaimTime - poolOrder.DealTime
-	days := disTime / (1000 * 60 * 60 * 24)
+	days := disTime / (config.PlatformRewardDecreasingCycleTime)
 	for i := int64(1); i <= days; i++ {
 		if i <= config.PlatformRewardDiminishingDays {
 			continue
@@ -397,6 +397,41 @@ func calculateDecrement(poolOrder *model.PoolBrc20Model) (int64, int64, error) {
 	}
 
 	return coinAmount, amount, nil
+}
+
+// Calculate decrement for no-release pool order
+func calculateDecrementFoNoReleasePool(poolOrder *model.PoolBrc20Model) int64 {
+	var (
+		proportion int64 = 0
+	)
+	if poolOrder == nil {
+		return 0
+	}
+	endTime := poolOrder.ClaimTime
+	if endTime == 0 {
+		endTime = tool.MakeTimestamp()
+	}
+	disTime := endTime - poolOrder.DealTime
+	days := disTime / (config.PlatformRewardDecreasingCycleTime)
+	fmt.Printf("Days[%d]\n", days)
+	for i := int64(1); i <= days; i++ {
+		if i <= config.PlatformRewardDiminishingDays {
+			continue
+		}
+		if i > config.PlatformRewardDiminishingDays && i <= config.PlatformRewardDiminishingPeriod+config.PlatformRewardDiminishingDays {
+			proportion = proportion + config.PlatformRewardDiminishing1
+		} else if i > config.PlatformRewardDiminishingPeriod+config.PlatformRewardDiminishingDays && i <= config.PlatformRewardDiminishingPeriod*2+config.PlatformRewardDiminishingDays {
+			proportion = proportion + config.PlatformRewardDiminishing2
+		} else if i > config.PlatformRewardDiminishingPeriod*2+config.PlatformRewardDiminishingDays {
+			proportion = proportion + config.PlatformRewardDiminishing3
+		}
+	}
+
+	if proportion >= 100 {
+		proportion = 100
+	}
+
+	return proportion
 }
 
 // calculate the proportion of the total amount of the pool in release order

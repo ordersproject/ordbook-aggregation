@@ -112,6 +112,8 @@ func FetchPoolOrders(req *request.PoolBrc20FetchReq) (*respond.PoolResponse, err
 
 		rewardNowAmount := getRealNowReward(v)
 
+		decreasing := calculateDecrementFoNoReleasePool(v)
+
 		item := &respond.PoolBrc20Item{
 			Net:                                     v.Net,
 			OrderId:                                 v.OrderId,
@@ -140,6 +142,8 @@ func FetchPoolOrders(req *request.PoolBrc20FetchReq) (*respond.PoolResponse, err
 			ReleaseTx:        v.ClaimTx,
 			ReleaseTime:      v.ClaimTime,
 			ReleaseTxBlock:   v.ClaimTxBlock,
+			DealTime:         v.DealTime,
+			Decreasing:       decreasing,
 		}
 		if req.SortKey == "todo" {
 			//flag = int64(v.CoinRatePrice)

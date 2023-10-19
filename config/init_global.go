@@ -113,6 +113,7 @@ var (
 	PlatformRewardCalStartBlock           int64  = 0
 	PlatformRewardCalCycleBlock           int64  = 0
 	PlatformRewardTick                    string = ""
+	PlatformRewardDecreasingCycleTime     int64  = 0
 )
 
 func InitConfig() {
@@ -216,4 +217,6 @@ func InitConfig() {
 	PlatformRewardCalStartBlock = viper.GetInt64("platform_service_reward.cal_start_block")
 	PlatformRewardCalCycleBlock = viper.GetInt64("platform_service_reward.cal_cycle_block")
 	PlatformRewardTick = viper.GetString("platform_service_reward.reward_tick")
+	PlatformRewardDecreasingCycleTime = viper.GetInt64("platform_service_reward.decreasing_cycle_time")
+	fmt.Printf("decreasing_cycle_time-[%d]\n", PlatformRewardDecreasingCycleTime)
 }

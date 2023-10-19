@@ -37,6 +37,8 @@ type PoolBrc20Item struct {
 	ReleaseTx                               string          `json:"releaseTx"`
 	ReleaseTime                             int64           `json:"releaseTime"`
 	ReleaseTxBlock                          int64           `json:"releaseTxBlock"`
+	DealTime                                int64           `json:"dealTime"`
+	Decreasing                              int64           `json:"decreasing"`
 }
 
 type PoolInfoResponse struct {
