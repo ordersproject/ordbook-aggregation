@@ -47,10 +47,12 @@ func createPoolBrc20Model(poolBrc20 *model.PoolBrc20Model) (*model.PoolBrc20Mode
 	CreateIndex(collection, "poolType")
 	CreateIndex(collection, "poolState")
 	CreateIndex(collection, "claimTxBlock")
+	CreateIndex(collection, "dealCoinTxBlock")
 	CreateIndex(collection, "timestamp")
 	CreateIndex(collection, "dealTime")
 	CreateIndex(collection, "claimTime")
 	CreateIndex(collection, "claimTxBlockState")
+	CreateIndex(collection, "dealCoinTxBlockState")
 
 	entity := &model.PoolBrc20Model{
 		Id:                       util.GetUUIDInt64(),
@@ -323,6 +325,32 @@ func SetPoolBrc20ModelForBlock(poolBrc20 *model.PoolBrc20Model) error {
 	return nil
 }
 
+func SetPoolBrc20ModelForDealBlock(poolBrc20 *model.PoolBrc20Model) error {
+	entity, err := FindPoolBrc20ModelByOrderId(poolBrc20.OrderId)
+	if err == nil && entity != nil {
+		collection, err := model.PoolBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", poolBrc20.OrderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "dealCoinTxBlock", Value: poolBrc20.DealCoinTxBlock})
+		bsonData = append(bsonData, bson.E{Key: "dealCoinTxBlockState", Value: poolBrc20.DealCoinTxBlockState})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func SetPoolBrc20ModelForReward(poolBrc20 *model.PoolBrc20Model) error {
 	entity, err := FindPoolBrc20ModelByOrderId(poolBrc20.OrderId)
 	if err == nil && entity != nil {
@@ -336,6 +364,58 @@ func SetPoolBrc20ModelForReward(poolBrc20 *model.PoolBrc20Model) error {
 		}
 		bsonData := bson.D{}
 		bsonData = append(bsonData, bson.E{Key: "rewardAmount", Value: poolBrc20.RewardAmount})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func SetPoolBrc20ModelForCalReward(poolBrc20 *model.PoolBrc20Model) error {
+	entity, err := FindPoolBrc20ModelByOrderId(poolBrc20.OrderId)
+	if err == nil && entity != nil {
+		collection, err := model.PoolBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", poolBrc20.OrderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "percentage", Value: poolBrc20.Percentage})
+		bsonData = append(bsonData, bson.E{Key: "rewardAmount", Value: poolBrc20.RewardAmount})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func SetPoolBrc20ModelForCalExtraReward(poolBrc20 *model.PoolBrc20Model) error {
+	entity, err := FindPoolBrc20ModelByOrderId(poolBrc20.OrderId)
+	if err == nil && entity != nil {
+		collection, err := model.PoolBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", poolBrc20.OrderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "percentageExtra", Value: poolBrc20.PercentageExtra})
+		bsonData = append(bsonData, bson.E{Key: "rewardExtraAmount", Value: poolBrc20.RewardExtraAmount})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",
 			bsonData,
@@ -588,6 +668,131 @@ func FindPoolBrc20ModelListByStartAndEndBlock(net, tick, pair, address string,
 	models := make([]*model.PoolBrc20Model, 0)
 	pagination := options.Find().SetLimit(limit).SetSkip(skip)
 	sort := options.Find().SetSort(bson.M{"claimTxBlock": 1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.PoolBrc20Model{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get PoolBrc20Model Error")
+	}
+	return models, nil
+}
+
+func FindPoolBrc20ModelListByDealStartAndDealEndBlock(net, tick, pair, address string,
+	poolType model.PoolType, poolState model.PoolState,
+	limit, page int64, startBlock, endBlock int64) ([]*model.PoolBrc20Model, error) {
+	collection, err := model.PoolBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"state": model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+	if pair != "" {
+		find["pair"] = pair
+	}
+	if address != "" {
+		find["coinAddress"] = address
+	}
+	if poolType != 0 {
+		if poolType == model.PoolTypeAll {
+			find["poolType"] = bson.M{IN_: []model.PoolType{
+				model.PoolTypeTick,
+				model.PoolTypeBoth,
+				model.PoolTypeBtc,
+			}}
+		} else {
+			find["poolType"] = poolType
+		}
+	}
+
+	if startBlock != 0 && endBlock != 0 {
+		between := bson.M{
+			GTE_: startBlock,
+			LTE_: endBlock,
+		}
+		find["dealCoinTxBlock"] = between
+	}
+
+	if poolState != 0 {
+		find["poolState"] = poolState
+	}
+	skip := int64(0)
+	if page != 0 {
+		skip = (page - 1) * limit
+	}
+
+	models := make([]*model.PoolBrc20Model, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(skip)
+	sort := options.Find().SetSort(bson.M{"dealCoinTxBlock": 1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.PoolBrc20Model{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get PoolBrc20Model Error")
+	}
+	return models, nil
+}
+
+func FindPoolBrc20ModelListByDealTime(net, tick, pair, address string, poolState model.PoolState,
+	limit, page int64, dealCoinTxBlockState model.ClaimTxBlockState) ([]*model.PoolBrc20Model, error) {
+	collection, err := model.PoolBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"state": model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+	if pair != "" {
+		find["pair"] = pair
+	}
+	if address != "" {
+		find["coinAddress"] = address
+	}
+	if poolState != 0 {
+		find["poolState"] = poolState
+	}
+	if dealCoinTxBlockState != 0 {
+		find["dealCoinTxBlockState"] = dealCoinTxBlockState
+	}
+
+	skip := int64(0)
+	if page != 0 {
+		skip = (page - 1) * limit
+	}
+
+	models := make([]*model.PoolBrc20Model, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(skip)
+	sort := options.Find().SetSort(bson.M{"dealTime": 1})
 	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
 		defer cursor.Close(context.Background())
 		for cursor.Next(context.Background()) {
@@ -993,10 +1198,11 @@ func CountOwnPoolReward(net, tick, pair, address string) (*model.PoolRewardCount
 		return nil, err
 	}
 	countInfo := &model.PoolRewardCount{
-		Id:                address,
-		CoinAmountTotal:   0,
-		AmountTotal:       0,
-		RewardAmountTotal: 0,
+		Id:                     address,
+		CoinAmountTotal:        0,
+		AmountTotal:            0,
+		RewardAmountTotal:      0,
+		RewardExtraAmountTotal: 0,
 	}
 	countInfoList := make([]model.PoolRewardCount, 0)
 
@@ -1030,6 +1236,9 @@ func CountOwnPoolReward(net, tick, pair, address string) (*model.PoolRewardCount
 				}},
 				{"rewardAmountTotal", bson.D{
 					{"$sum", "$rewardRealAmount"},
+				}},
+				{"rewardExtraAmountTotal", bson.D{
+					{"$sum", "$rewardExtraAmount"},
 				}},
 			}},
 		},

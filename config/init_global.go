@@ -114,6 +114,14 @@ var (
 	PlatformRewardCalCycleBlock           int64  = 0
 	PlatformRewardTick                    string = ""
 	PlatformRewardDecreasingCycleTime     int64  = 0
+
+	NotificationTitlePoolUsed    string = ""
+	NotificationTitleBidInvalid  string = ""
+	NotificationTitleOrderFinish string = ""
+
+	NotificationDescPoolUsed    string = ""
+	NotificationDescBidInvalid  string = ""
+	NotificationDescOrderFinish string = ""
 )
 
 func InitConfig() {
@@ -219,4 +227,11 @@ func InitConfig() {
 	PlatformRewardTick = viper.GetString("platform_service_reward.reward_tick")
 	PlatformRewardDecreasingCycleTime = viper.GetInt64("platform_service_reward.decreasing_cycle_time")
 	fmt.Printf("decreasing_cycle_time-[%d]\n", PlatformRewardDecreasingCycleTime)
+
+	NotificationTitlePoolUsed = viper.GetString("notification.title.pool_used")
+	NotificationTitleBidInvalid = viper.GetString("notification.title.bid_invalid")
+	NotificationTitleOrderFinish = viper.GetString("notification.title.order_finish")
+	NotificationDescPoolUsed = viper.GetString("notification.description.pool_used")
+	NotificationDescBidInvalid = viper.GetString("notification.description.bid_invalid")
+	NotificationDescOrderFinish = viper.GetString("notification.description.order_finish")
 }

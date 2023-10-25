@@ -165,6 +165,7 @@ func FetchPreBid(req *request.OrderBrc20GetBidReq) (*respond.BidPre, error) {
 				continue
 			}
 
+			bidCount := checkPoolBidCount(v.OrderId)
 			list = append(list, &respond.AvailableItem{
 				InscriptionId:     v.InscriptionId,
 				InscriptionNumber: v.InscriptionNumber,
@@ -173,6 +174,7 @@ func FetchPreBid(req *request.OrderBrc20GetBidReq) (*respond.BidPre, error) {
 				CoinRatePrice:     v.CoinRatePrice,
 				PoolType:          v.PoolType,
 				BtcPoolMode:       v.BtcPoolMode,
+				BidCount:          bidCount,
 			})
 		}
 	} else {
@@ -1611,6 +1613,8 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 
 	UpdateMarketPrice(req.Net, req.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(req.Tick)))
 
+	AddNotificationForOrderFinish(entity.BuyerAddress)
+
 	return &respond.DoBidResp{
 		TxIdX: txPsbtXRespTxId,
 		TxIdY: txPsbtYRespTxId,
@@ -1706,6 +1710,7 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey, ip string) (string
 			}
 
 			entityOrder.PsbtRawFinalAsk = req.PsbtRaw
+			AddNotificationForOrderFinish(entityOrder.SellerAddress)
 			break
 		case model.OrderTypeBuy:
 			if req.OrderState == model.OrderStateCancel {

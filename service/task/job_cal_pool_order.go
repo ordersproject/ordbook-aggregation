@@ -28,7 +28,8 @@ func jobForCalPoolOrder() {
 			continue
 		}
 		startBlock, endBlock := getStartBlockAndEndBlockByBigBlock(i)
-		order_brc20_service.CalAllPoolOrder(net, startBlock, endBlock, nowTime)
+		//order_brc20_service.CalAllPoolOrder(net, startBlock, endBlock, nowTime)
+		order_brc20_service.CalAllPoolOrderV2(net, startBlock, endBlock, nowTime)
 		order_brc20_service.UpdatePoolBlockInfo(startBlock, (endBlock-startBlock)+1, nowTime)
 	}
 }

@@ -227,3 +227,55 @@ func (s OrderBrc20MarketInfoModel) GetWriteDB() (*mongo.Collection, error) {
 	}
 	return collection, nil
 }
+
+type NotificationType int64
+
+const (
+	NotificationTypePoolUsed    NotificationType = 1
+	NotificationTypeBidInvalid  NotificationType = 2
+	NotificationTypeOrderFinish NotificationType = 3
+)
+
+// notification model
+type OrderNotificationModel struct {
+	Id                int64            `json:"id" bson:"_id" tb:"order_notification_model" mg:"true"`
+	Address           string           `json:"address" bson:"address"`
+	NotificationType  NotificationType `json:"notificationType" bson:"notificationType"`
+	NotificationCount int64            `json:"notificationCount" bson:"notificationCount"`
+	Timestamp         int64            `json:"timestamp" bson:"timestamp"`
+	CreateTime        int64            `json:"createTime" bson:"createTime"`
+	UpdateTime        int64            `json:"updateTime" bson:"updateTime"`
+	State             int64            `json:"state" bson:"state"`
+}
+
+func (s OrderNotificationModel) getCollection() string {
+	return "order_notification_model"
+}
+
+func (s OrderNotificationModel) getDB() string {
+	return major.DsOrdbook
+}
+
+func (s OrderNotificationModel) GetReadDB() (*mongo.Collection, error) {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return nil, err
+	}
+	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+	return collection, nil
+}
+
+func (s OrderNotificationModel) GetWriteDB() (*mongo.Collection, error) {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return nil, err
+	}
+	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+	return collection, nil
+}

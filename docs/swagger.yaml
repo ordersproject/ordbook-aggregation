@@ -10,6 +10,16 @@ definitions:
     - FreeStateYes
     - FreeStateClaim
     - FreeStatePoolClaim
+  model.NotificationType:
+    enum:
+    - 1
+    - 2
+    - 3
+    type: integer
+    x-enum-varnames:
+    - NotificationTypePoolUsed
+    - NotificationTypeBidInvalid
+    - NotificationTypeOrderFinish
   model.OrderState:
     enum:
     - 1
@@ -754,6 +764,31 @@ definitions:
       processingTime:
         type: integer
     type: object
+  respond.NotificationItem:
+    properties:
+      notificationCount:
+        description: available count
+        type: integer
+      notificationDesc:
+        description: description
+        type: string
+      notificationTitle:
+        description: title
+        type: string
+      notificationType:
+        allOf:
+        - $ref: '#/definitions/model.NotificationType'
+        description: 1-pool used, 2-bid invalid, 3-order finish
+    type: object
+  respond.NotificationResponse:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/respond.NotificationItem'
+        type: array
+      total:
+        type: integer
+    type: object
   respond.OrderResponse:
     properties:
       flag:
@@ -807,6 +842,8 @@ definitions:
         type: string
       amount:
         type: integer
+      bidCount:
+        type: integer
       coinAddress:
         description: tick
         type: string
@@ -819,6 +856,10 @@ definitions:
       coinPsbtRaw:
         description: coin PSBT Raw
         type: string
+      dealCoinTxBlock:
+        type: integer
+      dealCoinTxBlockState:
+        type: integer
       dealInscriptionId:
         description: InscriptionId
         type: string
@@ -830,7 +871,11 @@ definitions:
         type: integer
       dealInscriptionTxOutValue:
         type: integer
+      dealTime:
+        type: integer
       decimalNum:
+        type: integer
+      decreasing:
         type: integer
       inscriptionId:
         description: InscriptionId
@@ -849,6 +894,10 @@ definitions:
       pair:
         description: Brc20 pair
         type: string
+      percentage:
+        type: integer
+      percentageExtra:
+        type: integer
       poolState:
         allOf:
         - $ref: '#/definitions/model.PoolState'
@@ -866,7 +915,11 @@ definitions:
         type: string
       releaseTxBlock:
         type: integer
-      rewardCoinAmount:
+      rewardAmount:
+        type: integer
+      rewardExtraAmount:
+        type: integer
+      rewardRealAmount:
         type: integer
       tick:
         description: Brc20 symbol
@@ -896,6 +949,8 @@ definitions:
         description: Brc20 symbol
         type: string
       totalRewardAmount:
+        type: integer
+      totalRewardExtraAmount:
         type: integer
     type: object
   respond.PoolInfoItem:
@@ -1168,6 +1223,48 @@ paths:
           schema:
             $ref: '#/definitions/respond.Message'
       summary: Update claim order
+      tags:
+      - brc20
+  /brc20/common/notification/address:
+    get:
+      description: Fetch address notification
+      parameters:
+      - description: address
+        in: query
+        name: address
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.NotificationResponse'
+      summary: Fetch address notification
+      tags:
+      - brc20
+  /brc20/common/notification/clear:
+    get:
+      description: Clear address notification
+      parameters:
+      - description: address
+        in: query
+        name: address
+        required: true
+        type: string
+      - description: notificationType 0-all, 1-poolUsed, 2-bidInvalid, 3-orderFinish
+        in: query
+        name: notificationType
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Message'
+      summary: Clear address notification
       tags:
       - brc20
   /brc20/guide/price/set:

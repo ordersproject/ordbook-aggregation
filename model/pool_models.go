@@ -68,11 +68,13 @@ type PoolBrc20Model struct {
 	DealTxOutValue int64     `json:"dealTxOutValue" bson:"dealTxOutValue"`
 	DealTime       int64     `json:"dealTime" bson:"dealTime"`
 
-	PoolCoinState      PoolState `json:"poolCoinState" bson:"poolCoinState"`
-	DealCoinTx         string    `json:"dealCoinTx" bson:"dealCoinTx"`
-	DealCoinTxIndex    int64     `json:"dealCoinTxIndex" bson:"dealCoinTxIndex"`
-	DealCoinTxOutValue int64     `json:"dealCoinTxOutValue" bson:"dealCoinTxOutValue"`
-	DealCoinTime       int64     `json:"dealCoinTime" bson:"dealCoinTime"`
+	PoolCoinState        PoolState         `json:"poolCoinState" bson:"poolCoinState"`
+	DealCoinTxBlockState ClaimTxBlockState `json:"dealCoinTxBlockState" bson:"dealCoinTxBlockState"`
+	DealCoinTxBlock      int64             `json:"dealCoinTxBlock" bson:"dealCoinTxBlock"`
+	DealCoinTx           string            `json:"dealCoinTx" bson:"dealCoinTx"`
+	DealCoinTxIndex      int64             `json:"dealCoinTxIndex" bson:"dealCoinTxIndex"`
+	DealCoinTxOutValue   int64             `json:"dealCoinTxOutValue" bson:"dealCoinTxOutValue"`
+	DealCoinTime         int64             `json:"dealCoinTime" bson:"dealCoinTime"`
 
 	DealInscriptionId         string `json:"dealInscriptionId" bson:"dealInscriptionId"` //InscriptionId
 	DealInscriptionTx         string `json:"dealInscriptionTx" bson:"dealInscriptionTx"`
@@ -84,8 +86,12 @@ type PoolBrc20Model struct {
 	ClaimTime         int64             `json:"claimTime" bson:"claimTime"`
 	ClaimTxBlock      int64             `json:"claimTxBlock" bson:"claimTxBlock"`
 	ClaimTxBlockState ClaimTxBlockState `json:"claimTxBlockState" bson:"claimTxBlockState"`
+	Percentage        int64             `json:"percentage" bson:"percentage"`
 	RewardAmount      int64             `json:"rewardAmount" bson:"rewardAmount"`
 	RewardRealAmount  int64             `json:"rewardRealAmount" bson:"rewardRealAmount"`
+	PercentageExtra   int64             `json:"percentageExtra" bson:"percentageExtra"`
+	RewardExtraAmount int64             `json:"rewardExtraAmount" bson:"rewardExtraAmount"`
+	Decreasing        int64             `json:"decreasing" bson:"decreasing"`
 	Ratio             int64             `json:"ratio" bson:"ratio"`
 	RewardRatio       int64             `json:"rewardRatio" bson:"rewardRatio"`
 	Timestamp         int64             `json:"timestamp" bson:"timestamp"`
@@ -102,11 +108,12 @@ type PoolOrderCount struct {
 }
 
 type PoolRewardCount struct {
-	Id                string `json:"id" bson:"_id"`
-	CoinAmountTotal   int64  `json:"coinAmountTotal" bson:"coinAmountTotal"`
-	AmountTotal       int64  `json:"amountTotal" bson:"amountTotal"`
-	RewardAmountTotal int64  `json:"rewardAmountTotal" bson:"rewardAmountTotal"`
-	OrderCounts       int64  `json:"orderCounts" bson:"orderCounts"`
+	Id                     string `json:"id" bson:"_id"`
+	CoinAmountTotal        int64  `json:"coinAmountTotal" bson:"coinAmountTotal"`
+	AmountTotal            int64  `json:"amountTotal" bson:"amountTotal"`
+	RewardAmountTotal      int64  `json:"rewardAmountTotal" bson:"rewardAmountTotal"`
+	RewardExtraAmountTotal int64  `json:"rewardExtraAmountTotal" bson:"rewardExtraAmountTotal"`
+	OrderCounts            int64  `json:"orderCounts" bson:"orderCounts"`
 }
 
 func (s PoolBrc20Model) getCollection() string {

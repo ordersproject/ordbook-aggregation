@@ -75,6 +75,9 @@ func Run() {
 		brc20.POST("/pool/reward/claim", ClaimReward)
 		brc20.GET("/pool/reward/orders", FetchPoolRewardOrders)
 
+		brc20.GET("/common/notification/address", FetchAddressNotification)
+		brc20.GET("/common/notification/clear", ClearAllNotification)
+
 	}
 
 	url := ginSwagger.URL("/swagger/doc.json")

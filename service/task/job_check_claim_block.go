@@ -31,7 +31,7 @@ func jobForCheckClaimBlock() {
 				continue
 			}
 
-			block := getClaimTxBlock(v.ClaimTx)
+			block := getTxBlock(v.ClaimTx)
 			if block == 0 {
 				continue
 			}
@@ -47,7 +47,45 @@ func jobForCheckClaimBlock() {
 	}
 }
 
-func getClaimTxBlock(claimTx string) int64 {
+func jobForCheckPoolUsedDealTxBlock() {
+	var (
+		net           string = "livenet"
+		poolOrderList []*model.PoolBrc20Model
+		limit         int64 = 1000
+	)
+
+	poolOrderList, _ = mongo_service.FindPoolBrc20ModelListByDealTime(net, "", "", "", model.PoolStateClaim,
+		limit, 0, model.ClaimTxBlockStateUnconfirmed)
+
+	if poolOrderList != nil && len(poolOrderList) != 0 {
+		for _, v := range poolOrderList {
+			if v.DealCoinTxBlock != 0 {
+				continue
+			}
+			if v.DealCoinTxBlockState != model.ClaimTxBlockStateUnconfirmed {
+				continue
+			}
+			if v.ClaimTx == "" {
+				continue
+			}
+
+			block := getTxBlock(v.ClaimTx)
+			if block == 0 {
+				continue
+			}
+			v.DealCoinTxBlock = block
+			v.DealCoinTxBlockState = model.ClaimTxBlockStateConfirmed
+			err := mongo_service.SetPoolBrc20ModelForDealBlock(v)
+			if err != nil {
+				major.Println(fmt.Sprintf("[JOP-DEAL-BLOCK] SetPoolBrc20ModelForDealBlock err:%s", err.Error()))
+				continue
+			}
+			major.Println(fmt.Sprintf("[JOP-DEAL-BLOCK] SetPoolBrc20ModelForDealBlock success [%s]", v.OrderId))
+		}
+	}
+}
+
+func getTxBlock(claimTx string) int64 {
 	var (
 		blockHeight int64 = 0
 	)

@@ -1195,3 +1195,156 @@ func SetOrderBrc20MarketInfoModel(orderBrc20MarketInfo *model.OrderBrc20MarketIn
 		return createOrderBrc20MarketInfoModel(orderBrc20MarketInfo)
 	}
 }
+
+func CountOrderBrc20ModelListForPoolOrderId(poolOrderId string) (int64, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return 0, err
+	}
+	find := bson.M{
+		"orderState": model.OrderStateCreate,
+		"state":      model.STATE_EXIST,
+	}
+	//if net != "" {
+	//	find["net"] = net
+	//}
+	//if tick != "" {
+	//	find["tick"] = tick
+	//}
+	if poolOrderId != "" {
+		find["poolOrderId"] = poolOrderId
+	}
+
+	total, err := collection.CountDocuments(context.TODO(), find)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func FindOrderNotificationModelByAddressAndNotificationType(address string, notificationType model.NotificationType) (*model.OrderNotificationModel, error) {
+	collection, err := model.OrderNotificationModel{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.D{
+		{"address", address},
+		{"notificationType", notificationType},
+		//{"state", model.STATE_EXIST},
+	}
+	entity := &model.OrderNotificationModel{}
+	err = collection.FindOne(context.TODO(), queryBson).Decode(entity)
+	if err != nil {
+		return nil, err
+	}
+	return entity, nil
+}
+
+func createOrderNotificationModel(orderNotification *model.OrderNotificationModel) (*model.OrderNotificationModel, error) {
+	collection, err := model.OrderNotificationModel{}.GetWriteDB()
+	if err != nil {
+		return nil, err
+	}
+
+	CreateIndex(collection, "address")
+	CreateIndex(collection, "notificationType")
+	CreateIndex(collection, "timestamp")
+
+	entity := &model.OrderNotificationModel{
+		Id:                util.GetUUIDInt64(),
+		Address:           orderNotification.Address,
+		NotificationType:  orderNotification.NotificationType,
+		NotificationCount: orderNotification.NotificationCount,
+		Timestamp:         util.Time(),
+		CreateTime:        util.Time(),
+		State:             model.STATE_EXIST,
+	}
+
+	_, err = collection.InsertOne(context.TODO(), entity)
+	if err != nil {
+		return nil, err
+	} else {
+		//id := res.InsertedID
+		//fmt.Println("insert id :", id)
+		return entity, nil
+	}
+}
+
+func SetOrderNotificationModel(orderNotification *model.OrderNotificationModel) (*model.OrderNotificationModel, error) {
+	entity, err := FindOrderNotificationModelByAddressAndNotificationType(orderNotification.Address, orderNotification.NotificationType)
+	if err == nil && entity != nil {
+		collection, err := model.OrderNotificationModel{}.GetWriteDB()
+		if err != nil {
+			return nil, err
+		}
+		filter := bson.D{
+			{"address", orderNotification.Address},
+			{"notificationType", orderNotification.NotificationType},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "address", Value: orderNotification.Address})
+		bsonData = append(bsonData, bson.E{Key: "notificationType", Value: orderNotification.NotificationType})
+		bsonData = append(bsonData, bson.E{Key: "notificationCount", Value: orderNotification.NotificationCount})
+		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: util.Time()})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return nil, err
+		}
+		return orderNotification, nil
+	} else {
+		return createOrderNotificationModel(orderNotification)
+	}
+}
+
+func CountOrderNotificationModelList(address string) (int64, error) {
+	collection, err := model.OrderNotificationModel{}.GetReadDB()
+	if err != nil {
+		return 0, err
+	}
+	find := bson.M{
+		"address": address,
+		"state":   model.STATE_EXIST,
+	}
+
+	total, err := collection.CountDocuments(context.TODO(), find)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func FindOrderNotificationModelList(address string) ([]*model.OrderNotificationModel, error) {
+	collection, err := model.OrderNotificationModel{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"address": address,
+		"state":   model.STATE_EXIST,
+	}
+
+	models := make([]*model.OrderNotificationModel, 0)
+	pagination := options.Find().SetLimit(10).SetSkip(0)
+	sort := options.Find().SetSort(bson.M{"timestamp": -1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.OrderNotificationModel{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get OrderNotificationModel Error")
+	}
+	return models, nil
+}

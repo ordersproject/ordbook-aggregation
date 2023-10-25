@@ -110,9 +110,9 @@ func FetchPoolOrders(req *request.PoolBrc20FetchReq) (*respond.PoolResponse, err
 			time.Sleep(800 * time.Millisecond)
 		}
 
-		rewardNowAmount := getRealNowReward(v)
-
+		//rewardNowAmount := getRealNowReward(v)
 		decreasing := calculateDecrementFoNoReleasePool(v)
+		//bidCount := checkPoolBidCount(v)
 
 		item := &respond.PoolBrc20Item{
 			Net:                                     v.Net,
@@ -137,13 +137,23 @@ func FetchPoolOrders(req *request.PoolBrc20FetchReq) (*respond.PoolResponse, err
 			MultiSigScriptAddressTickAvailableState: multiSigScriptAddressTickAvailableState,
 			UtxoId:                                  v.UtxoId,
 			//PsbtRaw:       v.PsbtRaw,
-			Timestamp:        v.Timestamp,
-			RewardCoinAmount: rewardNowAmount,
-			ReleaseTx:        v.ClaimTx,
-			ReleaseTime:      v.ClaimTime,
-			ReleaseTxBlock:   v.ClaimTxBlock,
-			DealTime:         v.DealTime,
-			Decreasing:       decreasing,
+			Timestamp: v.Timestamp,
+			//RewardCoinAmount: rewardNowAmount,
+
+			Percentage:           v.Percentage,
+			RewardAmount:         v.RewardAmount,
+			RewardRealAmount:     v.RewardRealAmount,
+			PercentageExtra:      v.PercentageExtra,
+			RewardExtraAmount:    v.RewardExtraAmount,
+			DealCoinTxBlockState: v.DealCoinTxBlockState,
+			DealCoinTxBlock:      v.DealCoinTxBlock,
+
+			ReleaseTx:      v.ClaimTx,
+			ReleaseTime:    v.ClaimTime,
+			ReleaseTxBlock: v.ClaimTxBlock,
+			DealTime:       v.DealTime,
+			Decreasing:     decreasing,
+			//BidCount:         bidCount,
 		}
 		if req.SortKey == "todo" {
 			//flag = int64(v.CoinRatePrice)
@@ -787,7 +797,10 @@ func ClaimPool(req *request.PoolBrc20ClaimReq, publicKey, ip string) (*respond.P
 	//	major.Println(fmt.Sprintf("[POOL-CLAIM] makePoolRewardPsbt err:%s\n", err.Error()))
 	//}
 
-	rewardNowAmount = getRealNowReward(entityOrder)
+	//rewardNowAmount = getRealNowReward(entityOrder)
+
+	decreasing := calculateDecrementFoNoReleasePool(entityOrder)
+	rewardNowAmount = getRealNowRewardByDecreasing(entityOrder.RewardAmount, decreasing)
 
 	return &respond.PoolBrc20ClaimResp{
 		Net:     entityOrder.Net,
@@ -909,6 +922,7 @@ func FetchOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20Reward
 		entityReward           *model.PoolRewardCount
 		entityRewardOrderCount *model.PoolRewardOrderCount
 		totalRewardAmount      uint64 = 0
+		totalRewardExtraAmount uint64 = 0
 		//claimedOwnCoinAmount   uint64 = 0
 		//claimedOwnAmount       uint64 = 0
 		//claimedOwnCount        uint64 = 0
@@ -922,36 +936,38 @@ func FetchOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20Reward
 	//}
 
 	_ = entityBlockReward
-	entityBlockReward, _ = mongo_service.CountPoolRewardBlockUser(req.Net, req.Address)
-	if entityBlockReward != nil {
-		totalRewardAmount = uint64(entityBlockReward.RewardCoinAmountTotal)
-		entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, "", "", req.Address)
-		if entityRewardOrderCount != nil {
-			hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
-		}
-	}
-
-	_ = entityReward
-
-	hasReleasePoolOrderCount, _ = mongo_service.CountPoolBrc20ModelList(req.Net, req.Tick, "", req.Address, model.PoolTypeAll, model.PoolStateUsed)
-
-	//entityReward, _ = mongo_service.CountOwnPoolReward(req.Net, req.Tick, "", req.Address)
-	//if entityReward != nil {
-	//	totalRewardAmount = uint64(entityReward.RewardAmountTotal)
-	//	//claimedOwnCoinAmount = uint64(entityReward.CoinAmountTotal)
-	//	//claimedOwnAmount = uint64(entityReward.AmountTotal)
-	//	//claimedOwnCount = uint64(entityReward.OrderCounts)
-	//
-	//	entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, req.Tick, "", req.Address)
+	//entityBlockReward, _ = mongo_service.CountPoolRewardBlockUser(req.Net, req.Address)
+	//if entityBlockReward != nil {
+	//	totalRewardAmount = uint64(entityBlockReward.RewardCoinAmountTotal)
+	//	entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, "", "", req.Address)
 	//	if entityRewardOrderCount != nil {
 	//		hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
-	//		//hadClaimRewardOrderCount = uint64(entityRewardOrderCount.RewardCoinOrderCount)
 	//	}
 	//}
+	//
+	//_ = entityReward
+	//
+	hasReleasePoolOrderCount, _ = mongo_service.CountPoolBrc20ModelList(req.Net, req.Tick, "", req.Address, model.PoolTypeAll, model.PoolStateUsed)
+
+	entityReward, _ = mongo_service.CountOwnPoolReward(req.Net, req.Tick, "", req.Address)
+	if entityReward != nil {
+		totalRewardAmount = uint64(entityReward.RewardAmountTotal)
+		totalRewardExtraAmount = uint64(entityReward.RewardExtraAmountTotal)
+		//claimedOwnCoinAmount = uint64(entityReward.CoinAmountTotal)
+		//claimedOwnAmount = uint64(entityReward.AmountTotal)
+		//claimedOwnCount = uint64(entityReward.OrderCounts)
+
+		entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, req.Tick, "", req.Address)
+		if entityRewardOrderCount != nil {
+			hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
+			//hadClaimRewardOrderCount = uint64(entityRewardOrderCount.RewardCoinOrderCount)
+		}
+	}
 	return &respond.PoolBrc20RewardResp{
-		Net:               req.Net,
-		Tick:              req.Tick,
-		TotalRewardAmount: totalRewardAmount,
+		Net:                    req.Net,
+		Tick:                   req.Tick,
+		TotalRewardAmount:      totalRewardAmount,
+		TotalRewardExtraAmount: totalRewardExtraAmount,
 		//ClaimedOwnCoinAmount:   claimedOwnCoinAmount,
 		//ClaimedOwnAmount:       claimedOwnAmount,
 		//ClaimedOwnCount:        claimedOwnCount,
@@ -971,6 +987,7 @@ func ClaimReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string) (st
 		entityRewardOrderCount *model.PoolRewardOrderCount
 		entityBlockReward      *model.PoolRewardBlockUserCount
 		totalRewardAmount      uint64 = 0
+		totalRewardExtraAmount uint64 = 0
 		hadClaimRewardAmount   uint64 = 0
 		remainingRewardAmount  int64  = 0
 	)
@@ -987,27 +1004,30 @@ func ClaimReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string) (st
 	}
 
 	_ = entityBlockReward
-	entityBlockReward, _ = mongo_service.CountPoolRewardBlockUser(req.Net, req.Address)
-	if entityBlockReward != nil {
-		totalRewardAmount = uint64(entityBlockReward.RewardCoinAmountTotal)
-		entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, "", "", req.Address)
-		if entityRewardOrderCount != nil {
-			hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
-			remainingRewardAmount = int64(totalRewardAmount) - int64(hadClaimRewardAmount)
-		}
-	}
-
-	_ = entityReward
-	//entityReward, _ = mongo_service.CountOwnPoolReward(req.Net, req.Tick, "", req.Address)
-	//if entityReward != nil {
-	//	totalRewardAmount = uint64(entityReward.RewardAmountTotal)
-	//	entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, req.Tick, "", req.Address)
+	//entityBlockReward, _ = mongo_service.CountPoolRewardBlockUser(req.Net, req.Address)
+	//if entityBlockReward != nil {
+	//	totalRewardAmount = uint64(entityBlockReward.RewardCoinAmountTotal)
+	//	entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, "", "", req.Address)
 	//	if entityRewardOrderCount != nil {
 	//		hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
-	//
 	//		remainingRewardAmount = int64(totalRewardAmount) - int64(hadClaimRewardAmount)
 	//	}
 	//}
+
+	_ = entityReward
+	entityReward, _ = mongo_service.CountOwnPoolReward(req.Net, req.Tick, "", req.Address)
+	if entityReward != nil {
+		totalRewardAmount = uint64(entityReward.RewardAmountTotal)
+		totalRewardExtraAmount = uint64(entityReward.RewardExtraAmountTotal)
+
+		entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, req.Tick, "", req.Address)
+		if entityRewardOrderCount != nil {
+			hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
+
+			remainingRewardAmount = int64(totalRewardAmount+totalRewardExtraAmount) - int64(hadClaimRewardAmount)
+		}
+	}
+
 	if remainingRewardAmount < 0 {
 		remainingRewardAmount = 0
 	}

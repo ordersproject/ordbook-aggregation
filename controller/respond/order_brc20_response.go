@@ -91,6 +91,7 @@ type AvailableItem struct {
 	CoinRatePrice     uint64         `json:"coinRatePrice,omitempty"`
 	PoolType          model.PoolType `json:"poolType,omitempty"`
 	BtcPoolMode       model.PoolMode `json:"btcPoolMode,omitempty"` //PoolMode for btc
+	BidCount          int64          `json:"bidCount"`
 }
 
 type WsUuidResp struct {

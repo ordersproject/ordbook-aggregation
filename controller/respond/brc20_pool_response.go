@@ -33,12 +33,22 @@ type PoolBrc20Item struct {
 	DealInscriptionTime                     int64           `json:"dealInscriptionTime"`
 	MultiSigScriptAddressTickAvailableState int64           `json:"multiSigScriptAddressTickAvailableState"` //0-no, 1-available
 	Timestamp                               int64           `json:"timestamp"`                               //Create time
-	RewardCoinAmount                        int64           `json:"rewardCoinAmount,omitempty"`
-	ReleaseTx                               string          `json:"releaseTx"`
-	ReleaseTime                             int64           `json:"releaseTime"`
-	ReleaseTxBlock                          int64           `json:"releaseTxBlock"`
-	DealTime                                int64           `json:"dealTime"`
-	Decreasing                              int64           `json:"decreasing"`
+	//RewardCoinAmount                        int64           `json:"rewardCoinAmount,omitempty"`
+
+	Percentage           int64                   `json:"percentage"`
+	RewardAmount         int64                   `json:"rewardAmount"`
+	RewardRealAmount     int64                   `json:"rewardRealAmount"`
+	PercentageExtra      int64                   `json:"percentageExtra"`
+	RewardExtraAmount    int64                   `json:"rewardExtraAmount"`
+	DealCoinTxBlockState model.ClaimTxBlockState `json:"dealCoinTxBlockState"`
+	DealCoinTxBlock      int64                   `json:"dealCoinTxBlock"`
+
+	ReleaseTx      string `json:"releaseTx"`
+	ReleaseTime    int64  `json:"releaseTime"`
+	ReleaseTxBlock int64  `json:"releaseTxBlock"`
+	DealTime       int64  `json:"dealTime"`
+	Decreasing     int64  `json:"decreasing"`
+	BidCount       int64  `json:"bidCount"`
 }
 
 type PoolInfoResponse struct {
@@ -94,9 +104,10 @@ type PoolBrc20ClaimResp struct {
 }
 
 type PoolBrc20RewardResp struct {
-	Net               string `json:"net,omitempty"`  //Net env
-	Tick              string `json:"tick,omitempty"` //Brc20 symbol
-	TotalRewardAmount uint64 `json:"totalRewardAmount"`
+	Net                    string `json:"net,omitempty"`  //Net env
+	Tick                   string `json:"tick,omitempty"` //Brc20 symbol
+	TotalRewardAmount      uint64 `json:"totalRewardAmount"`
+	TotalRewardExtraAmount uint64 `json:"totalRewardExtraAmount"`
 	//ClaimedOwnCoinAmount     uint64 `json:"claimedOwnCoinAmount"`
 	//ClaimedOwnAmount         uint64 `json:"claimedOwnAmount"`
 	//ClaimedOwnCount          uint64 `json:"claimedOwnCount"`

@@ -179,6 +179,7 @@ func setRewardForPoolBrc20Order(poolOrderId string) {
 	if entityPool == nil {
 		return
 	}
+	AddNotificationForPoolUsed(entityPool.CoinAddress)
 
 	if entityPool.PoolType == model.PoolTypeTick {
 		rewardAmount = getSinglePoolReward()
@@ -602,7 +603,10 @@ func updateClaim(poolOrder *model.PoolBrc20Model, rawTx string) error {
 		poolOrder.PoolCoinState = model.PoolStateClaim
 	}
 
-	rewardNowAmount := getRealNowReward(poolOrder)
+	decreasing := calculateDecrementFoNoReleasePool(poolOrder)
+	poolOrder.Decreasing = decreasing
+
+	rewardNowAmount := getRealNowRewardByDecreasing(poolOrder.RewardAmount, decreasing)
 	poolOrder.RewardRealAmount = rewardNowAmount
 	poolOrder.ClaimTxBlockState = model.ClaimTxBlockStateUnconfirmed
 	err = mongo_service.SetPoolBrc20ModelForClaim(poolOrder)
@@ -834,4 +838,13 @@ func getRewardRatio(ratio int64) int64 {
 		rewardRatio = 15
 	}
 	return rewardRatio
+}
+
+// check bid count of pool order which is add state
+func checkPoolBidCount(poolOrderId string) int64 {
+	var (
+		bidCount int64 = 0
+	)
+	bidCount, _ = mongo_service.CountOrderBrc20ModelListForPoolOrderId(poolOrderId)
+	return bidCount
 }

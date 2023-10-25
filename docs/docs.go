@@ -233,6 +233,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/brc20/common/notification/address": {
+            "get": {
+                "description": "Fetch address notification",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch address notification",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.NotificationResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/common/notification/clear": {
+            "get": {
+                "description": "Clear address notification",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Clear address notification",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "notificationType 0-all, 1-poolUsed, 2-bidInvalid, 3-orderFinish",
+                        "name": "notificationType",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/guide/price/set": {
             "post": {
                 "description": "Set guide price",
@@ -1658,6 +1722,19 @@ const docTemplate = `{
                 "FreeStatePoolClaim"
             ]
         },
+        "model.NotificationType": {
+            "type": "integer",
+            "enum": [
+                1,
+                2,
+                3
+            ],
+            "x-enum-varnames": [
+                "NotificationTypePoolUsed",
+                "NotificationTypeBidInvalid",
+                "NotificationTypeOrderFinish"
+            ]
+        },
         "model.OrderState": {
             "type": "integer",
             "enum": [
@@ -2746,6 +2823,45 @@ const docTemplate = `{
                 }
             }
         },
+        "respond.NotificationItem": {
+            "type": "object",
+            "properties": {
+                "notificationCount": {
+                    "description": "available count",
+                    "type": "integer"
+                },
+                "notificationDesc": {
+                    "description": "description",
+                    "type": "string"
+                },
+                "notificationTitle": {
+                    "description": "title",
+                    "type": "string"
+                },
+                "notificationType": {
+                    "description": "1-pool used, 2-bid invalid, 3-order finish",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.NotificationType"
+                        }
+                    ]
+                }
+            }
+        },
+        "respond.NotificationResponse": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/respond.NotificationItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "respond.OrderResponse": {
             "type": "object",
             "properties": {
@@ -2821,6 +2937,9 @@ const docTemplate = `{
                 "amount": {
                     "type": "integer"
                 },
+                "bidCount": {
+                    "type": "integer"
+                },
                 "coinAddress": {
                     "description": "tick",
                     "type": "string"
@@ -2836,6 +2955,12 @@ const docTemplate = `{
                 "coinPsbtRaw": {
                     "description": "coin PSBT Raw",
                     "type": "string"
+                },
+                "dealCoinTxBlock": {
+                    "type": "integer"
+                },
+                "dealCoinTxBlockState": {
+                    "type": "integer"
                 },
                 "dealInscriptionId": {
                     "description": "InscriptionId",
@@ -2853,7 +2978,13 @@ const docTemplate = `{
                 "dealInscriptionTxOutValue": {
                     "type": "integer"
                 },
+                "dealTime": {
+                    "type": "integer"
+                },
                 "decimalNum": {
+                    "type": "integer"
+                },
+                "decreasing": {
                     "type": "integer"
                 },
                 "inscriptionId": {
@@ -2878,6 +3009,12 @@ const docTemplate = `{
                 "pair": {
                     "description": "Brc20 pair",
                     "type": "string"
+                },
+                "percentage": {
+                    "type": "integer"
+                },
+                "percentageExtra": {
+                    "type": "integer"
                 },
                 "poolState": {
                     "description": "pool state：1-add,2-remove,3-used,4-claim",
@@ -2908,7 +3045,13 @@ const docTemplate = `{
                 "releaseTxBlock": {
                     "type": "integer"
                 },
-                "rewardCoinAmount": {
+                "rewardAmount": {
+                    "type": "integer"
+                },
+                "rewardExtraAmount": {
+                    "type": "integer"
+                },
+                "rewardRealAmount": {
                     "type": "integer"
                 },
                 "tick": {
@@ -2945,6 +3088,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "totalRewardAmount": {
+                    "type": "integer"
+                },
+                "totalRewardExtraAmount": {
                     "type": "integer"
                 }
             }

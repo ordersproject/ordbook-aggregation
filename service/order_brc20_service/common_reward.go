@@ -90,6 +90,22 @@ func getRealNowReward(entityOrder *model.PoolBrc20Model) int64 {
 	return rewardNowAmount
 }
 
+func getRealNowRewardByDecreasing(rewardAmount, decreasing int64) int64 {
+	var (
+		rewardNowAmount int64 = 0
+	)
+	if decreasing <= 0 {
+		return rewardAmount
+	}
+	if decreasing >= 100 {
+		return 0
+	}
+	rewardAmountDe := decimal.NewFromInt(rewardAmount)
+	decreasingDe := decimal.NewFromInt(100 - decreasing)
+	rewardNowAmount = rewardAmountDe.Mul(decreasingDe).Div(decimal.NewFromInt(100)).IntPart()
+	return rewardNowAmount
+}
+
 func CalAllPoolOrder(net string, startBlock, endBlock, nowTime int64) {
 	var (
 		allNoUsedEntityPoolOrderList []*model.PoolBrc20Model
@@ -294,6 +310,190 @@ func CalAllPoolOrder(net string, startBlock, endBlock, nowTime int64) {
 		}
 		major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBlockUserInfoModel success [%s]", address))
 	}
+
+}
+
+func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) {
+	var (
+		allNoUsedEntityPoolOrderList []*model.PoolBrc20Model
+		allEntityPoolOrderList       []*model.PoolBrc20Model
+		limit                        int64 = 1000
+
+		totalCoinAmount     int64                                    = 0
+		totalAmount         int64                                    = 0
+		allTotalValue       int64                                    = 0
+		orderCoinAmountInfo map[string]int64                         = make(map[string]int64)
+		orderAmountInfo     map[string]int64                         = make(map[string]int64)
+		orderBlockInfo      map[string]*model.PoolBlockUserInfoModel = make(map[string]*model.PoolBlockUserInfoModel)
+
+		totalCoinAmountNoUsed     int64            = 0
+		totalAmountNoUsed         int64            = 0
+		allTotalValueNoUsed       int64            = 0
+		orderCoinAmountInfoNoUsed map[string]int64 = make(map[string]int64)
+		orderAmountInfoNoUsed     map[string]int64 = make(map[string]int64)
+		//orderBlockInfoNoUsed      map[string]*model.PoolBlockUserInfoModel = make(map[string]*model.PoolBlockUserInfoModel)
+
+		//coinPrice int64 = int64(GetMarketPrice(net, tick, fmt.Sprintf("%s-BTC", strings.ToUpper(tick))))
+		coinPriceMap map[string]int64 = make(map[string]int64)
+
+		endTime   int64 = nowTime - 1000*60*60*24*config.PlatformRewardExtraRewardDuration
+		hasNoUsed bool  = false
+	)
+
+	allNoUsedEntityPoolOrderList, _ = mongo_service.FindPoolBrc20ModelListByEndTime(net, "", "", "",
+		model.PoolTypeBoth, model.PoolStateAdd, limit, 0, endTime)
+	if allNoUsedEntityPoolOrderList != nil && len(allNoUsedEntityPoolOrderList) != 0 {
+		hasNoUsed = true
+		for _, v := range allNoUsedEntityPoolOrderList {
+			if strings.ToLower(v.Tick) == "rdex" {
+				continue
+			}
+
+			coinPrice := int64(1)
+			if _, ok := coinPriceMap[v.Tick]; ok {
+				coinPrice = coinPriceMap[v.Tick]
+			} else {
+				coinPrice = int64(GetMarketPrice(net, v.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(v.Tick))))
+				if coinPrice == 0 {
+					coinPrice = 1
+				}
+				coinPriceMap[v.Tick] = coinPrice
+			}
+
+			totalCoinAmountNoUsed = totalCoinAmountNoUsed + int64(v.CoinAmount)*coinPrice
+			if _, ok := orderCoinAmountInfoNoUsed[v.OrderId]; ok {
+				orderCoinAmountInfoNoUsed[v.OrderId] = orderCoinAmountInfoNoUsed[v.OrderId] + int64(v.CoinAmount)*coinPrice
+			} else {
+				orderCoinAmountInfoNoUsed[v.OrderId] = int64(v.CoinAmount) * coinPrice
+			}
+
+			totalAmountNoUsed = totalAmountNoUsed + int64(v.Amount)
+			if _, ok := orderAmountInfoNoUsed[v.OrderId]; ok {
+				orderAmountInfoNoUsed[v.OrderId] = orderAmountInfoNoUsed[v.OrderId] + int64(v.Amount)
+			} else {
+				orderAmountInfoNoUsed[v.OrderId] = int64(v.Amount)
+			}
+		}
+
+		allTotalValueNoUsed = totalCoinAmountNoUsed + totalAmountNoUsed
+		allTotalValueNoUsedDe := decimal.NewFromInt(allTotalValueNoUsed)
+		for orderId, coinAmount := range orderCoinAmountInfoNoUsed {
+			orderTotalValue := int64(0)
+			amount := int64(0)
+			percentage := int64(0)
+			rewardAmount := int64(0)
+			if _, ok := orderAmountInfoNoUsed[orderId]; ok {
+				amount = orderAmountInfoNoUsed[orderId]
+			}
+			orderTotalValue = coinAmount + amount
+			orderTotalValueDe := decimal.NewFromInt(orderTotalValue)
+			percentage = orderTotalValueDe.Div(allTotalValueNoUsedDe).Mul(decimal.NewFromInt(10000)).IntPart()
+			rewardAmount = getUserBlockRewardAmountNoUser(percentage)
+
+			orderEntity, _ := mongo_service.FindPoolBrc20ModelByOrderId(orderId)
+			if orderEntity == nil {
+				continue
+			}
+			orderEntity.PercentageExtra = percentage
+			orderEntity.RewardExtraAmount = rewardAmount
+
+			err := mongo_service.SetPoolBrc20ModelForCalExtraReward(orderEntity)
+			if err != nil {
+				major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][no-used]SetPoolBrc20ModelForCalExtraReward err:%s", err.Error()))
+				continue
+			}
+			major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][no-used]SetPoolBrc20ModelForCalExtraReward success [%s]", orderId))
+		}
+
+	}
+
+	allEntityPoolOrderList, _ = mongo_service.FindPoolBrc20ModelListByDealStartAndDealEndBlock(net, "", "", "",
+		model.PoolTypeAll, model.PoolStateUsed, limit, 0, startBlock, endBlock)
+	for _, v := range allEntityPoolOrderList {
+		if strings.ToLower(v.Tick) == "rdex" {
+			continue
+		}
+
+		//coinAmount, amount, err := calculateDecrement(v)
+		//if err != nil {
+		//	continue
+		//}
+		coinAmount, amount := v.CoinAmount, v.Amount
+
+		coinPrice := int64(1)
+		if _, ok := coinPriceMap[v.Tick]; ok {
+			coinPrice = coinPriceMap[v.Tick]
+		} else {
+			coinPrice = int64(GetMarketPrice(net, v.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(v.Tick))))
+			if coinPrice == 0 {
+				coinPrice = 1
+			}
+			coinPriceMap[v.Tick] = coinPrice
+		}
+
+		totalCoinAmount = totalCoinAmount + int64(coinAmount)*coinPrice
+		if _, ok := orderCoinAmountInfo[v.OrderId]; ok {
+			orderCoinAmountInfo[v.OrderId] = orderCoinAmountInfo[v.OrderId] + int64(coinAmount)*coinPrice
+		} else {
+			orderCoinAmountInfo[v.OrderId] = int64(coinAmount) * coinPrice
+		}
+
+		if v.PoolType == model.PoolTypeBoth {
+			totalAmount = totalAmount + int64(amount)
+			if _, ok := orderAmountInfo[v.OrderId]; ok {
+				orderAmountInfo[v.OrderId] = orderAmountInfo[v.OrderId] + int64(amount)
+			} else {
+				orderAmountInfo[v.OrderId] = int64(amount)
+			}
+		}
+	}
+	allTotalValue = totalCoinAmount + totalAmount
+	if allTotalValue == 0 {
+		major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBlockUserInfoModel success [allTotalValue is 0]"))
+		return
+	}
+
+	allTotalValueDe := decimal.NewFromInt(allTotalValue)
+
+	for orderId, coinAmount := range orderCoinAmountInfo {
+		if _, ok := orderBlockInfo[orderId]; ok {
+			continue
+		}
+		orderTotalValue := int64(0)
+		amount := int64(0)
+		percentage := int64(0)
+		rewardAmount := int64(0)
+		if _, ok := orderAmountInfo[orderId]; ok {
+			amount = orderAmountInfo[orderId]
+		}
+		orderTotalValue = coinAmount + amount
+		orderTotalValueDe := decimal.NewFromInt(orderTotalValue)
+		percentage = orderTotalValueDe.Div(allTotalValueDe).Mul(decimal.NewFromInt(10000)).IntPart()
+		rewardAmount = getUserBlockRewardAmount(percentage, hasNoUsed)
+
+		orderEntity, _ := mongo_service.FindPoolBrc20ModelByOrderId(orderId)
+		if orderEntity == nil {
+			continue
+		}
+		orderEntity.Percentage = percentage
+		orderEntity.RewardAmount = rewardAmount
+
+		err := mongo_service.SetPoolBrc20ModelForCalReward(orderEntity)
+		if err != nil {
+			major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBrc20ModelForCalReward err:%s", err.Error()))
+			continue
+		}
+		major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBrc20ModelForCalReward success [%s]", orderId))
+	}
+
+	//for address, blockInfo := range addressBlockInfo {
+	//	_, err := mongo_service.SetPoolBlockUserInfoModel(blockInfo)
+	//	if err != nil {
+	//		major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBlockUserInfoModel err:%s", err.Error()))
+	//		continue
+	//	}
+	//	major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBlockUserInfoModel success [%s]", address))
+	//}
 
 }
 
