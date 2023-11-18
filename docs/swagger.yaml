@@ -114,6 +114,8 @@ definitions:
     enum:
     - 1
     - 3
+    - 4
+    - 5
     - 2
     - 6
     - 10
@@ -125,6 +127,8 @@ definitions:
     x-enum-varnames:
     - UtxoTypeDummy
     - UtxoTypeDummy1200
+    - UtxoTypeDummyBidX
+    - UtxoTypeDummy1200BidX
     - UtxoTypeBidY
     - UtxoTypeFakerInscription
     - UtxoTypeMultiInscription
@@ -132,6 +136,41 @@ definitions:
     - UtxoTypeRewardInscription
     - UtxoTypeRewardSend
     - UtxoTypeLoop
+  request.BidTxInput:
+    properties:
+      address:
+        type: string
+      tick:
+        type: string
+      type:
+        description: dummy/btc/brc
+        type: string
+      value:
+        type: integer
+    type: object
+  request.BidTxOutput:
+    properties:
+      address:
+        type: string
+      tick:
+        type: string
+      type:
+        description: dummy/btc/brc/change
+        type: string
+      value:
+        type: integer
+    type: object
+  request.BidTxSpec:
+    properties:
+      inputs:
+        items:
+          $ref: '#/definitions/request.BidTxInput'
+        type: array
+      outputs:
+        items:
+          $ref: '#/definitions/request.BidTxOutput'
+        type: array
+    type: object
   request.Brc20CommitReq:
     properties:
       feeAddress:
@@ -293,6 +332,33 @@ definitions:
         type: string
       value:
         type: integer
+    type: object
+  request.OrderBrc20GetBidPlatformReq:
+    properties:
+      address:
+        type: string
+      amount:
+        type: integer
+      bidTxSpec:
+        $ref: '#/definitions/request.BidTxSpec'
+      coinAmount:
+        type: string
+      inscriptionId:
+        type: string
+      inscriptionNumber:
+        type: string
+      isPool:
+        type: boolean
+      net:
+        description: livenet/signet/testnet
+        type: string
+      platformDummy:
+        description: 0-no 1-yes
+        type: integer
+      poolOrderId:
+        type: string
+      tick:
+        type: string
     type: object
   request.OrderBrc20PushReq:
     properties:
@@ -1458,6 +1524,26 @@ paths:
       summary: Fetch bid
       tags:
       - brc20
+  /brc20/order/bid-v2:
+    post:
+      description: Fetch bid v2
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.OrderBrc20GetBidPlatformReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.BidPsbt'
+      summary: Fetch bid v2
+      tags:
+      - brc20
   /brc20/order/bid/do:
     post:
       description: Do bid order
@@ -1520,6 +1606,10 @@ paths:
       - description: tick
         in: query
         name: tick
+        type: string
+      - description: address
+        in: query
+        name: address
         type: string
       - description: 'limit: Max-50'
         in: query

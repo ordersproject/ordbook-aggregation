@@ -43,7 +43,7 @@ type PoolBrc20PushReq struct {
 	BtcPoolMode model.PoolMode  `json:"btcPoolMode"` //1-psbt,2-custody, default:custody
 	BtcUtxoId   string          `json:"btcUtxoId"`   //txId_index
 	Amount      uint64          `json:"amount"`
-	Ratio       int64           `json:"ratio"` // ratio: 12/15/18
+	Ratio       int64           `json:"ratio"` // ratio: 12/15/18/100//10000
 }
 
 type OrderPoolBrc20UpdateReq struct {

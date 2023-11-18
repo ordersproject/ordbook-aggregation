@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"ordbook-aggregation/model"
+	"strings"
 )
 
 func FindOrderBrc20ModelByOrderId(orderId string) (*model.OrderBrc20Model, error) {
@@ -36,6 +37,7 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 	CreateIndex(collection, "net")
 	CreateIndex(collection, "tick")
 	CreateIndex(collection, "coinRatePrice")
+	CreateIndex(collection, "coinPrice")
 	CreateIndex(collection, "metaBlockHeight")
 	CreateIndex(collection, "orderState")
 	CreateIndex(collection, "orderType")
@@ -45,6 +47,8 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 	CreateIndex(collection, "timestamp")
 	CreateIndex(collection, "dealTime")
 	CreateIndex(collection, "poolOrderId")
+	CreateIndex(collection, "inscriptionId")
+	CreateIndex(collection, "sellInscriptionId")
 
 	entity := &model.OrderBrc20Model{
 		Id:                  util.GetUUIDInt64(),
@@ -56,6 +60,8 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 		CoinAmount:          orderBrc20.CoinAmount,
 		CoinDecimalNum:      orderBrc20.CoinDecimalNum,
 		CoinRatePrice:       orderBrc20.CoinRatePrice,
+		CoinPrice:           orderBrc20.CoinPrice,
+		CoinPriceDecimalNum: orderBrc20.CoinPriceDecimalNum,
 		OrderState:          orderBrc20.OrderState,
 		OrderType:           orderBrc20.OrderType,
 		SellerAddress:       orderBrc20.SellerAddress,
@@ -70,6 +76,7 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 		PlatformTx:          orderBrc20.PlatformTx,
 		InscriptionId:       orderBrc20.InscriptionId,
 		InscriptionNumber:   orderBrc20.InscriptionNumber,
+		SellInscriptionId:   orderBrc20.SellInscriptionId,
 		PsbtRawPreAsk:       orderBrc20.PsbtRawPreAsk,
 		PsbtRawFinalAsk:     orderBrc20.PsbtRawFinalAsk,
 		PsbtAskTxId:         orderBrc20.PsbtAskTxId,
@@ -82,6 +89,7 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 		FreeState:           orderBrc20.FreeState,
 		DealTime:            orderBrc20.DealTime,
 		Timestamp:           orderBrc20.Timestamp,
+		PlatformDummy:       orderBrc20.PlatformDummy,
 		CreateTime:          util.Time(),
 		State:               model.STATE_EXIST,
 	}
@@ -116,6 +124,8 @@ func SetOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20Mod
 		bsonData = append(bsonData, bson.E{Key: "coinAmount", Value: orderBrc20.CoinAmount})
 		bsonData = append(bsonData, bson.E{Key: "coinDecimalNum", Value: orderBrc20.CoinDecimalNum})
 		bsonData = append(bsonData, bson.E{Key: "coinRatePrice", Value: orderBrc20.CoinRatePrice})
+		bsonData = append(bsonData, bson.E{Key: "coinPrice", Value: orderBrc20.CoinPrice})
+		bsonData = append(bsonData, bson.E{Key: "coinPriceDecimalNum", Value: orderBrc20.CoinPriceDecimalNum})
 		bsonData = append(bsonData, bson.E{Key: "orderState", Value: orderBrc20.OrderState})
 		bsonData = append(bsonData, bson.E{Key: "orderType", Value: orderBrc20.OrderType})
 		bsonData = append(bsonData, bson.E{Key: "sellerAddress", Value: orderBrc20.SellerAddress})
@@ -130,6 +140,7 @@ func SetOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20Mod
 		bsonData = append(bsonData, bson.E{Key: "platformTx", Value: orderBrc20.PlatformTx})
 		bsonData = append(bsonData, bson.E{Key: "inscriptionId", Value: orderBrc20.InscriptionId})
 		bsonData = append(bsonData, bson.E{Key: "inscriptionNumber", Value: orderBrc20.InscriptionNumber})
+		bsonData = append(bsonData, bson.E{Key: "sellInscriptionId", Value: orderBrc20.SellInscriptionId})
 		bsonData = append(bsonData, bson.E{Key: "psbtRawPreAsk", Value: orderBrc20.PsbtRawPreAsk})
 		bsonData = append(bsonData, bson.E{Key: "psbtRawFinalAsk", Value: orderBrc20.PsbtRawFinalAsk})
 		bsonData = append(bsonData, bson.E{Key: "psbtAskTxId", Value: orderBrc20.PsbtAskTxId})
@@ -142,6 +153,7 @@ func SetOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20Mod
 		bsonData = append(bsonData, bson.E{Key: "freeState", Value: orderBrc20.FreeState})
 		bsonData = append(bsonData, bson.E{Key: "dealTime", Value: orderBrc20.DealTime})
 		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: orderBrc20.Timestamp})
+		bsonData = append(bsonData, bson.E{Key: "platformDummy", Value: orderBrc20.PlatformDummy})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",
 			bsonData,
@@ -289,6 +301,8 @@ func FindOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string,
 	switch sortKey {
 	case "coinRatePrice":
 		sortKey = "coinRatePrice"
+	case "coinPrice":
+		sortKey = "coinPrice"
 	default:
 		sortKey = "timestamp"
 	}
@@ -525,6 +539,39 @@ func FindLastOrderBrc20ModelFinish(net, tick string, orderType model.OrderType, 
 	return entity, nil
 }
 
+func FindLastOrderBrc20ModelFinishList(net, tick string, limit int64, orderType model.OrderType, orderState model.OrderState) ([]*model.OrderBrc20Model, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.D{
+		{"net", net},
+		{"tick", tick},
+		//{"orderType", orderType},
+		{"orderState", orderState},
+		//{"state", model.STATE_EXIST},
+	}
+	if orderType != 0 {
+		queryBson = append(queryBson, bson.E{Key: "orderType", Value: orderType})
+	}
+	sort := options.Find().SetSort(bson.M{"dealTime": -1})
+	pagination := options.Find().SetLimit(limit).SetSkip(0)
+
+	models := make([]*model.OrderBrc20Model, 0)
+	if cursor, err := collection.Find(context.TODO(), queryBson, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.OrderBrc20Model{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get OrderBrc20Model Error")
+	}
+	return models, nil
+}
+
 func FindOrderBrc20BidDummyModelByDummyId(dummyId string) (*model.OrderBrc20BidDummyModel, error) {
 	collection, err := model.OrderBrc20BidDummyModel{}.GetReadDB()
 	if err != nil {
@@ -652,7 +699,7 @@ func FindOrderBrc20BidDummyModelList(orderId, buyerAddress string, dummyState mo
 		find["orderId"] = orderId
 	}
 	if buyerAddress != "" {
-		find["buyerAddress"] = buyerAddress
+		find["address"] = buyerAddress
 	}
 	if dummyState != 0 {
 		find["dummyState"] = dummyState
@@ -1105,6 +1152,31 @@ func SetOrderBrc20ModelForInscriptionState(orderBrc20 *model.OrderBrc20Model) er
 	return nil
 }
 
+func SetOrderBrc20ModelForOrderState(orderBrc20 *model.OrderBrc20Model) error {
+	entity, err := FindOrderBrc20ModelByOrderId(orderBrc20.OrderId)
+	if err == nil && entity != nil {
+		collection, err := model.OrderBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", orderBrc20.OrderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "orderState", Value: orderBrc20.OrderState})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func FindOrderBrc20MarketInfoModelByPair(net, date string) (*model.OrderBrc20MarketInfoModel, error) {
 	collection, err := model.OrderBrc20MarketInfoModel{}.GetReadDB()
 	if err != nil {
@@ -1196,7 +1268,7 @@ func SetOrderBrc20MarketInfoModel(orderBrc20MarketInfo *model.OrderBrc20MarketIn
 	}
 }
 
-func CountOrderBrc20ModelListForPoolOrderId(poolOrderId string) (int64, error) {
+func CountOrderBrc20ModelListForPoolOrderId(poolOrderId, buyerAddress string) (int64, error) {
 	collection, err := model.OrderBrc20Model{}.GetReadDB()
 	if err != nil {
 		return 0, err
@@ -1213,6 +1285,9 @@ func CountOrderBrc20ModelListForPoolOrderId(poolOrderId string) (int64, error) {
 	//}
 	if poolOrderId != "" {
 		find["poolOrderId"] = poolOrderId
+	}
+	if buyerAddress != "" {
+		find["buyerAddress"] = buyerAddress
 	}
 
 	total, err := collection.CountDocuments(context.TODO(), find)
@@ -1347,4 +1422,112 @@ func FindOrderNotificationModelList(address string) ([]*model.OrderNotificationM
 		return nil, errors.New("Get OrderNotificationModel Error")
 	}
 	return models, nil
+}
+
+func FindOrderBrc20ModelListByPoolOrderId(poolOrderId string) ([]*model.OrderBrc20Model, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"orderState": model.OrderStateCreate,
+		"state":      model.STATE_EXIST,
+	}
+	//if net != "" {
+	//	find["net"] = net
+	//}
+	//if tick != "" {
+	//	find["tick"] = tick
+	//}
+	if poolOrderId != "" {
+		find["poolOrderId"] = poolOrderId
+	}
+	sortKey := "timestamp"
+
+	skip := int64(0)
+
+	models := make([]*model.OrderBrc20Model, 0)
+	pagination := options.Find().SetLimit(1000).SetSkip(skip)
+	sort := options.Find().SetSort(bson.M{sortKey: 1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.OrderBrc20Model{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get OrderBrc20Model Error")
+	}
+	return models, nil
+}
+
+func FindUsedInscriptionOrder(inscriptionId string) (int64, error) {
+	if strings.Contains(inscriptionId, "i") {
+		inscriptionId = strings.ReplaceAll(inscriptionId, "i", ":")
+	}
+
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return 0, err
+	}
+	find := bson.M{
+		"inscriptionId": inscriptionId,
+		"orderState":    model.OrderStateCreate,
+		"state":         model.STATE_EXIST,
+	}
+
+	total, err := collection.CountDocuments(context.TODO(), find)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+func FindUsedInscriptionOrderV2(inscriptionId string) (int64, error) {
+	if strings.Contains(inscriptionId, ":") {
+		inscriptionId = strings.ReplaceAll(inscriptionId, ":", "i")
+	}
+
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return 0, err
+	}
+	find := bson.M{
+		"inscriptionId": inscriptionId,
+		"orderState":    model.OrderStateCreate,
+		"state":         model.STATE_EXIST,
+	}
+
+	total, err := collection.CountDocuments(context.TODO(), find)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func FindSoldInscriptionOrder(inscriptionId string) (int64, error) {
+	if strings.Contains(inscriptionId, ":") {
+		inscriptionId = strings.ReplaceAll(inscriptionId, ":", "i")
+	}
+
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return 0, err
+	}
+	find := bson.M{
+		"sellInscriptionId": inscriptionId,
+		"orderState":        model.OrderStateFinish,
+		"state":             model.STATE_EXIST,
+	}
+
+	total, err := collection.CountDocuments(context.TODO(), find)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
 }

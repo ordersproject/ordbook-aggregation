@@ -16,8 +16,10 @@ type OrderBrc20Model struct {
 	CoinAmount          uint64           `json:"coinAmount" bson:"coinAmount"`
 	CoinDecimalNum      int              `json:"coinDecimalNum" bson:"coinDecimalNum"`
 	CoinRatePrice       uint64           `json:"coinRatePrice" bson:"coinRatePrice"`
-	OrderState          OrderState       `json:"orderState" bson:"orderState"` //1-create,2-finish,3-cancel
-	OrderType           OrderType        `json:"orderType" bson:"orderType"`   //1-sell,2-buy
+	CoinPrice           int64            `json:"coinPrice" bson:"coinPrice"`                     //MAX-9223372036854775807
+	CoinPriceDecimalNum int32            `json:"coinPriceDecimalNum" bson:"coinPriceDecimalNum"` //8
+	OrderState          OrderState       `json:"orderState" bson:"orderState"`                   //1-create,2-finish,3-cancel
+	OrderType           OrderType        `json:"orderType" bson:"orderType"`                     //1-sell,2-buy
 	SellerAddress       string           `json:"sellerAddress" bson:"sellerAddress"`
 	BuyerAddress        string           `json:"buyerAddress" bson:"buyerAddress"`
 	BuyerIp             string           `json:"buyerIp" bson:"buyerIp"`
@@ -30,6 +32,7 @@ type OrderBrc20Model struct {
 	PlatformTx          string           `json:"platformTx" bson:"platformTx"`
 	InscriptionId       string           `json:"inscriptionId" bson:"inscriptionId"`
 	InscriptionNumber   string           `json:"inscriptionNumber" bson:"inscriptionNumber"`
+	SellInscriptionId   string           `json:"sellInscriptionId" bson:"sellInscriptionId"`
 	PsbtRawPreAsk       string           `json:"psbtRawPreAsk" bson:"psbtRawPreAsk"`
 	PsbtRawFinalAsk     string           `json:"psbtRawFinalAsk" bson:"psbtRawFinalAsk"`
 	PsbtAskTxId         string           `json:"psbtAskTxId" bson:"psbtAskTxId"`
@@ -40,6 +43,7 @@ type OrderBrc20Model struct {
 	PoolOrderId         string           `json:"poolOrderId" bson:"poolOrderId"`
 	Integral            int64            `json:"integral" bson:"integral"`
 	FreeState           FreeState        `json:"freeState" bson:"freeState"`
+	PlatformDummy       PlatformDummy    `json:"platformDummy" bson:"platformDummy"` //0-no 1-yes
 	DealTime            int64            `json:"dealTime" bson:"dealTime"`
 	Timestamp           int64            `json:"timestamp" bson:"timestamp"`
 	InscriptionState    InscriptionState `json:"inscriptionState" bson:"inscriptionState"`

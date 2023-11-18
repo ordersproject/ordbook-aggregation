@@ -36,7 +36,7 @@ func jobForRepurchase() {
 	)
 	_ = platformAddressReceiveFee
 
-	return
+	//return
 
 	for i := int64(0); i < 1; i++ {
 		utxoResp, err := oklink_service.GetAddressUtxo(platformAddressReceiveFee, i+1, 50)
@@ -83,12 +83,13 @@ func jobForRepurchase() {
 		return
 	}
 	for _, v := range entityList {
+
 		remainingFeesUtxoList, err := repurchaseAsk(v, utxoEntityList)
 		if err != nil {
-			major.Println(fmt.Sprintf("[JOB-Repurchase] orderId:[%s][%d][%d] err:%s", v.OrderId, v.CoinRatePrice, v.CoinAmount, err.Error()))
+			major.Println(fmt.Sprintf("[JOB-Repurchase] orderId:[%s][%d][%d][%d] err:%s", v.OrderId, v.CoinRatePrice, v.CoinPrice, v.CoinAmount, err.Error()))
 			return
 		}
-		major.Println(fmt.Sprintf("[JOB-Repurchase] orderId:[%s][%d][%d] success", v.OrderId, v.CoinRatePrice, v.CoinAmount))
+		major.Println(fmt.Sprintf("[JOB-Repurchase] orderId:[%s][%d][%d][%d] success", v.OrderId, v.CoinRatePrice, v.CoinPrice, v.CoinAmount))
 		utxoEntityList = remainingFeesUtxoList
 		break
 	}

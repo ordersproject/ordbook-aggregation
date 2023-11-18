@@ -43,7 +43,7 @@ type InscriptionDetailItem struct {
 	Output             string `json:"output"`
 	Offset             int    `json:"offset"`
 	UtxoHeight         int64  `json:"utxoHeight"`
-	UtxoConfirmation   int    `json:"utxoConfirmation"`
+	UtxoConfirmation   int64  `json:"utxoConfirmation"`
 }
 
 func GetAddressUtxo(address string) ([]*UtxoDetailItem, error) {
@@ -131,4 +131,8 @@ func GetAddressInscriptions(address string) ([]*InscriptionDetailItem, error) {
 	}
 
 	return resultData.List, nil
+}
+
+func GetTxDetail() {
+
 }

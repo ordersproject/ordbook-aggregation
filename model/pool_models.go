@@ -10,6 +10,7 @@ type PoolType int
 type PoolState int
 type PoolMode int
 type ClaimTxBlockState int
+type MultiSigScriptAddressTickAvailableState int
 
 const (
 	PoolTypeTick                PoolType = 1
@@ -30,6 +31,9 @@ const (
 
 	ClaimTxBlockStateUnconfirmed = 1
 	ClaimTxBlockStateConfirmed   = 2
+
+	MultiSigScriptAddressTickAvailableStateNo  = 0
+	MultiSigScriptAddressTickAvailableStateYes = 1
 )
 
 type PoolBrc20Model struct {
@@ -42,6 +46,8 @@ type PoolBrc20Model struct {
 	CoinAmount            uint64 `json:"coinAmount" bson:"coinAmount"`
 	CoinDecimalNum        int    `json:"coinDecimalNum" bson:"coinDecimalNum"`
 	CoinRatePrice         uint64 `json:"coinRatePrice" bson:"coinRatePrice"`
+	CoinPrice             int64  `json:"coinPrice" bson:"coinPrice"`                     //MAX-9223372036854775807
+	CoinPriceDecimalNum   int32  `json:"coinPriceDecimalNum" bson:"coinPriceDecimalNum"` //8
 	CoinAddress           string `json:"coinAddress" bson:"coinAddress"`
 	CoinPublicKey         string `json:"coinPublicKey" bson:"coinPublicKey"`
 	CoinInputValue        uint64 `json:"coinInputValue" bson:"coinInputValue"`
@@ -76,17 +82,22 @@ type PoolBrc20Model struct {
 	DealCoinTxOutValue   int64             `json:"dealCoinTxOutValue" bson:"dealCoinTxOutValue"`
 	DealCoinTime         int64             `json:"dealCoinTime" bson:"dealCoinTime"`
 
-	DealInscriptionId         string `json:"dealInscriptionId" bson:"dealInscriptionId"` //InscriptionId
-	DealInscriptionTx         string `json:"dealInscriptionTx" bson:"dealInscriptionTx"`
-	DealInscriptionTxIndex    int64  `json:"dealInscriptionTxIndex" bson:"dealInscriptionTxIndex"`
-	DealInscriptionTxOutValue int64  `json:"dealInscriptionTxOutValue" bson:"dealInscriptionTxOutValue"`
-	DealInscriptionTime       int64  `json:"dealInscriptionTime" bson:"dealInscriptionTime"`
+	DealInscriptionId                       string                                  `json:"dealInscriptionId" bson:"dealInscriptionId"` //InscriptionId
+	DealInscriptionTx                       string                                  `json:"dealInscriptionTx" bson:"dealInscriptionTx"`
+	DealInscriptionTxIndex                  int64                                   `json:"dealInscriptionTxIndex" bson:"dealInscriptionTxIndex"`
+	DealInscriptionTxOutValue               int64                                   `json:"dealInscriptionTxOutValue" bson:"dealInscriptionTxOutValue"`
+	DealInscriptionTime                     int64                                   `json:"dealInscriptionTime" bson:"dealInscriptionTime"`
+	MultiSigScriptAddressTickAvailableState MultiSigScriptAddressTickAvailableState `json:"multiSigScriptAddressTickAvailableState" bson:"multiSigScriptAddressTickAvailableState"`
 
 	ClaimTx           string            `json:"claimTx" bson:"claimTx"`
 	ClaimTime         int64             `json:"claimTime" bson:"claimTime"`
 	ClaimTxBlock      int64             `json:"claimTxBlock" bson:"claimTxBlock"`
 	ClaimTxBlockState ClaimTxBlockState `json:"claimTxBlockState" bson:"claimTxBlockState"`
 	Percentage        int64             `json:"percentage" bson:"percentage"`
+	CalValue          int64             `json:"calValue" bson:"calValue"`
+	CalTotalValue     int64             `json:"calTotalValue" bson:"calTotalValue"`
+	CalStartBlock     int64             `json:"calStartBlock" bson:"calStartBlock"`
+	CalEndBlock       int64             `json:"calEndBlock" bson:"calEndBlock"`
 	RewardAmount      int64             `json:"rewardAmount" bson:"rewardAmount"`
 	RewardRealAmount  int64             `json:"rewardRealAmount" bson:"rewardRealAmount"`
 	PercentageExtra   int64             `json:"percentageExtra" bson:"percentageExtra"`
@@ -331,15 +342,20 @@ func (s PoolBlockUserInfoModel) GetWriteDB() (*mongo.Collection, error) {
 }
 
 type PoolBlockInfoModel struct {
-	Id         int64  `json:"id" bson:"_id" tb:"pool_block_info_model" mg:"true"`
-	BigBlockId string `json:"bigBlockId" bson:"bigBlockId"` //bigBlock_cycleBlock
-	BigBlock   int64  `json:"bigBlock" bson:"bigBlock"`
-	StartBlock int64  `json:"startBlock" bson:"startBlock"`
-	CycleBlock int64  `json:"cycleBlock" bson:"cycleBlock"`
-	Timestamp  int64  `json:"timestamp" bson:"timestamp"`
-	CreateTime int64  `json:"createTime" bson:"createTime"`
-	UpdateTime int64  `json:"updateTime" bson:"updateTime"`
-	State      int64  `json:"state" bson:"state"`
+	Id                           int64             `json:"id" bson:"_id" tb:"pool_block_info_model" mg:"true"`
+	BigBlockId                   string            `json:"bigBlockId" bson:"bigBlockId"` //bigBlock_cycleBlock
+	BigBlock                     int64             `json:"bigBlock" bson:"bigBlock"`
+	StartBlock                   int64             `json:"startBlock" bson:"startBlock"`
+	EndBlock                     int64             `json:"endBlock" bson:"endBlock"`
+	CycleBlock                   int64             `json:"cycleBlock" bson:"cycleBlock"`
+	CalPoolRewardInfo            map[string]string `json:"calPoolRewardInfo" bson:"calPoolRewardInfo"` //{"poolOrderId":"value:percentage:amount:coinAmount:price"}
+	CalPoolRewardTotalValue      int64             `json:"calPoolRewardTotalValue" bson:"calPoolRewardTotalValue"`
+	CalPoolExtraRewardInfo       map[string]string `json:"calPoolExtraRewardInfo" bson:"calPoolExtraRewardInfo"` //{"poolOrderId":"value:percentage:amount:coinAmount:price"}
+	CalPoolExtraRewardTotalValue int64             `json:"calPoolExtraRewardTotalValue" bson:"calPoolExtraRewardTotalValue"`
+	Timestamp                    int64             `json:"timestamp" bson:"timestamp"`
+	CreateTime                   int64             `json:"createTime" bson:"createTime"`
+	UpdateTime                   int64             `json:"updateTime" bson:"updateTime"`
+	State                        int64             `json:"state" bson:"state"`
 }
 
 func (s PoolBlockInfoModel) getCollection() string {

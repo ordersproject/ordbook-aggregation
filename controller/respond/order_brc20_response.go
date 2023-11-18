@@ -9,48 +9,53 @@ type OrderResponse struct {
 }
 
 type Brc20Item struct {
-	Net            string           `json:"net,omitempty"`            //Net env
-	OrderId        string           `json:"orderId,omitempty"`        //Order ID
-	Tick           string           `json:"tick,omitempty"`           //Brc20 symbol
-	Amount         uint64           `json:"amount,omitempty"`         //Btc: sat
-	DecimalNum     int              `json:"decimalNum,omitempty"`     //Btc decimal
-	CoinAmount     uint64           `json:"coinAmount,omitempty"`     //Brc20 amount
-	CoinDecimalNum int              `json:"coinDecimalNum,omitempty"` //omitempty
-	CoinRatePrice  uint64           `json:"coinRatePrice,omitempty"`  //Rate for brc20-btc
-	OrderState     model.OrderState `json:"orderState,omitempty"`     //Order state：1-create,2-finish,3-cancel
-	OrderType      model.OrderType  `json:"orderType,omitempty"`      //Order type：1-sell,2-buy
-	FreeState      model.FreeState  `json:"freeState,omitempty"`      //1-for free
-	SellerAddress  string           `json:"sellerAddress,omitempty"`  //Seller's address
-	BuyerAddress   string           `json:"buyerAddress,omitempty"`   //Buyer's address
-	InscriptionId  string           `json:"inscriptionId,omitempty"`  //InscriptionId
-	PsbtRaw        string           `json:"psbtRaw,omitempty"`        //PSBT Raw
-	Timestamp      int64            `json:"timestamp"`                //Create time
+	Net                 string           `json:"net,omitempty"`                 //Net env
+	OrderId             string           `json:"orderId,omitempty"`             //Order ID
+	Tick                string           `json:"tick,omitempty"`                //Brc20 symbol
+	Amount              uint64           `json:"amount,omitempty"`              //Btc: sat
+	DecimalNum          int              `json:"decimalNum,omitempty"`          //Btc decimal
+	CoinAmount          uint64           `json:"coinAmount,omitempty"`          //Brc20 amount
+	CoinDecimalNum      int              `json:"coinDecimalNum,omitempty"`      //omitempty
+	CoinRatePrice       uint64           `json:"coinRatePrice,omitempty"`       //Rate for brc20-btc
+	CoinPrice           int64            `json:"coinPrice,omitempty"`           //MAX-9223372036854775807
+	CoinPriceDecimalNum int32            `json:"coinPriceDecimalNum,omitempty"` //default-8
+	OrderState          model.OrderState `json:"orderState,omitempty"`          //Order state：1-create,2-finish,3-cancel
+	OrderType           model.OrderType  `json:"orderType,omitempty"`           //Order type：1-sell,2-buy
+	FreeState           model.FreeState  `json:"freeState,omitempty"`           //1-for free
+	SellerAddress       string           `json:"sellerAddress,omitempty"`       //Seller's address
+	BuyerAddress        string           `json:"buyerAddress,omitempty"`        //Buyer's address
+	InscriptionId       string           `json:"inscriptionId,omitempty"`       //InscriptionId
+	PsbtRaw             string           `json:"psbtRaw,omitempty"`             //PSBT Raw
+	Timestamp           int64            `json:"timestamp"`                     //Create time
 }
 
 type Brc20TickInfoResponse struct {
 	Total   int64            `json:"total,omitempty"`
-	Results []*Brc20TickItem `json:"results,omitempty"`
-	Flag    int64            `json:"flag,omitempty"`
+	Results []*Brc20TickItem `json:"results"`
+	Flag    int64            `json:"flag"`
 }
 
 type Brc20TickItem struct {
-	Net                string `json:"net,omitempty"`                //Net env
-	Tick               string `json:"tick,omitempty"`               //tick
-	Pair               string `json:"pair,omitempty"`               //pair for trade
-	Icon               string `json:"icon,omitempty"`               //icon
-	Buy                string `json:"buy,omitempty"`                //
-	Sell               string `json:"sell,omitempty"`               //
-	Low                string `json:"low,omitempty"`                //
-	High               string `json:"high,omitempty"`               //
-	Open               string `json:"open,omitempty"`               //
-	Last               string `json:"last,omitempty"`               //
-	Volume             string `json:"volume,omitempty"`             //
-	Amount             string `json:"amount,omitempty"`             //
-	Vol                string `json:"vol,omitempty"`                //
-	AvgPrice           string `json:"avgPrice,omitempty"`           //
-	QuoteSymbol        string `json:"quoteSymbol,omitempty"`        //+/-
-	PriceChangePercent string `json:"priceChangePercent,omitempty"` //0.11 mean 0.11%
-	Ut                 int64  `json:"at,omitempty"`                 //updateTime
+	Net                 string `json:"net,omitempty"`                 //Net env
+	Tick                string `json:"tick,omitempty"`                //tick
+	Pair                string `json:"pair,omitempty"`                //pair for trade
+	Icon                string `json:"icon,omitempty"`                //icon
+	Buy                 string `json:"buy,omitempty"`                 //
+	Sell                string `json:"sell,omitempty"`                //
+	Low                 string `json:"low,omitempty"`                 //
+	High                string `json:"high,omitempty"`                //
+	Open                string `json:"open,omitempty"`                //
+	Last                string `json:"last,omitempty"`                //
+	Volume              string `json:"volume,omitempty"`              //
+	Amount              string `json:"amount,omitempty"`              //
+	Vol                 string `json:"vol,omitempty"`                 //
+	AvgPrice            string `json:"avgPrice,omitempty"`            //
+	CoinPrice           uint64 `json:"coinPrice,omitempty"`           //
+	CoinPriceDecimalNum int32  `json:"coinPriceDecimalNum,omitempty"` //
+	VisionPrice         string `json:"visionPrice,omitempty"`         //
+	QuoteSymbol         string `json:"quoteSymbol,omitempty"`         //+/-
+	PriceChangePercent  string `json:"priceChangePercent,omitempty"`  //0.11 mean 0.11%
+	Ut                  int64  `json:"at,omitempty"`                  //updateTime
 }
 
 type Brc20KlineInfo struct {
@@ -84,14 +89,16 @@ type BidPre struct {
 }
 
 type AvailableItem struct {
-	InscriptionId     string         `json:"inscriptionId,omitempty"`
-	InscriptionNumber string         `json:"inscriptionNumber,omitempty"`
-	CoinAmount        string         `json:"coinAmount,omitempty"`
-	PoolOrderId       string         `json:"poolOrderId,omitempty"`
-	CoinRatePrice     uint64         `json:"coinRatePrice,omitempty"`
-	PoolType          model.PoolType `json:"poolType,omitempty"`
-	BtcPoolMode       model.PoolMode `json:"btcPoolMode,omitempty"` //PoolMode for btc
-	BidCount          int64          `json:"bidCount"`
+	InscriptionId       string         `json:"inscriptionId,omitempty"`
+	InscriptionNumber   string         `json:"inscriptionNumber,omitempty"`
+	CoinAmount          string         `json:"coinAmount,omitempty"`
+	PoolOrderId         string         `json:"poolOrderId,omitempty"`
+	CoinRatePrice       uint64         `json:"coinRatePrice,omitempty"`
+	CoinPrice           int64          `json:"coinPrice,omitempty"`           //MAX-9223372036854775807
+	CoinPriceDecimalNum int32          `json:"coinPriceDecimalNum,omitempty"` //8
+	PoolType            model.PoolType `json:"poolType,omitempty"`
+	BtcPoolMode         model.PoolMode `json:"btcPoolMode,omitempty"` //PoolMode for btc
+	BidCount            int64          `json:"bidCount"`
 }
 
 type WsUuidResp struct {

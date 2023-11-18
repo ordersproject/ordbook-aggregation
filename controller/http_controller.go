@@ -34,6 +34,7 @@ func Run() {
 
 		brc20.GET("/order/bid/pre", FetchPreBid)
 		brc20.GET("/order/bid", FetchBidPsbt)
+		brc20.POST("/order/bid-v2", FetchBidPsbtByPlatform)
 		brc20.POST("/order/bid/push", auth.AuthSignMiddleware(), UpdateBidPsbt)
 		brc20.POST("/order/bid/do", DoBid)
 		brc20.POST("/order/update", auth.AuthSignMiddleware(), UpdateOrder)

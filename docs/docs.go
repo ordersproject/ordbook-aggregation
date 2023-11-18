@@ -552,6 +552,37 @@ const docTemplate = `{
                 }
             }
         },
+        "/brc20/order/bid-v2": {
+            "post": {
+                "description": "Fetch bid v2",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch bid v2",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.OrderBrc20GetBidPlatformReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.BidPsbt"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/order/bid/do": {
             "post": {
                 "description": "Do bid order",
@@ -651,6 +682,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "tick",
                         "name": "tick",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
                         "in": "query"
                     },
                     {
@@ -1848,6 +1885,8 @@ const docTemplate = `{
             "enum": [
                 1,
                 3,
+                4,
+                5,
                 2,
                 6,
                 10,
@@ -1859,6 +1898,8 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "UtxoTypeDummy",
                 "UtxoTypeDummy1200",
+                "UtxoTypeDummyBidX",
+                "UtxoTypeDummy1200BidX",
                 "UtxoTypeBidY",
                 "UtxoTypeFakerInscription",
                 "UtxoTypeMultiInscription",
@@ -1867,6 +1908,59 @@ const docTemplate = `{
                 "UtxoTypeRewardSend",
                 "UtxoTypeLoop"
             ]
+        },
+        "request.BidTxInput": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "tick": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "dummy/btc/brc",
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "request.BidTxOutput": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "tick": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "dummy/btc/brc/change",
+                    "type": "string"
+                },
+                "value": {
+                    "type": "integer"
+                }
+            }
+        },
+        "request.BidTxSpec": {
+            "type": "object",
+            "properties": {
+                "inputs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/request.BidTxInput"
+                    }
+                },
+                "outputs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/request.BidTxOutput"
+                    }
+                }
+            }
         },
         "request.Brc20CommitReq": {
             "type": "object",
@@ -2108,6 +2202,46 @@ const docTemplate = `{
                 },
                 "value": {
                     "type": "integer"
+                }
+            }
+        },
+        "request.OrderBrc20GetBidPlatformReq": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "bidTxSpec": {
+                    "$ref": "#/definitions/request.BidTxSpec"
+                },
+                "coinAmount": {
+                    "type": "string"
+                },
+                "inscriptionId": {
+                    "type": "string"
+                },
+                "inscriptionNumber": {
+                    "type": "string"
+                },
+                "isPool": {
+                    "type": "boolean"
+                },
+                "net": {
+                    "description": "livenet/signet/testnet",
+                    "type": "string"
+                },
+                "platformDummy": {
+                    "description": "0-no 1-yes",
+                    "type": "integer"
+                },
+                "poolOrderId": {
+                    "type": "string"
+                },
+                "tick": {
+                    "type": "string"
                 }
             }
         },

@@ -7,25 +7,30 @@ import (
 )
 
 type Brc20TickModel struct {
-	Id                 int64   `json:"id" bson:"_id" tb:"brc20_tick_model" mg:"true"`
-	Net                string  `json:"net" bson:"net"`
-	Tick               string  `json:"tick" bson:"tick"`
-	Pair               string  `json:"pair" bson:"pair"`                             //
-	Buy                uint64  `json:"buy" bson:"buy"`                               //
-	Sell               uint64  `json:"sell" bson:"sell"`                             //
-	Low                uint64  `json:"low" bson:"low"`                               //
-	High               uint64  `json:"high" bson:"high"`                             //
-	Open               uint64  `json:"open" bson:"open"`                             //
-	Last               uint64  `json:"last" bson:"last"`                             //
-	Volume             uint64  `json:"volume" bson:"volume"`                         //
-	Amount             uint64  `json:"amount" bson:"amount"`                         //
-	Vol                uint64  `json:"vol" bson:"vol"`                               //
-	AvgPrice           uint64  `json:"avgPrice" bson:"avgPrice"`                     //
-	QuoteSymbol        string  `json:"quoteSymbol" bson:"quoteSymbol"`               //
-	PriceChangePercent float64 `json:"priceChangePercent" bson:"priceChangePercent"` //
-	CreateTime         int64   `json:"createTime" bson:"createTime"`
-	UpdateTime         int64   `json:"updateTime" bson:"updateTime"`
-	State              int64   `json:"state" bson:"state"`
+	Id                  int64   `json:"id" bson:"_id" tb:"brc20_tick_model" mg:"true"`
+	Net                 string  `json:"net" bson:"net"`
+	Tick                string  `json:"tick" bson:"tick"`
+	Pair                string  `json:"pair" bson:"pair"`                               //
+	Buy                 uint64  `json:"buy" bson:"buy"`                                 //
+	Sell                uint64  `json:"sell" bson:"sell"`                               //
+	Low                 uint64  `json:"low" bson:"low"`                                 //
+	High                uint64  `json:"high" bson:"high"`                               //
+	Open                uint64  `json:"open" bson:"open"`                               //
+	Last                uint64  `json:"last" bson:"last"`                               //
+	LastTop             uint64  `json:"lastTop" bson:"lastTop"`                         //
+	LastTotal           uint64  `json:"lastTotal" bson:"lastTotal"`                     //
+	Volume              uint64  `json:"volume" bson:"volume"`                           //
+	Amount              uint64  `json:"amount" bson:"amount"`                           //
+	Vol                 uint64  `json:"vol" bson:"vol"`                                 //
+	AvgPrice            uint64  `json:"avgPrice" bson:"avgPrice"`                       //
+	CoinPrice           uint64  `json:"coinPrice" bson:"coinPrice"`                     //
+	CoinPriceDecimalNum int32   `json:"coinPriceDecimalNum" bson:"coinPriceDecimalNum"` //
+	QuoteSymbol         string  `json:"quoteSymbol" bson:"quoteSymbol"`                 //
+	Version             int     `json:"version" bson:"version"`                         //
+	PriceChangePercent  float64 `json:"priceChangePercent" bson:"priceChangePercent"`   //
+	CreateTime          int64   `json:"createTime" bson:"createTime"`
+	UpdateTime          int64   `json:"updateTime" bson:"updateTime"`
+	State               int64   `json:"state" bson:"state"`
 }
 
 func (s Brc20TickModel) getCollection() string {

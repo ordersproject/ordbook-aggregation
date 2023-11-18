@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"golang.org/x/crypto/ripemd160"
 	"math/big"
 )
@@ -29,7 +30,6 @@ func ToAddress(pubKey string) string {
 	//}
 	return address
 }
-
 
 // b58checkencode encodes version ver and byte slice b into a base-58 check encoded string.
 func b58checkencode(ver uint8, b []byte) (s string) {
@@ -80,18 +80,16 @@ func b58encode(b []byte) (s string) {
 	return s
 }
 
-
-func SHA256(message []byte) []byte{
+func SHA256(message []byte) []byte {
 	hash := sha256.New()
 	hash.Write(message)
 	bytes := hash.Sum(nil)
 	return bytes
 }
 
-func DoubleSHA256(message []byte) []byte{
+func DoubleSHA256(message []byte) []byte {
 	return SHA256(SHA256(message))
 }
-
 
 func GetUUID() (string, error) {
 	b := make([]byte, 16)
@@ -103,4 +101,11 @@ func GetUUID() (string, error) {
 	uuid := fmt.Sprintf("%x-%x-%x-%x-%x",
 		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 	return uuid, nil
+}
+
+func GetPublicKeyFromPrivateKey(privateKeyHex string) string {
+	priKeyByte, _ := hex.DecodeString(privateKeyHex)
+	privateKey, _ := btcec.PrivKeyFromBytes(priKeyByte)
+	publicKey := hex.EncodeToString(privateKey.PubKey().SerializeCompressed())
+	return publicKey
 }

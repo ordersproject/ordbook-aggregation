@@ -61,7 +61,7 @@ func mkGetScript(scripts map[string][]byte) txscript.ScriptDB {
 	})
 }
 
-func createMultiSigAddress(net *chaincfg.Params, pubKey ...string) (string, string, string, error) {
+func CreateMultiSigAddress(net *chaincfg.Params, pubKey ...string) (string, string, string, error) {
 	var (
 		pubKeys = make([]*btcutil.AddressPubKey, 0)
 	)
@@ -139,7 +139,7 @@ func getPoolBrc20PsbtOrder(net, tick string, limit, page, flag int64) ([]*model.
 	)
 	total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", "", model.PoolTypeAll, model.PoolStateAdd)
 	entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", "", model.PoolTypeAll, model.PoolStateAdd,
-		limit, flag, page, "coinRatePrice", 1)
+		limit, flag, page, "coinRatePrice", -1)
 	return entityList, total, nil
 }
 
@@ -162,7 +162,7 @@ func setStatusPoolBrc20Order(bidOrder *model.OrderBrc20Model, poolState model.Po
 }
 
 func setCoinStatusPoolBrc20Order(bidOrder *model.OrderBrc20Model, poolCoinState model.PoolState, dealCoinTxIndex, dealCoinTxOutValue, dealCoinTime int64) {
-	err := mongo_service.SetPoolBrc20ModelForCoinStatus(bidOrder.PoolOrderId, poolCoinState, bidOrder.PsbtAskTxId, dealCoinTxIndex, dealCoinTxOutValue, dealCoinTime)
+	err := mongo_service.SetPoolBrc20ModelForCoinStatus(bidOrder.PoolOrderId, poolCoinState, bidOrder.PsbtAskTxId, dealCoinTxIndex, dealCoinTxOutValue, dealCoinTime, model.ClaimTxBlockStateUnconfirmed)
 	if err != nil {
 		major.Println(fmt.Sprintf("SetPoolBrc20ModelForStatus err:%s", err))
 	}
@@ -201,7 +201,7 @@ func setRewardForPoolBrc20Order(poolOrderId string) {
 		extraReward = extraReward * count
 		rewardAmount = rewardAmount + extraReward
 	}
-	entityPool.RewardAmount = rewardAmount
+	//entityPool.RewardAmount = rewardAmount
 	err := mongo_service.SetPoolBrc20ModelForReward(entityPool)
 	if err != nil {
 		major.Println(fmt.Sprintf("SetPoolBrc20ModelForReward err: %s", err.Error()))
@@ -290,12 +290,12 @@ func inscriptionMultiSigTransfer(poolOrder *model.PoolBrc20Model) error {
 
 	transferContent = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, poolOrder.Tick, poolOrder.CoinAmount)
 
-	utxoMultiSigInscriptionList, err = GetUnoccupiedUtxoList(poolOrder.Net, 1, 0, model.UtxoTypeMultiInscription)
+	utxoMultiSigInscriptionList, err = GetUnoccupiedUtxoList(poolOrder.Net, 3, 0, model.UtxoTypeMultiInscription)
 	defer ReleaseUtxoList(utxoMultiSigInscriptionList)
 	if err != nil {
 		return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] get utxo err:%s", err.Error()))
 	}
-	for _, v := range utxoMultiSigInscriptionList {
+	for i, v := range utxoMultiSigInscriptionList {
 		if v.Address != platformAddressMultiSigInscription {
 			continue
 		}
@@ -305,6 +305,7 @@ func inscriptionMultiSigTransfer(poolOrder *model.PoolBrc20Model) error {
 			OutIndex:  v.Index,
 			OutAmount: int64(v.Amount),
 		})
+		feeRate = feeRate + int64(10*i)
 	}
 	if len(inscribeUtxoList) <= 0 {
 		return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] get utxo empty"))
@@ -520,18 +521,16 @@ func updatePoolInfo(poolOrder *model.PoolBrc20Model) {
 		}
 	}
 
-	//if poolOrder.PoolCoinState == model.PoolStateAdd {
-	//	entityPoolInfo.CoinAmount = entityPoolInfo.CoinAmount + poolOrder.CoinAmount
-	//} else {
-	//	entityPoolInfo.CoinAmount = entityPoolInfo.CoinAmount - poolOrder.CoinAmount
-	//}
-
 	if poolOrder.PoolState == model.PoolStateAdd {
 		entityPoolInfo.CoinAmount = entityPoolInfo.CoinAmount + poolOrder.CoinAmount
-		entityPoolInfo.Amount = entityPoolInfo.Amount + poolOrder.Amount
+		if poolOrder.PoolType == model.PoolTypeBoth {
+			entityPoolInfo.Amount = entityPoolInfo.Amount + poolOrder.Amount
+		}
 	} else {
-		entityPoolInfo.Amount = entityPoolInfo.Amount - poolOrder.Amount
 		entityPoolInfo.CoinAmount = entityPoolInfo.CoinAmount - poolOrder.CoinAmount
+		if poolOrder.PoolType == model.PoolTypeBoth {
+			entityPoolInfo.Amount = entityPoolInfo.Amount - poolOrder.Amount
+		}
 	}
 
 	_, err := mongo_service.SetPoolInfoModel(entityPoolInfo)
@@ -841,10 +840,42 @@ func getRewardRatio(ratio int64) int64 {
 }
 
 // check bid count of pool order which is add state
-func checkPoolBidCount(poolOrderId string) int64 {
+func checkPoolBidCount(poolOrderId, address string) int64 {
 	var (
 		bidCount int64 = 0
 	)
-	bidCount, _ = mongo_service.CountOrderBrc20ModelListForPoolOrderId(poolOrderId)
+	bidCount, _ = mongo_service.CountOrderBrc20ModelListForPoolOrderId(poolOrderId, address)
 	return bidCount
+}
+
+// check own of pool order which is add state
+func checkPoolAddress(poolOrderId, address string) int64 {
+	var (
+		bidCount int64 = 0
+	)
+	bidCount, _ = mongo_service.CountPoolBrc20ModelListForPoolOrderIdAndAddress(poolOrderId, address)
+	return bidCount
+}
+
+// remove invalid bid of pool order which is add state
+func removeInvalidBidByPoolOrderId(poolOrderId string) {
+	var (
+		entityList []*model.OrderBrc20Model
+	)
+	entityList, _ = mongo_service.FindOrderBrc20ModelListByPoolOrderId(poolOrderId)
+	for _, v := range entityList {
+		if v.OrderType != model.OrderTypeBuy {
+			continue
+		}
+		if v.OrderState != model.OrderStateCreate {
+			continue
+		}
+		v.OrderState = model.OrderStateErr
+		err := mongo_service.SetOrderBrc20ModelForOrderState(v)
+		if err != nil {
+			major.Println(fmt.Sprintf("SetOrderBrc20ModelForOrderState err:%s", err.Error()))
+			continue
+		}
+		AddNotificationForBidInvalid(v.BuyerAddress)
+	}
 }

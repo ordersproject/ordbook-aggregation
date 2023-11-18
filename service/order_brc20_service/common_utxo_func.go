@@ -49,6 +49,14 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 		cacheType = cache_service.CacheLockUtxoTypeDummy1200
 		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeDummy1200_)
 		break
+	case model.UtxoTypeDummyBidX:
+		cacheType = cache_service.CacheLockUtxoTypeDummyBidX
+		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeDummyBidX_)
+		break
+	case model.UtxoTypeDummy1200BidX:
+		cacheType = cache_service.CacheLockUtxoTypeDummy1200BidX
+		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeDummy1200BidX_)
+		break
 	case model.UtxoTypeBidY:
 		cacheType = cache_service.CacheLockUtxoTypeBidpay
 		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeBidY_)
@@ -108,9 +116,16 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 	fmt.Printf("Get utxoIdKeyList: %+v\n", utxoIdKeyList)
 	fmt.Printf("Get sortIndexList: %+v\n", sortIndexList)
 
-	utxoList, _ = mongo_service.FindUtxoList(net, startIndex, maxLimit, perAmount, utxoType)
+	confirmStatus := model.ConfirmStatus(-1)
+	if utxoType == model.UtxoTypeDummyBidX || utxoType == model.UtxoTypeDummy1200BidX ||
+		utxoType == model.UtxoTypeDummy || utxoType == model.UtxoTypeDummy1200 ||
+		utxoType == model.UtxoTypeBidY || utxoType == model.UtxoTypeMultiInscription {
+		confirmStatus = model.Confirmed
+	}
+
+	utxoList, _ = mongo_service.FindUtxoList(net, startIndex, maxLimit, perAmount, utxoType, confirmStatus)
 	if len(utxoList) == 0 {
-		return nil, errors.New("Unoccupied-Utxo: Empty utxo list")
+		return nil, errors.New("Unoccupied-Utxo: Empty utxo list. Please contact customer service and wait for the platform to add UTXO. ")
 	}
 	for _, v := range utxoList {
 		has := false
@@ -127,7 +142,7 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 	}
 	if int64(len(unoccupiedUtxoList)) < limit {
 		fmt.Printf("Unoccupied-Utxo[%d]: Not enough - have[%d], need[%d]", utxoType, len(unoccupiedUtxoList), limit)
-		return nil, errors.New(fmt.Sprintf("Unoccupied-Utxo[%d]: Not enough - have[%d], need[%d]", utxoType, len(unoccupiedUtxoList), limit))
+		return nil, errors.New(fmt.Sprintf("Unoccupied-Utxo[%d]: Not enough - have[%d], need[%d]. Please contact customer service and wait for the platform to add UTXO. ", utxoType, len(unoccupiedUtxoList), limit))
 	}
 	unoccupiedUtxoList = unoccupiedUtxoList[:limit]
 	for _, v := range unoccupiedUtxoList {
@@ -155,6 +170,12 @@ func ReleaseUtxoList(utxoList []*model.OrderUtxoModel) {
 			break
 		case model.UtxoTypeDummy1200:
 			cacheUtxoType = redis.UtxoTypeDummy1200_
+			break
+		case model.UtxoTypeDummyBidX:
+			cacheUtxoType = redis.UtxoTypeDummyBidX_
+			break
+		case model.UtxoTypeDummy1200BidX:
+			cacheUtxoType = redis.UtxoTypeDummy1200BidX_
 			break
 		case model.UtxoTypeBidY:
 			cacheUtxoType = redis.UtxoTypeBidY_
@@ -193,6 +214,12 @@ func cacheUtxoList(utxoList []*model.OrderUtxoModel) {
 			break
 		case model.UtxoTypeDummy1200:
 			cacheUtxoType = redis.UtxoTypeDummy1200_
+			break
+		case model.UtxoTypeDummyBidX:
+			cacheUtxoType = redis.UtxoTypeDummyBidX_
+			break
+		case model.UtxoTypeDummy1200BidX:
+			cacheUtxoType = redis.UtxoTypeDummy1200BidX_
 			break
 		case model.UtxoTypeBidY:
 			cacheUtxoType = redis.UtxoTypeBidY_

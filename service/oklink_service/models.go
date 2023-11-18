@@ -161,3 +161,9 @@ type AddressSummary struct {
 	UnclaimedVotingRewards        string `json:"unclaimedVotingRewards"`
 	IsAaAddress                   bool   `json:"isAaAddress"`
 }
+
+type TickMarketInfo struct {
+	LastPrice string `json:"lastPrice"`
+	High24h   string `json:"high24h"`
+	Low24h    string `json:"low24h"`
+}

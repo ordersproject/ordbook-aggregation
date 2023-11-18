@@ -58,13 +58,8 @@ func main() {
 
 	order_brc20_service.InitCommon()
 
-	//tool_service.ToolChangeFeeToBidValue()
-	//task.LoopCheckPlatformAddressForBidValue("livenet")
-
 	go ws.StartWS()
 	task.Run()
-	//tool_service.RunAllJob()
 	task.RunJob()
 	controller.Run()
-	//run()
 }

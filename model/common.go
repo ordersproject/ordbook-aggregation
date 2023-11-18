@@ -49,3 +49,10 @@ const (
 	InscriptionStateSuccess InscriptionState = 1
 	InscriptionStateFail    InscriptionState = 2
 )
+
+type PlatformDummy int
+
+const (
+	PlatformDummyNo  PlatformDummy = 0
+	PlatformDummyYes PlatformDummy = 1
+)

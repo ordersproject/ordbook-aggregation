@@ -9,30 +9,35 @@ type PoolResponse struct {
 }
 
 type PoolBrc20Item struct {
-	Net                                     string          `json:"net,omitempty"`            //Net env
-	OrderId                                 string          `json:"orderId,omitempty"`        //Order ID
-	Tick                                    string          `json:"tick,omitempty"`           //Brc20 symbol
-	Pair                                    string          `json:"pair,omitempty"`           //Brc20 pair
-	CoinAmount                              uint64          `json:"coinAmount,omitempty"`     //tick
-	CoinDecimalNum                          int             `json:"coinDecimalNum,omitempty"` //tick
-	CoinAddress                             string          `json:"coinAddress,omitempty"`    //tick
-	Amount                                  uint64          `json:"amount,omitempty"`         //
-	DecimalNum                              int             `json:"decimalNum,omitempty"`     //
-	PoolType                                model.PoolType  `json:"poolType,omitempty"`       //pool type：1-tick,2-btc
-	PoolState                               model.PoolState `json:"poolState,omitempty"`      //pool state：1-add,2-remove,3-used,4-claim
-	Address                                 string          `json:"address,omitempty"`        //address
-	InscriptionId                           string          `json:"inscriptionId,omitempty"`  //InscriptionId
-	CoinPsbtRaw                             string          `json:"coinPsbtRaw,omitempty"`    //coin PSBT Raw
-	PsbtRaw                                 string          `json:"psbtRaw,omitempty"`        //PSBT Raw
-	UtxoId                                  string          `json:"utxoId"`                   //UtxoId
-	MultiSigScriptAddress                   string          `json:"multiSigScriptAddress"`
-	DealInscriptionId                       string          `json:"dealInscriptionId"` //InscriptionId
-	DealInscriptionTx                       string          `json:"dealInscriptionTx"`
-	DealInscriptionTxIndex                  int64           `json:"dealInscriptionTxIndex"`
-	DealInscriptionTxOutValue               int64           `json:"dealInscriptionTxOutValue"`
-	DealInscriptionTime                     int64           `json:"dealInscriptionTime"`
-	MultiSigScriptAddressTickAvailableState int64           `json:"multiSigScriptAddressTickAvailableState"` //0-no, 1-available
-	Timestamp                               int64           `json:"timestamp"`                               //Create time
+	Net                                     string                                        `json:"net,omitempty"`            //Net env
+	OrderId                                 string                                        `json:"orderId,omitempty"`        //Order ID
+	Tick                                    string                                        `json:"tick,omitempty"`           //Brc20 symbol
+	Pair                                    string                                        `json:"pair,omitempty"`           //Brc20 pair
+	CoinAmount                              uint64                                        `json:"coinAmount,omitempty"`     //tick
+	CoinDecimalNum                          int                                           `json:"coinDecimalNum,omitempty"` //tick
+	CoinRatePrice                           uint64                                        `json:"coinRatePrice,omitempty"`
+	CoinPrice                               int64                                         `json:"coinPrice,omitempty"`           //MAX-9223372036854775807
+	CoinPriceDecimalNum                     int32                                         `json:"coinPriceDecimalNum,omitempty"` //8
+	CoinAddress                             string                                        `json:"coinAddress,omitempty"`         //tick
+	Amount                                  uint64                                        `json:"amount,omitempty"`              //
+	DecimalNum                              int                                           `json:"decimalNum,omitempty"`          //
+	PoolType                                model.PoolType                                `json:"poolType,omitempty"`            //pool type：1-tick,2-btc
+	PoolState                               model.PoolState                               `json:"poolState,omitempty"`           //pool state：1-add,2-remove,3-used,4-claim
+	Address                                 string                                        `json:"address,omitempty"`             //address
+	InscriptionId                           string                                        `json:"inscriptionId,omitempty"`       //InscriptionId
+	CoinPsbtRaw                             string                                        `json:"coinPsbtRaw,omitempty"`         //coin PSBT Raw
+	PsbtRaw                                 string                                        `json:"psbtRaw,omitempty"`             //PSBT Raw
+	UtxoId                                  string                                        `json:"utxoId"`                        //UtxoId
+	DealTx                                  string                                        `json:"dealTx"`
+	DealCoinTx                              string                                        `json:"dealCoinTx"`
+	MultiSigScriptAddress                   string                                        `json:"multiSigScriptAddress"`
+	DealInscriptionId                       string                                        `json:"dealInscriptionId"` //InscriptionId
+	DealInscriptionTx                       string                                        `json:"dealInscriptionTx"`
+	DealInscriptionTxIndex                  int64                                         `json:"dealInscriptionTxIndex"`
+	DealInscriptionTxOutValue               int64                                         `json:"dealInscriptionTxOutValue"`
+	DealInscriptionTime                     int64                                         `json:"dealInscriptionTime"`
+	MultiSigScriptAddressTickAvailableState model.MultiSigScriptAddressTickAvailableState `json:"multiSigScriptAddressTickAvailableState"` //0-no, 1-available
+	Timestamp                               int64                                         `json:"timestamp"`                               //Create time
 	//RewardCoinAmount                        int64           `json:"rewardCoinAmount,omitempty"`
 
 	Percentage           int64                   `json:"percentage"`
@@ -42,6 +47,8 @@ type PoolBrc20Item struct {
 	RewardExtraAmount    int64                   `json:"rewardExtraAmount"`
 	DealCoinTxBlockState model.ClaimTxBlockState `json:"dealCoinTxBlockState"`
 	DealCoinTxBlock      int64                   `json:"dealCoinTxBlock"`
+	CalStartBlock        int64                   `json:"calStartBlock"`
+	CalEndBlock          int64                   `json:"calEndBlock"`
 
 	ReleaseTx      string `json:"releaseTx"`
 	ReleaseTime    int64  `json:"releaseTime"`

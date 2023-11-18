@@ -153,7 +153,7 @@ func (c *ClientController) GetTransaction(net string, txid string) (*Transaction
 			return nil, err
 		}
 	}
-
+	//fmt.Printf("result:%s\n", result.String())
 	return newTxByCore(result), nil
 }
 

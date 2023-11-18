@@ -7,6 +7,8 @@ import (
 const (
 	CacheLockUtxoTypeDummy                          = "dummy"
 	CacheLockUtxoTypeDummy1200                      = "dummy1200"
+	CacheLockUtxoTypeDummyBidX                      = "dummybidx"
+	CacheLockUtxoTypeDummy1200BidX                  = "dummy1200bidx"
 	CacheLockUtxoTypeBidpay                         = "bidpay"
 	CacheLockUtxoTypeMultiSigInscription            = "multisiginscriptionpay"
 	CacheLockUtxoTypeMultiSigInscriptionFromRelease = "multisiginscriptionpayfromrelease"

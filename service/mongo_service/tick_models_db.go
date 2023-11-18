@@ -9,7 +9,7 @@ import (
 	"ordbook-aggregation/model"
 )
 
-func FindBrc20TickModelByPair(net, pair string) (*model.Brc20TickModel, error) {
+func FindBrc20TickModelByPair(net, pair string, version int) (*model.Brc20TickModel, error) {
 	collection, err := model.Brc20TickModel{}.GetReadDB()
 	if err != nil {
 		return nil, err
@@ -17,8 +17,12 @@ func FindBrc20TickModelByPair(net, pair string) (*model.Brc20TickModel, error) {
 	queryBson := bson.D{
 		{"net", net},
 		{"pair", pair},
+		{"version", version},
 		//{"state", model.STATE_EXIST},
 	}
+	//if version != 0 {
+	//	queryBson = append(queryBson, bson.E{"version", version})
+	//}
 	entity := &model.Brc20TickModel{}
 	err = collection.FindOne(context.TODO(), queryBson).Decode(entity)
 	if err != nil {
@@ -33,31 +37,37 @@ func createBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickMode
 		return nil, err
 	}
 
-	CreateUniqueIndex(collection, "pair")
+	//CreateUniqueIndex(collection, "pair")
 	CreateIndex(collection, "net")
 	CreateIndex(collection, "tick")
 	CreateIndex(collection, "volume")
 	CreateIndex(collection, "timestamp")
+	CreateIndex(collection, "version")
 
 	entity := &model.Brc20TickModel{
-		Id:                 util.GetUUIDInt64(),
-		Net:                brc20Tick.Net,
-		Tick:               brc20Tick.Tick,
-		Pair:               brc20Tick.Pair,
-		Buy:                brc20Tick.Buy,
-		Sell:               brc20Tick.Sell,
-		Low:                brc20Tick.Low,
-		High:               brc20Tick.High,
-		Open:               brc20Tick.Open,
-		Last:               brc20Tick.Last,
-		Volume:             brc20Tick.Volume,
-		Amount:             brc20Tick.Amount,
-		Vol:                brc20Tick.Vol,
-		AvgPrice:           brc20Tick.AvgPrice,
-		QuoteSymbol:        brc20Tick.QuoteSymbol,
-		PriceChangePercent: brc20Tick.PriceChangePercent,
-		CreateTime:         util.Time(),
-		State:              model.STATE_EXIST,
+		Id:                  util.GetUUIDInt64(),
+		Net:                 brc20Tick.Net,
+		Tick:                brc20Tick.Tick,
+		Pair:                brc20Tick.Pair,
+		Buy:                 brc20Tick.Buy,
+		Sell:                brc20Tick.Sell,
+		Low:                 brc20Tick.Low,
+		High:                brc20Tick.High,
+		Open:                brc20Tick.Open,
+		Last:                brc20Tick.Last,
+		LastTop:             brc20Tick.LastTop,
+		LastTotal:           brc20Tick.LastTotal,
+		Volume:              brc20Tick.Volume,
+		Amount:              brc20Tick.Amount,
+		Vol:                 brc20Tick.Vol,
+		AvgPrice:            brc20Tick.AvgPrice,
+		QuoteSymbol:         brc20Tick.QuoteSymbol,
+		PriceChangePercent:  brc20Tick.PriceChangePercent,
+		CoinPrice:           brc20Tick.CoinPrice,
+		CoinPriceDecimalNum: brc20Tick.CoinPriceDecimalNum,
+		Version:             brc20Tick.Version,
+		CreateTime:          util.Time(),
+		State:               model.STATE_EXIST,
 	}
 
 	_, err = collection.InsertOne(context.TODO(), entity)
@@ -71,7 +81,7 @@ func createBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickMode
 }
 
 func SetBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickModel, error) {
-	entity, err := FindBrc20TickModelByPair(brc20Tick.Net, brc20Tick.Pair)
+	entity, err := FindBrc20TickModelByPair(brc20Tick.Net, brc20Tick.Pair, brc20Tick.Version)
 	if err == nil && entity != nil {
 		collection, err := model.Brc20TickModel{}.GetWriteDB()
 		if err != nil {
@@ -80,8 +90,12 @@ func SetBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickModel, 
 		filter := bson.D{
 			{"net", brc20Tick.Net},
 			{"pair", brc20Tick.Pair},
+			{"version", brc20Tick.Version},
 			//{"state", model.STATE_EXIST},
 		}
+		//if brc20Tick.Version != 0 {
+		//	filter = append(filter, bson.E{"version", brc20Tick.Version})
+		//}
 		bsonData := bson.D{}
 		bsonData = append(bsonData, bson.E{Key: "net", Value: brc20Tick.Net})
 		bsonData = append(bsonData, bson.E{Key: "tick", Value: brc20Tick.Tick})
@@ -92,11 +106,16 @@ func SetBrc20TickModel(brc20Tick *model.Brc20TickModel) (*model.Brc20TickModel, 
 		bsonData = append(bsonData, bson.E{Key: "high", Value: brc20Tick.High})
 		bsonData = append(bsonData, bson.E{Key: "open", Value: brc20Tick.Open})
 		bsonData = append(bsonData, bson.E{Key: "last", Value: brc20Tick.Last})
+		bsonData = append(bsonData, bson.E{Key: "lastTop", Value: brc20Tick.LastTop})
+		bsonData = append(bsonData, bson.E{Key: "lastTotal", Value: brc20Tick.LastTotal})
 		bsonData = append(bsonData, bson.E{Key: "volume", Value: brc20Tick.Volume})
 		bsonData = append(bsonData, bson.E{Key: "amount", Value: brc20Tick.Amount})
 		bsonData = append(bsonData, bson.E{Key: "vol", Value: brc20Tick.Vol})
 		bsonData = append(bsonData, bson.E{Key: "avgPrice", Value: brc20Tick.AvgPrice})
 		bsonData = append(bsonData, bson.E{Key: "quoteSymbol", Value: brc20Tick.QuoteSymbol})
+		bsonData = append(bsonData, bson.E{Key: "coinPrice", Value: brc20Tick.CoinPrice})
+		bsonData = append(bsonData, bson.E{Key: "coinPriceDecimalNum", Value: brc20Tick.CoinPriceDecimalNum})
+		bsonData = append(bsonData, bson.E{Key: "version", Value: brc20Tick.Version})
 		bsonData = append(bsonData, bson.E{Key: "priceChangePercent", Value: brc20Tick.PriceChangePercent})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",
@@ -140,6 +159,42 @@ func FindBrc20TickModelList(net, tick string, skip, limit int64) ([]*model.Brc20
 	find := bson.M{
 		"net":   net,
 		"state": model.STATE_EXIST,
+	}
+
+	if tick != "" {
+		find["tick"] = tick
+	}
+
+	models := make([]*model.Brc20TickModel, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(0)
+	sort := options.Find().SetSort(bson.M{"updateTime": -1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.Brc20TickModel{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get Brc20TickModel Error")
+	}
+	return models, nil
+}
+
+func FindBrc20TickModelVersionList(net, tick string, skip, limit, version int64) ([]*model.Brc20TickModel, error) {
+	collection, err := model.Brc20TickModel{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"net":     net,
+		"version": version,
+		"state":   model.STATE_EXIST,
 	}
 
 	if tick != "" {

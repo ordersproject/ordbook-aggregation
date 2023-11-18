@@ -7,6 +7,7 @@ import (
 
 func Run() {
 	//loopUtxoService()
+	//loopCheckOrder()
 }
 
 func loopUtxoService() {
@@ -39,15 +40,16 @@ func loopUtxoService() {
 	//		<-timeTickerChan
 	//	}
 	//}()
+}
 
+func loopCheckOrder() {
 	go func() {
 		logger.Logger.Infof(" \n")
-		timeTickerChan := time.Tick(time.Minute * 30)
+		timeTickerChan := time.Tick(time.Minute * 10)
 		for {
 			logger.Logger.Infof("Check ask state \n")
 			LoopForCheckAsk()
 			<-timeTickerChan
 		}
 	}()
-
 }

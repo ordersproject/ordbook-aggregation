@@ -7,7 +7,6 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
-	"log"
 )
 
 func CreateTaprootKey(netParams *chaincfg.Params) (string, string, error) {
@@ -42,8 +41,27 @@ func CreateSegwitKey(netParams *chaincfg.Params) (string, string, error) {
 	_ = publicKey
 	nativeSegwitAddress, err := btcutil.NewAddressWitnessPubKeyHash(btcutil.Hash160(privateKey.PubKey().SerializeCompressed()), netParams)
 	if err != nil {
-		log.Fatal(err)
+		return "", "", err
 	}
 	//log.Printf("new native segwit address %s \n", nativeSegwitAddress.EncodeAddress())
 	return privateKeyHex, nativeSegwitAddress.EncodeAddress(), nil
 }
+
+//func CreateBlackHoleAddress(netParams *chaincfg.Params) (string, string, error) {
+//	//pubKeyBytes, err := hex.DecodeString("03782f1f1736fbd1048a3b29ac9e7f5ab8c64f0c87d6a0bd671c0d6d67a3181da2")
+//	pubKeyBytes, err := hex.DecodeString("000000000000000000000000000000000000000000000000000000000000000000")
+//	if err != nil {
+//		fmt.Println(err)
+//		return "", "", err
+//	}
+//	pubKey, err := secp256k1.ParsePubKey(pubKeyBytes)
+//	if err != nil {
+//		fmt.Println(err)
+//		return "", "", err
+//	}
+//	nativeSegwitAddress, err := btcutil.NewAddressWitnessPubKeyHash(btcutil.Hash160(pubKey.SerializeCompressed()), netParams)
+//	if err != nil {
+//		return "", "", err
+//	}
+//	return "", nativeSegwitAddress.EncodeAddress(), nil
+//}

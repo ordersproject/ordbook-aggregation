@@ -4,13 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/shopspring/decimal"
 	"ordbook-aggregation/controller/request"
 	"ordbook-aggregation/controller/respond"
 	"ordbook-aggregation/model"
+	"ordbook-aggregation/service/common_service"
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/service/oklink_service"
 	"ordbook-aggregation/tool"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -54,21 +57,23 @@ func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*
 	}
 
 	item := &respond.Brc20Item{
-		Net:            entity.Net,
-		OrderId:        entity.OrderId,
-		Tick:           entity.Tick,
-		Amount:         entity.Amount,
-		DecimalNum:     entity.DecimalNum,
-		CoinAmount:     entity.CoinAmount,
-		CoinDecimalNum: entity.CoinDecimalNum,
-		CoinRatePrice:  entity.CoinRatePrice,
-		OrderState:     entity.OrderState,
-		OrderType:      entity.OrderType,
-		FreeState:      entity.FreeState,
-		SellerAddress:  entity.SellerAddress,
-		BuyerAddress:   entity.BuyerAddress,
-		PsbtRaw:        entity.PsbtRawPreAsk,
-		Timestamp:      entity.Timestamp,
+		Net:                 entity.Net,
+		OrderId:             entity.OrderId,
+		Tick:                entity.Tick,
+		Amount:              entity.Amount,
+		DecimalNum:          entity.DecimalNum,
+		CoinAmount:          entity.CoinAmount,
+		CoinDecimalNum:      entity.CoinDecimalNum,
+		CoinRatePrice:       entity.CoinRatePrice,
+		CoinPrice:           entity.CoinPrice,
+		CoinPriceDecimalNum: entity.CoinPriceDecimalNum,
+		OrderState:          entity.OrderState,
+		OrderType:           entity.OrderType,
+		FreeState:           entity.FreeState,
+		SellerAddress:       entity.SellerAddress,
+		BuyerAddress:        entity.BuyerAddress,
+		PsbtRaw:             entity.PsbtRawPreAsk,
+		Timestamp:           entity.Timestamp,
 	}
 	return item, nil
 }
@@ -89,25 +94,36 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType, 0, 0)
 	list = make([]*respond.Brc20Item, len(entityList))
 	for k, v := range entityList {
+		if req.Address != "" && v.PoolOrderId != "" {
+			poolOwner := checkPoolAddress(v.OrderId, req.Address)
+			if poolOwner > 0 {
+				continue
+			}
+		}
+
 		item := &respond.Brc20Item{
-			Net:            v.Net,
-			OrderId:        v.OrderId,
-			Tick:           v.Tick,
-			Amount:         v.Amount,
-			DecimalNum:     v.DecimalNum,
-			CoinAmount:     v.CoinAmount,
-			CoinDecimalNum: v.CoinDecimalNum,
-			CoinRatePrice:  v.CoinRatePrice,
-			OrderState:     v.OrderState,
-			OrderType:      v.OrderType,
-			FreeState:      v.FreeState,
-			SellerAddress:  v.SellerAddress,
-			BuyerAddress:   v.BuyerAddress,
+			Net:                 v.Net,
+			OrderId:             v.OrderId,
+			Tick:                v.Tick,
+			Amount:              v.Amount,
+			DecimalNum:          v.DecimalNum,
+			CoinAmount:          v.CoinAmount,
+			CoinDecimalNum:      v.CoinDecimalNum,
+			CoinRatePrice:       v.CoinRatePrice,
+			CoinPrice:           v.CoinPrice,
+			CoinPriceDecimalNum: v.CoinPriceDecimalNum,
+			OrderState:          v.OrderState,
+			OrderType:           v.OrderType,
+			FreeState:           v.FreeState,
+			SellerAddress:       v.SellerAddress,
+			BuyerAddress:        v.BuyerAddress,
 			//PsbtRaw:        v.PsbtRawPreAsk,
 			Timestamp: v.Timestamp,
 		}
 		if req.SortKey == "coinRatePrice" {
 			flag = int64(v.CoinRatePrice)
+		} else if req.SortKey == "coinPrice" {
+			flag = int64(v.CoinPrice)
 		} else {
 			flag = v.Timestamp
 		}
@@ -127,31 +143,98 @@ func FetchTickers(req *request.TickBrc20FetchReq) (*respond.Brc20TickInfoRespons
 		list       []*respond.Brc20TickItem = make([]*respond.Brc20TickItem, 0)
 	)
 
-	entityList, _ = mongo_service.FindBrc20TickModelList(req.Net, req.Tick, 0, 100)
+	_ = entityList
+	entityList, _ = mongo_service.FindBrc20TickModelVersionList(req.Net, req.Tick, 0, 100, 2)
 	for _, v := range entityList {
+
+		//coinPriceDe := decimal.NewFromInt(int64(v.CoinPrice))
+		coinPriceDe := decimal.NewFromInt(int64(v.LastTop))
+		coinPriceDe = coinPriceDe.Div(decimal.New(1, 8))
+		UpdateMarketPriceV2(v.Net, v.Tick, v.Pair)
+
+		avgPrice := coinPriceDe.String()
+		if coinPriceDe.Cmp(decimal.NewFromInt(1)) > 0 {
+			avgPrice = coinPriceDe.StringFixed(0)
+		}
+
+		item := &respond.Brc20TickItem{
+			Net:    v.Net,
+			Tick:   v.Tick,
+			Pair:   v.Pair,
+			Icon:   "empty",
+			Buy:    strconv.FormatUint(v.Buy, 10),
+			Sell:   strconv.FormatUint(v.Sell, 10),
+			Low:    strconv.FormatUint(v.Low, 10),
+			High:   strconv.FormatUint(v.High, 10),
+			Open:   strconv.FormatUint(v.Open, 10),
+			Last:   strconv.FormatUint(v.Last, 10),
+			Volume: strconv.FormatUint(v.Volume, 10),
+			Amount: strconv.FormatUint(v.Amount, 10),
+			Vol:    strconv.FormatUint(v.Vol, 10),
+			//AvgPrice:           strconv.FormatUint(v.AvgPrice, 10),
+			//AvgPrice: strconv.FormatUint(v.Last, 10),
+			//AvgPrice:            coinPriceDe.String(),
+			AvgPrice:            avgPrice,
+			CoinPrice:           v.CoinPrice,
+			CoinPriceDecimalNum: v.CoinPriceDecimalNum,
+			QuoteSymbol:         v.QuoteSymbol,
+			PriceChangePercent:  strconv.FormatFloat(v.PriceChangePercent, 'f', 2, 64),
+			Ut:                  v.UpdateTime,
+		}
+		if v.AvgPrice == 0 || v.LastTotal < 5 {
+			priceInfo := getOtherMarketPrice(v.Tick)
+			if priceInfo != nil {
+				item.AvgPrice = priceInfo.VisionPrice
+			}
+		}
+
+		list = append(list, item)
+	}
+
+	for tick, priceInfo := range common_service.Brc20TickMarketDataMap {
+		if req.Tick != "" {
+			if tick != req.Tick {
+				continue
+			}
+		}
+
+		has := false
+		for _, v := range list {
+			if v.Tick == tick {
+				has = true
+				break
+			}
+		}
+		if has {
+			continue
+		}
+		if priceInfo == nil || priceInfo.UpdateTime == 0 {
+			priceInfo = getOtherMarketPrice(tick)
+		}
 		list = append(list, &respond.Brc20TickItem{
-			Net:                v.Net,
-			Tick:               v.Tick,
-			Pair:               v.Pair,
-			Icon:               "empty",
-			Buy:                strconv.FormatUint(v.Buy, 10),
-			Sell:               strconv.FormatUint(v.Sell, 10),
-			Low:                strconv.FormatUint(v.Low, 10),
-			High:               strconv.FormatUint(v.High, 10),
-			Open:               strconv.FormatUint(v.Open, 10),
-			Last:               strconv.FormatUint(v.Last, 10),
-			Volume:             strconv.FormatUint(v.Volume, 10),
-			Amount:             strconv.FormatUint(v.Amount, 10),
-			Vol:                strconv.FormatUint(v.Vol, 10),
-			AvgPrice:           strconv.FormatUint(v.AvgPrice, 10),
-			QuoteSymbol:        v.QuoteSymbol,
-			PriceChangePercent: strconv.FormatFloat(v.PriceChangePercent, 'f', 2, 64),
-			Ut:                 v.UpdateTime,
+			Net:  req.Net,
+			Tick: tick,
+			Pair: fmt.Sprintf("%s-BTC", strings.ToUpper(tick)),
+			Icon: "empty",
+			//Buy:                strconv.FormatUint(v.Buy, 10),
+			//Sell:               strconv.FormatUint(v.Sell, 10),
+			//Low:                strconv.FormatUint(v.Low, 10),
+			//High:               strconv.FormatUint(v.High, 10),
+			//Open:               strconv.FormatUint(v.Open, 10),
+			//Last:               strconv.FormatUint(v.Last, 10),
+			//Volume:             strconv.FormatUint(v.Volume, 10),
+			//Amount:             strconv.FormatUint(v.Amount, 10),
+			//Vol:                strconv.FormatUint(v.Vol, 10),
+			AvgPrice: priceInfo.VisionPrice,
+			//QuoteSymbol:        v.QuoteSymbol,
+			//PriceChangePercent: strconv.FormatFloat(v.PriceChangePercent, 'f', 2, 64),
+			Ut: priceInfo.UpdateTime,
 		})
 	}
 
 	return &respond.Brc20TickInfoResponse{
-		Total:   5,
+		//Total:   5,
+		Total:   int64(len(common_service.Brc20TickMarketDataMap)),
 		Results: list,
 		Flag:    0,
 	}, nil
@@ -200,6 +283,26 @@ func GetBrc20BalanceDetail(req *request.Brc20AddressReq) (*respond.BalanceDetail
 		//	})
 		//}
 
+		//check order which is sold
+		soldOrderCount, _ := mongo_service.FindSoldInscriptionOrder(v.InscriptionId)
+		if soldOrderCount != 0 {
+			fmt.Printf("Used Inscription soldOrderCount: [%s]\n", v.InscriptionId)
+			continue
+		}
+
+		//check order which is used
+		usedOrderCount, _ := mongo_service.FindUsedInscriptionOrder(v.InscriptionId)
+		if usedOrderCount != 0 {
+			fmt.Printf("Used Inscription usedOrderCount: [%s]\n", v.InscriptionId)
+			continue
+		}
+		usedOrderCount, _ = mongo_service.FindUsedInscriptionOrderV2(v.InscriptionId)
+		if usedOrderCount != 0 {
+			fmt.Printf("Used Inscription usedOrderCount2: [%s]\n", v.InscriptionId)
+			continue
+		}
+
+		//check pool which is used
 		usedCount, _ := mongo_service.FindUsedInscriptionPool(v.InscriptionId)
 		if usedCount != 0 {
 			fmt.Printf("Used InscriptionPool: [%s]\n", v.InscriptionId)
@@ -291,25 +394,29 @@ func FetchUserOrders(req *request.Brc20OrderAddressReq) (*respond.OrderResponse,
 	list = make([]*respond.Brc20Item, len(entityList))
 	for k, v := range entityList {
 		item := &respond.Brc20Item{
-			Net:            v.Net,
-			OrderId:        v.OrderId,
-			Tick:           v.Tick,
-			Amount:         v.Amount,
-			DecimalNum:     v.DecimalNum,
-			CoinAmount:     v.CoinAmount,
-			CoinDecimalNum: v.CoinDecimalNum,
-			CoinRatePrice:  v.CoinRatePrice,
-			OrderState:     v.OrderState,
-			OrderType:      v.OrderType,
-			FreeState:      v.FreeState,
-			SellerAddress:  v.SellerAddress,
-			BuyerAddress:   v.BuyerAddress,
-			InscriptionId:  v.InscriptionId,
+			Net:                 v.Net,
+			OrderId:             v.OrderId,
+			Tick:                v.Tick,
+			Amount:              v.Amount,
+			DecimalNum:          v.DecimalNum,
+			CoinAmount:          v.CoinAmount,
+			CoinDecimalNum:      v.CoinDecimalNum,
+			CoinRatePrice:       v.CoinRatePrice,
+			CoinPrice:           v.CoinPrice,
+			CoinPriceDecimalNum: v.CoinPriceDecimalNum,
+			OrderState:          v.OrderState,
+			OrderType:           v.OrderType,
+			FreeState:           v.FreeState,
+			SellerAddress:       v.SellerAddress,
+			BuyerAddress:        v.BuyerAddress,
+			InscriptionId:       v.InscriptionId,
 			//PsbtRaw:        v.PsbtRawPreAsk,
 			Timestamp: v.Timestamp,
 		}
 		if req.SortKey == "coinRatePrice" {
 			flag = int64(v.CoinRatePrice)
+		} else if req.SortKey == "coinPrice" {
+			flag = int64(v.CoinPrice)
 		} else {
 			flag = v.Timestamp
 		}

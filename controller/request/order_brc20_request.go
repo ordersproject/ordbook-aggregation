@@ -22,6 +22,7 @@ type OrderBrc20FetchReq struct {
 	Page          int64            `json:"page"`
 	SellerAddress string           `json:"sellerAddress"`
 	BuyerAddress  string           `json:"buyerAddress"`
+	Address       string           `json:"address"`
 	SortKey       string           `json:"sortKey"`  //coinRatePrice/timestamp
 	SortType      int64            `json:"sortType"` //1/-1
 }
@@ -69,6 +70,40 @@ type OrderBrc20GetBidReq struct {
 	PoolOrderId       string `json:"poolOrderId"`
 	Limit             int64  `json:"limit"`
 	Page              int64  `json:"page"`
+	PlatformDummy     int64  `json:"platformDummy"` //0-no 1-yes
+	SwitchPrice       int    `json:"switchPrice"`   //0-no 1-yes
+}
+
+type OrderBrc20GetBidPlatformReq struct {
+	Net               string     `json:"net"` //livenet/signet/testnet
+	Tick              string     `json:"tick"`
+	Amount            uint64     `json:"amount"`
+	Address           string     `json:"address"`
+	InscriptionId     string     `json:"inscriptionId"`
+	InscriptionNumber string     `json:"inscriptionNumber"`
+	CoinAmount        string     `json:"coinAmount"`
+	IsPool            bool       `json:"isPool"`
+	PoolOrderId       string     `json:"poolOrderId"`
+	PlatformDummy     int64      `json:"platformDummy"` //0-no 1-yes
+	BidTxSpec         *BidTxSpec `json:"bidTxSpec"`
+	SwitchPrice       int        `json:"switchPrice"` //0-no 1-yes
+}
+type BidTxSpec struct {
+	Inputs  []*BidTxInput  `json:"inputs"`
+	Outputs []*BidTxOutput `json:"outputs"`
+}
+
+type BidTxInput struct {
+	Type    string `json:"type"` //dummy/btc/brc
+	Value   int64  `json:"value"`
+	Tick    string `json:"tick"`
+	Address string `json:"address"`
+}
+type BidTxOutput struct {
+	Type    string `json:"type"` //dummy/btc/brc/change
+	Value   int64  `json:"value"`
+	Tick    string `json:"tick"`
+	Address string `json:"address"`
 }
 
 type OrderBrc20UpdateBidReq struct {
@@ -104,6 +139,7 @@ type OrderBrc20DoBidReq struct {
 	Tick              string `json:"tick"`
 	InscriptionId     string `json:"inscriptionId"`
 	InscriptionNumber string `json:"inscriptionNumber"`
+	NetworkFee        int64  `json:"networkFee"`
 }
 
 type CheckBrc20InscriptionReq struct {

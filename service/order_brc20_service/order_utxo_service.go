@@ -42,6 +42,10 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error) {
 		_, fromSegwitAddress = GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(req.Net)
 	} else if req.UtxoType == model.UtxoTypeDummy1200 {
 		fromPriKeyHex, fromSegwitAddress = GetPlatformKeyAndAddressReceiveDummyValue(req.Net)
+	} else if req.UtxoType == model.UtxoTypeDummyBidX {
+		fromPriKeyHex, fromSegwitAddress = GetPlatformKeyAndAddressForDummy(req.Net)
+	} else if req.UtxoType == model.UtxoTypeDummy1200BidX {
+		fromPriKeyHex, fromSegwitAddress = GetPlatformKeyAndAddressForDummy(req.Net)
 	} else {
 		fromPriKeyHex, fromSegwitAddress, err = create_key.CreateSegwitKey(netParams)
 		if err != nil {
@@ -220,6 +224,42 @@ func SaveNewDummyFromBid(net string, out Output, priKeyHex string, index int64, 
 	return nil
 }
 
+func SaveNewDummyFromBidX(net string, out Output, priKeyHex string, index int64, txId string) error {
+	startIndex := GetSaveStartIndex(net, model.UtxoTypeDummyBidX, 0)
+	netParams := GetNetParams(net)
+	addr, err := btcutil.DecodeAddress(out.Address, netParams)
+	if err != nil {
+		return err
+	}
+	pkScriptByte, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return err
+	}
+	pkScript := hex.EncodeToString(pkScriptByte)
+
+	newDummy := &model.OrderUtxoModel{
+		UtxoId:        fmt.Sprintf("%s_%d", txId, index),
+		Net:           net,
+		UtxoType:      model.UtxoTypeDummyBidX,
+		Amount:        out.Amount,
+		Address:       out.Address,
+		PrivateKeyHex: priKeyHex,
+		TxId:          txId,
+		Index:         index,
+		PkScript:      pkScript,
+		UsedState:     model.UsedNo,
+		SortIndex:     startIndex + 1,
+		Timestamp:     tool.MakeTimestamp(),
+	}
+
+	_, err = mongo_service.SetOrderUtxoModel(newDummy)
+	if err != nil {
+		major.Println(fmt.Sprintf("SetOrderUtxoModel from bid err:%s", err.Error()))
+		return nil
+	}
+	return nil
+}
+
 func SaveNewDummy1200FromBid(net string, out Output, priKeyHex string, index int64, txId string) error {
 	if out.Script == "" && out.Address == "" {
 		return nil
@@ -240,6 +280,44 @@ func SaveNewDummy1200FromBid(net string, out Output, priKeyHex string, index int
 		UtxoId:        fmt.Sprintf("%s_%d", txId, index),
 		Net:           net,
 		UtxoType:      model.UtxoTypeDummy1200,
+		Amount:        out.Amount,
+		Address:       out.Address,
+		PrivateKeyHex: priKeyHex,
+		TxId:          txId,
+		Index:         index,
+		PkScript:      pkScript,
+		UsedState:     model.UsedNo,
+		SortIndex:     startIndex + 1,
+		Timestamp:     tool.MakeTimestamp(),
+	}
+	_, err = mongo_service.SetOrderUtxoModel(newDummy)
+	if err != nil {
+		major.Println(fmt.Sprintf("SetOrderUtxoModel from bid err:%s", err.Error()))
+		return nil
+	}
+	return nil
+}
+
+func SaveNewDummy1200FromBidX(net string, out Output, priKeyHex string, index int64, txId string) error {
+	if out.Script == "" && out.Address == "" {
+		return nil
+	}
+	startIndex := GetSaveStartIndex(net, model.UtxoTypeDummy1200BidX, 0)
+	netParams := GetNetParams(net)
+	addr, err := btcutil.DecodeAddress(out.Address, netParams)
+	if err != nil {
+		return err
+	}
+	pkScriptByte, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return err
+	}
+	pkScript := hex.EncodeToString(pkScriptByte)
+
+	newDummy := &model.OrderUtxoModel{
+		UtxoId:        fmt.Sprintf("%s_%d", txId, index),
+		Net:           net,
+		UtxoType:      model.UtxoTypeDummy1200BidX,
 		Amount:        out.Amount,
 		Address:       out.Address,
 		PrivateKeyHex: priKeyHex,
@@ -502,6 +580,8 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 		commonCoinAmount                                                  uint64                              = uint64(req.InscribeTransferAmount)
 		commonOutAmount                                                   uint64                              = 4000
 		commonCoinRatePrice                                               uint64                              = 0
+		coinPrice                                                         int64                               = 0
+		coinPriceDecimalNum                                               int32                               = 0
 	)
 	inscribeUtxoList = append(inscribeUtxoList, &inscription_service.InscribeUtxo{
 		OutTx:     req.TxId,
@@ -531,6 +611,7 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 	coinAmountDe := decimal.NewFromInt(int64(commonCoinAmount))
 	coinRatePriceStr := outAmountDe.Div(coinAmountDe).StringFixed(0)
 	commonCoinRatePrice, _ = strconv.ParseUint(coinRatePriceStr, 10, 64)
+	coinPrice, coinPriceDecimalNum = MakePrice(int64(commonCoinAmount), int64(commonOutAmount))
 
 	addr, err := btcutil.DecodeAddress(platformAddressSendBrc20ForAsk, netParams)
 	if err != nil {
@@ -584,14 +665,16 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 		orderId := fmt.Sprintf("%s_%s_%s_%s_%d_%d", req.Net, req.Tick, v, platformAddressSendBrc20ForAsk, commonOutAmount, commonCoinAmount)
 		orderId = hex.EncodeToString(tool.SHA256([]byte(orderId)))
 		entity := &model.OrderBrc20Model{
-			Net:            req.Net,
-			OrderId:        orderId,
-			Tick:           req.Tick,
-			Amount:         commonOutAmount,
-			DecimalNum:     8,
-			CoinAmount:     commonCoinAmount,
-			CoinDecimalNum: 18,
-			CoinRatePrice:  commonCoinRatePrice,
+			Net:                 req.Net,
+			OrderId:             orderId,
+			Tick:                req.Tick,
+			Amount:              commonOutAmount,
+			DecimalNum:          8,
+			CoinAmount:          commonCoinAmount,
+			CoinDecimalNum:      18,
+			CoinRatePrice:       commonCoinRatePrice,
+			CoinPrice:           coinPrice,
+			CoinPriceDecimalNum: coinPriceDecimalNum,
 			//OrderState:     model.OrderStateCreate,
 			InscriptionId: v,
 			//OrderState:    model.OrderStatePreAsk,
@@ -610,6 +693,7 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 			return nil, err
 		}
 		UpdateMarketPrice(req.Net, req.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(req.Tick)))
+		UpdateMarketPriceV2(req.Net, req.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(req.Tick)))
 	}
 
 	return &respond.Brc20TransferCommitBatchResp{
@@ -636,6 +720,8 @@ func ColdDownBatchBrc20TransferAndMakePool(req *request.ColdDownBrcTransferBatch
 		commonCoinAmount                                          uint64                              = uint64(req.InscribeTransferAmount)
 		commonOutAmount                                           uint64                              = 4000
 		commonCoinRatePrice                                       uint64                              = 0
+		coinPrice                                                 int64                               = 0
+		coinPriceDecimalNum                                       int32                               = 0
 	)
 	inscribeUtxoList = append(inscribeUtxoList, &inscription_service.InscribeUtxo{
 		OutTx:     req.TxId,
@@ -666,6 +752,7 @@ func ColdDownBatchBrc20TransferAndMakePool(req *request.ColdDownBrcTransferBatch
 	coinAmountDe := decimal.NewFromInt(int64(commonCoinAmount))
 	coinRatePriceStr := outAmountDe.Div(coinAmountDe).StringFixed(0)
 	commonCoinRatePrice, _ = strconv.ParseUint(coinRatePriceStr, 10, 64)
+	coinPrice, coinPriceDecimalNum = MakePrice(int64(commonCoinAmount), int64(commonOutAmount))
 
 	addr, err := btcutil.DecodeAddress(platformAddressRewardBrc20, netParams)
 	if err != nil {
@@ -719,14 +806,16 @@ func ColdDownBatchBrc20TransferAndMakePool(req *request.ColdDownBrcTransferBatch
 		orderId := fmt.Sprintf("%s_%s_%s_%s_%d_%d", req.Net, req.Tick, v, platformAddressRewardBrc20, commonOutAmount, commonCoinAmount)
 		orderId = hex.EncodeToString(tool.SHA256([]byte(orderId)))
 		entity := &model.OrderBrc20Model{
-			Net:            req.Net,
-			OrderId:        orderId,
-			Tick:           req.Tick,
-			Amount:         commonOutAmount,
-			DecimalNum:     8,
-			CoinAmount:     commonCoinAmount,
-			CoinDecimalNum: 18,
-			CoinRatePrice:  commonCoinRatePrice,
+			Net:                 req.Net,
+			OrderId:             orderId,
+			Tick:                req.Tick,
+			Amount:              commonOutAmount,
+			DecimalNum:          8,
+			CoinAmount:          commonCoinAmount,
+			CoinDecimalNum:      18,
+			CoinRatePrice:       commonCoinRatePrice,
+			CoinPrice:           coinPrice,
+			CoinPriceDecimalNum: coinPriceDecimalNum,
 			//OrderState:     model.OrderStateCreate,
 			InscriptionId: v,
 			//OrderState:    model.OrderStatePreAsk,

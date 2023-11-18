@@ -7,16 +7,15 @@ import (
 	"ordbook-aggregation/tool"
 )
 
-//Get TxDetail
+// Get TxDetail
 func GetTxHex(net, txId string) (string, int, error) {
 	var (
-		url        string
-		code int
-		result        string
-		err        error
-		query map[string]string = map[string]string{}
-		headers map[string]string = map[string]string{
-		}
+		url     string
+		code    int
+		result  string
+		err     error
+		query   map[string]string = map[string]string{}
+		headers map[string]string = map[string]string{}
 	)
 	url = fmt.Sprintf("%s/api/tx/%s/hex", config.MempoolSpace, txId)
 	if net != "mainnet" && net != "livenet" {
@@ -30,15 +29,13 @@ func GetTxHex(net, txId string) (string, int, error) {
 	return result, code, nil
 }
 
-
 func BroadcastTx(net, hex string) (string, error) {
 	var (
-		url        string
-		code int
-		result        string
-		err        error
-		headers map[string]string = map[string]string{
-		}
+		url     string
+		code    int
+		result  string
+		err     error
+		headers map[string]string = map[string]string{}
 	)
 
 	fmt.Println(hex)

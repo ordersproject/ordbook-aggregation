@@ -6,6 +6,7 @@ import (
 	"ordbook-aggregation/config"
 	"ordbook-aggregation/major"
 	"ordbook-aggregation/model"
+	"ordbook-aggregation/node"
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/tool"
 	"strings"
@@ -313,7 +314,7 @@ func CalAllPoolOrder(net string, startBlock, endBlock, nowTime int64) {
 
 }
 
-func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) {
+func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) (map[string]string, int64, map[string]string, int64) {
 	var (
 		allNoUsedEntityPoolOrderList []*model.PoolBrc20Model
 		allEntityPoolOrderList       []*model.PoolBrc20Model
@@ -338,8 +339,14 @@ func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) {
 
 		endTime   int64 = nowTime - 1000*60*60*24*config.PlatformRewardExtraRewardDuration
 		hasNoUsed bool  = false
+
+		calPoolRewardInfo            map[string]string = make(map[string]string) //{"poolOrderId":"value:percentage:amount:coinAmount:price"}
+		calPoolRewardTotalValue      int64             = 0
+		calPoolExtraRewardInfo       map[string]string = make(map[string]string) //{"poolOrderId":"value:percentage:amount:coinAmount:price"}
+		calPoolExtraRewardTotalValue int64             = 0
 	)
 
+	_ = coinPriceMap
 	allNoUsedEntityPoolOrderList, _ = mongo_service.FindPoolBrc20ModelListByEndTime(net, "", "", "",
 		model.PoolTypeBoth, model.PoolStateAdd, limit, 0, endTime)
 	if allNoUsedEntityPoolOrderList != nil && len(allNoUsedEntityPoolOrderList) != 0 {
@@ -350,14 +357,9 @@ func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) {
 			}
 
 			coinPrice := int64(1)
-			if _, ok := coinPriceMap[v.Tick]; ok {
-				coinPrice = coinPriceMap[v.Tick]
-			} else {
-				coinPrice = int64(GetMarketPrice(net, v.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(v.Tick))))
-				if coinPrice == 0 {
-					coinPrice = 1
-				}
-				coinPriceMap[v.Tick] = coinPrice
+			coinPrice = int64(v.CoinRatePrice)
+			if coinPrice == 0 {
+				coinPrice = 1
 			}
 
 			totalCoinAmountNoUsed = totalCoinAmountNoUsed + int64(v.CoinAmount)*coinPrice
@@ -403,32 +405,25 @@ func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) {
 				continue
 			}
 			major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][no-used]SetPoolBrc20ModelForCalExtraReward success [%s]", orderId))
-		}
 
+			calPoolExtraRewardInfo[orderId] = fmt.Sprintf("%d:%d:%d:%d:%d", orderTotalValue, percentage, orderEntity.Amount, orderEntity.CoinAmount, orderEntity.CoinRatePrice)
+		}
+		calPoolExtraRewardTotalValue = allTotalValueNoUsed
 	}
 
-	allEntityPoolOrderList, _ = mongo_service.FindPoolBrc20ModelListByDealStartAndDealEndBlock(net, "", "", "",
-		model.PoolTypeAll, model.PoolStateUsed, limit, 0, startBlock, endBlock)
+	allEntityPoolOrderList, _ = mongo_service.FindUsedAndClaimedPoolBrc20ModelListByDealStartAndDealEndBlock(net, "", "", "",
+		model.PoolTypeAll, limit, 0, startBlock, endBlock)
 	for _, v := range allEntityPoolOrderList {
 		if strings.ToLower(v.Tick) == "rdex" {
 			continue
 		}
 
-		//coinAmount, amount, err := calculateDecrement(v)
-		//if err != nil {
-		//	continue
-		//}
 		coinAmount, amount := v.CoinAmount, v.Amount
 
 		coinPrice := int64(1)
-		if _, ok := coinPriceMap[v.Tick]; ok {
-			coinPrice = coinPriceMap[v.Tick]
-		} else {
-			coinPrice = int64(GetMarketPrice(net, v.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(v.Tick))))
-			if coinPrice == 0 {
-				coinPrice = 1
-			}
-			coinPriceMap[v.Tick] = coinPrice
+		coinPrice = int64(v.CoinRatePrice)
+		if coinPrice == 0 {
+			coinPrice = 1
 		}
 
 		totalCoinAmount = totalCoinAmount + int64(coinAmount)*coinPrice
@@ -450,7 +445,7 @@ func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) {
 	allTotalValue = totalCoinAmount + totalAmount
 	if allTotalValue == 0 {
 		major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBlockUserInfoModel success [allTotalValue is 0]"))
-		return
+		return calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue
 	}
 
 	allTotalValueDe := decimal.NewFromInt(allTotalValue)
@@ -477,6 +472,10 @@ func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) {
 		}
 		orderEntity.Percentage = percentage
 		orderEntity.RewardAmount = rewardAmount
+		orderEntity.CalValue = orderTotalValue
+		orderEntity.CalTotalValue = allTotalValue
+		orderEntity.CalStartBlock = startBlock
+		orderEntity.CalEndBlock = endBlock
 
 		err := mongo_service.SetPoolBrc20ModelForCalReward(orderEntity)
 		if err != nil {
@@ -484,17 +483,11 @@ func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) {
 			continue
 		}
 		major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBrc20ModelForCalReward success [%s]", orderId))
+
+		calPoolRewardInfo[orderId] = fmt.Sprintf("%d:%d:%d:%d:%d:%d:%d", orderTotalValue, percentage, orderEntity.Amount, orderEntity.CoinAmount, orderEntity.CoinRatePrice, orderEntity.DealCoinTxBlock, orderEntity.PoolType)
 	}
-
-	//for address, blockInfo := range addressBlockInfo {
-	//	_, err := mongo_service.SetPoolBlockUserInfoModel(blockInfo)
-	//	if err != nil {
-	//		major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBlockUserInfoModel err:%s", err.Error()))
-	//		continue
-	//	}
-	//	major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBlockUserInfoModel success [%s]", address))
-	//}
-
+	calPoolRewardTotalValue = allTotalValue
+	return calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue
 }
 
 func GetCurrentBigBlock(startBlock int64) int64 {
@@ -544,17 +537,23 @@ func getUserBlockRewardAmountNoUser(percentage int64) int64 {
 	return rewardAmount
 }
 
-func UpdatePoolBlockInfo(startBlock, cycleBlock, nowTime int64) {
+func UpdatePoolBlockInfo(startBlock, endBlock, cycleBlock, nowTime int64,
+	calPoolRewardInfo map[string]string, calPoolRewardTotalValue int64, calPoolExtraRewardInfo map[string]string, calPoolExtraRewardTotalValue int64) {
 	var (
 		entity   *model.PoolBlockInfoModel
 		bigBlock int64 = GetCurrentBigBlock(startBlock)
 	)
 	entity = &model.PoolBlockInfoModel{
-		BigBlockId: fmt.Sprintf("%d_%d", bigBlock, cycleBlock),
-		BigBlock:   bigBlock,
-		StartBlock: startBlock,
-		CycleBlock: cycleBlock,
-		Timestamp:  nowTime,
+		BigBlockId:                   fmt.Sprintf("%d_%d", bigBlock, cycleBlock),
+		BigBlock:                     bigBlock,
+		StartBlock:                   startBlock,
+		EndBlock:                     endBlock,
+		CycleBlock:                   cycleBlock,
+		Timestamp:                    nowTime,
+		CalPoolRewardInfo:            calPoolRewardInfo,
+		CalPoolRewardTotalValue:      calPoolRewardTotalValue,
+		CalPoolExtraRewardInfo:       calPoolExtraRewardInfo,
+		CalPoolExtraRewardTotalValue: calPoolExtraRewardTotalValue,
 	}
 	mongo_service.SetPoolBlockInfoModel(entity)
 }
@@ -604,15 +603,30 @@ func calculateDecrementFoNoReleasePool(poolOrder *model.PoolBrc20Model) int64 {
 	var (
 		proportion int64 = 0
 	)
-	if poolOrder == nil {
+	if poolOrder == nil || poolOrder.DealCoinTxBlock == 0 {
 		return 0
 	}
+
+	//Use time to calculate the decreasing proportion
 	endTime := poolOrder.ClaimTime
 	if endTime == 0 {
 		endTime = tool.MakeTimestamp()
 	}
 	disTime := endTime - poolOrder.DealTime
 	days := disTime / (config.PlatformRewardDecreasingCycleTime)
+
+	//Use block to calculate the decreasing proportion
+	startCalBlock := poolOrder.DealCoinTxBlock
+	currentBlockHeight := poolOrder.ClaimTxBlock
+	if currentBlockHeight == 0 {
+		blockHeight, _ := node.CurrentBlockHeight(poolOrder.Net)
+		currentBlockHeight = int64(blockHeight)
+		if currentBlockHeight >= startCalBlock {
+			disTime = currentBlockHeight - startCalBlock
+			days = disTime / (config.PlatformRewardDecreasingCycleBlock)
+		}
+	}
+
 	fmt.Printf("Days[%d]\n", days)
 	for i := int64(1); i <= days; i++ {
 		if i <= config.PlatformRewardDiminishingDays {
@@ -632,10 +646,4 @@ func calculateDecrementFoNoReleasePool(poolOrder *model.PoolBrc20Model) int64 {
 	}
 
 	return proportion
-}
-
-// calculate the proportion of the total amount of the pool in release order
-// pool order in state-used
-func calEstimatedProportion() {
-
 }

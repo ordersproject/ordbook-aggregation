@@ -18,6 +18,8 @@ type WhiteUseState int
 const (
 	WhiteUseStateNo  WhiteUseState = 0
 	WhiteUseStateYes WhiteUseState = 1
+
+	WhiteUseStatePool WhiteUseState = 100 //
 )
 
 type WhitelistModel struct {

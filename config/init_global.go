@@ -61,6 +61,10 @@ var (
 	PlatformMainnetAddressRewardBrc20FeeUtxos                   string = "" // address for reward brc20 transfer fee utxos
 	PlatformMainnetPrivateKeyRepurchaseReceiveBrc20             string = ""
 	PlatformMainnetAddressRepurchaseReceiveBrc20                string = "" // address for repurchase receive brc20
+	PlatformMainnetPrivateKeyDummy                              string = ""
+	PlatformMainnetAddressDummy                                 string = "" // address for dummy
+	PlatformMainnetPrivateKeyLp                                 string = ""
+	PlatformMainnetAddressLp                                    string = "" // address for lp
 
 	PlatformTestnetPrivateKeySendBrc20                                 = ""
 	PlatformTestnetAddressSendBrc20                                    = "" //address for send brc20
@@ -97,6 +101,10 @@ var (
 	PlatformTestnetAddressRewardBrc20FeeUtxos                   string = "" // address for reward brc20 transfer fee utxos
 	PlatformTestnetPrivateKeyRepurchaseReceiveBrc20             string = ""
 	PlatformTestnetAddressRepurchaseReceiveBrc20                string = "" // address for repurchase receive brc20
+	PlatformTestnetPrivateKeyDummy                              string = ""
+	PlatformTestnetAddressDummy                                 string = "" // address for dummy
+	PlatformTestnetPrivateKeyLp                                 string = ""
+	PlatformTestnetAddressLp                                    string = "" // address for lp
 
 	TestnetFakePriKey         string = ""
 	TestnetFakeTaprootAddress string = ""
@@ -110,10 +118,12 @@ var (
 	PlatformRewardDiminishing2            int64  = 0
 	PlatformRewardDiminishing3            int64  = 0
 	PlatformRewardExtraDurationRewardRate int64  = 0
+	PlatformRewardCalStartTime            int64  = 0
 	PlatformRewardCalStartBlock           int64  = 0
 	PlatformRewardCalCycleBlock           int64  = 0
 	PlatformRewardTick                    string = ""
 	PlatformRewardDecreasingCycleTime     int64  = 0
+	PlatformRewardDecreasingCycleBlock    int64  = 0
 
 	NotificationTitlePoolUsed    string = ""
 	NotificationTitleBidInvalid  string = ""
@@ -122,6 +132,19 @@ var (
 	NotificationDescPoolUsed    string = ""
 	NotificationDescBidInvalid  string = ""
 	NotificationDescOrderFinish string = ""
+)
+
+// Event
+var (
+	EventOneStartTime                          int64    = 0
+	EventOneStartBlock                         int64    = 0
+	EventOneEndTime                            int64    = 0
+	EventOneEndBlock                           int64    = 0
+	EventOneExtraRewardLpUnusedRate            int64    = 0
+	EventOneExtraRewardLpUnusedDuration        int64    = 0
+	EventOneExtraRewardLpUsedRate              int64    = 0
+	EventOneExtraRewardBidRate                 int64    = 0
+	EventOneExtraRewardExcludedOfficialAddress []string = []string{}
 )
 
 func InitConfig() {
@@ -149,7 +172,9 @@ func InitConfig() {
 		PlatformTestnetPrivateKeyInscriptionMultiSigForReceiveValue, PlatformTestnetAddressInscriptionMultiSigForReceiveValue,
 		PlatformTestnetPrivateKeyRewardBrc20, PlatformTestnetAddressRewardBrc20,
 		PlatformTestnetPrivateKeyRewardBrc20FeeUtxos, PlatformTestnetAddressRewardBrc20FeeUtxos,
-		PlatformTestnetPrivateKeyRepurchaseReceiveBrc20, PlatformTestnetAddressRepurchaseReceiveBrc20 =
+		PlatformTestnetPrivateKeyRepurchaseReceiveBrc20, PlatformTestnetAddressRepurchaseReceiveBrc20,
+		PlatformTestnetPrivateKeyDummy, PlatformTestnetAddressDummy,
+		PlatformTestnetPrivateKeyLp, PlatformTestnetAddressLp =
 		viper.GetString("platform.testnet.private_key_send_brc20"), viper.GetString("platform.testnet.address_send_brc20"),
 		viper.GetString("platform.testnet.private_key_send_brc20_for_ask"), viper.GetString("platform.testnet.address_send_brc20_for_ask"),
 		viper.GetString("platform.testnet.private_key_receive_value_for_ask"), viper.GetString("platform.testnet.address_receive_value_for_ask"),
@@ -166,7 +191,9 @@ func InitConfig() {
 		viper.GetString("platform.testnet.private_key_inscription_multi_sig_for_receive_value"), viper.GetString("platform.testnet.address_inscription_multi_sig_for_receive_value"),
 		viper.GetString("platform.testnet.private_key_reward_brc20"), viper.GetString("platform.testnet.address_reward_brc20"),
 		viper.GetString("platform.testnet.private_key_reward_brc20_fee_utxos"), viper.GetString("platform.testnet.address_reward_brc20_fee_utxos"),
-		viper.GetString("platform.testnet.private_key_repurchase_receive_brc20"), viper.GetString("platform.testnet.address_repurchase_receive_brc20")
+		viper.GetString("platform.testnet.private_key_repurchase_receive_brc20"), viper.GetString("platform.testnet.address_repurchase_receive_brc20"),
+		viper.GetString("platform.testnet.private_key_dummy"), viper.GetString("platform.testnet.address_dummy"),
+		viper.GetString("platform.testnet.private_key_lp"), viper.GetString("platform.testnet.address_lp")
 	PlatformMainnetPrivateKeySendBrc20, PlatformMainnetAddressSendBrc20,
 		PlatformMainnetPrivateKeySendBrc20ForAsk, PlatformMainnetAddressSendBrc20ForAsk,
 		PlatformMainnetPrivateKeyReceiveValueForAsk, PlatformMainnetAddressReceiveValueForAsk,
@@ -183,7 +210,9 @@ func InitConfig() {
 		PlatformMainnetPrivateKeyInscriptionMultiSigForReceiveValue, PlatformMainnetAddressInscriptionMultiSigForReceiveValue,
 		PlatformMainnetPrivateKeyRewardBrc20, PlatformMainnetAddressRewardBrc20,
 		PlatformMainnetPrivateKeyRewardBrc20FeeUtxos, PlatformMainnetAddressRewardBrc20FeeUtxos,
-		PlatformMainnetPrivateKeyRepurchaseReceiveBrc20, PlatformMainnetAddressRepurchaseReceiveBrc20 =
+		PlatformMainnetPrivateKeyRepurchaseReceiveBrc20, PlatformMainnetAddressRepurchaseReceiveBrc20,
+		PlatformMainnetPrivateKeyDummy, PlatformMainnetAddressDummy,
+		PlatformMainnetPrivateKeyLp, PlatformMainnetAddressLp =
 		viper.GetString("platform.mainnet.private_key_Send_brc20"), viper.GetString("platform.mainnet.address_Send_brc20"),
 		viper.GetString("platform.mainnet.private_key_send_brc20_for_ask"), viper.GetString("platform.mainnet.address_Send_brc20_for_ask"),
 		viper.GetString("platform.mainnet.private_key_receive_value_for_ask"), viper.GetString("platform.mainnet.address_receive_value_for_ask"),
@@ -200,7 +229,9 @@ func InitConfig() {
 		viper.GetString("platform.mainnet.private_key_inscription_multi_sig_for_receive_value"), viper.GetString("platform.mainnet.address_inscription_multi_sig_for_receive_value"),
 		viper.GetString("platform.mainnet.private_key_reward_brc20"), viper.GetString("platform.mainnet.address_reward_brc20"),
 		viper.GetString("platform.mainnet.private_key_reward_brc20_fee_utxos"), viper.GetString("platform.mainnet.address_reward_brc20_fee_utxos"),
-		viper.GetString("platform.mainnet.private_key_repurchase_receive_brc20"), viper.GetString("platform.mainnet.address_repurchase_receive_brc20")
+		viper.GetString("platform.mainnet.private_key_repurchase_receive_brc20"), viper.GetString("platform.mainnet.address_repurchase_receive_brc20"),
+		viper.GetString("platform.mainnet.private_key_dummy"), viper.GetString("platform.mainnet.address_dummy"),
+		viper.GetString("platform.mainnet.private_key_lp"), viper.GetString("platform.mainnet.address_lp")
 	PlatformMainnetFeeRate, PlatformTestnetFeeRate = viper.GetInt64("platform.mainnet.fee_rate"), viper.GetInt64("platform.testnet.fee_rate")
 	MempoolSpace = viper.GetString("mempool_space.domain")
 	WsPort = viper.GetString("ws.port")
@@ -222,11 +253,16 @@ func InitConfig() {
 	PlatformRewardDiminishing2 = viper.GetInt64("platform_service_reward.diminishing_2")
 	PlatformRewardDiminishing3 = viper.GetInt64("platform_service_reward.diminishing_3")
 	PlatformRewardExtraDurationRewardRate = viper.GetInt64("platform_service_reward.extra_reward_duration_rate")
+	PlatformRewardCalStartTime = viper.GetInt64("platform_service_reward.cal_start_time")
 	PlatformRewardCalStartBlock = viper.GetInt64("platform_service_reward.cal_start_block")
 	PlatformRewardCalCycleBlock = viper.GetInt64("platform_service_reward.cal_cycle_block")
 	PlatformRewardTick = viper.GetString("platform_service_reward.reward_tick")
 	PlatformRewardDecreasingCycleTime = viper.GetInt64("platform_service_reward.decreasing_cycle_time")
+	PlatformRewardDecreasingCycleBlock = viper.GetInt64("platform_service_reward.decreasing_cycle_block")
+	fmt.Printf("PlatformRewardCalStartTime-[%d]\n", PlatformRewardCalStartTime)
+	fmt.Printf("PlatformRewardCalStartBlock-[%d]\n", PlatformRewardCalStartBlock)
 	fmt.Printf("decreasing_cycle_time-[%d]\n", PlatformRewardDecreasingCycleTime)
+	fmt.Printf("decreasing_cycle_block-[%d]\n", PlatformRewardDecreasingCycleBlock)
 
 	NotificationTitlePoolUsed = viper.GetString("notification.title.pool_used")
 	NotificationTitleBidInvalid = viper.GetString("notification.title.bid_invalid")
@@ -234,4 +270,15 @@ func InitConfig() {
 	NotificationDescPoolUsed = viper.GetString("notification.description.pool_used")
 	NotificationDescBidInvalid = viper.GetString("notification.description.bid_invalid")
 	NotificationDescOrderFinish = viper.GetString("notification.description.order_finish")
+
+	//Event
+	EventOneStartTime = viper.GetInt64("event.one.start_time")
+	EventOneStartBlock = viper.GetInt64("event.one.start_block")
+	EventOneEndTime = viper.GetInt64("event.one.end_time")
+	EventOneEndBlock = viper.GetInt64("event.one.end_block")
+	EventOneExtraRewardLpUnusedRate = viper.GetInt64("event.one.extra_reward_lp_unused_rate")
+	EventOneExtraRewardLpUnusedDuration = viper.GetInt64("event.one.extra_reward_lp_unused_duration")
+	EventOneExtraRewardLpUsedRate = viper.GetInt64("event.one.extra_reward_lp_used_rate")
+	EventOneExtraRewardBidRate = viper.GetInt64("event.one.extra_reward_bid_rate")
+	EventOneExtraRewardExcludedOfficialAddress = viper.GetStringSlice("event.one.official_excluded_address")
 }

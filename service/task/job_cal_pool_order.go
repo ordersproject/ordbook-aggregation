@@ -28,9 +28,13 @@ func jobForCalPoolOrder() {
 			continue
 		}
 		startBlock, endBlock := getStartBlockAndEndBlockByBigBlock(i)
+		if startBlock == 0 || endBlock == 0 {
+			continue
+		}
 		//order_brc20_service.CalAllPoolOrder(net, startBlock, endBlock, nowTime)
-		order_brc20_service.CalAllPoolOrderV2(net, startBlock, endBlock, nowTime)
-		order_brc20_service.UpdatePoolBlockInfo(startBlock, (endBlock-startBlock)+1, nowTime)
+		calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue := order_brc20_service.CalAllPoolOrderV2(net, startBlock, endBlock, nowTime)
+		order_brc20_service.UpdatePoolBlockInfo(startBlock, endBlock, (endBlock-startBlock)+1, nowTime,
+			calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue)
 	}
 }
 

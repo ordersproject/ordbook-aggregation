@@ -5,8 +5,7 @@ import (
 	"ordbook-aggregation/major"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/mongo_service"
-	"ordbook-aggregation/service/oklink_service"
-	"strconv"
+	"ordbook-aggregation/service/order_brc20_service"
 )
 
 func jobForCheckClaimBlock() {
@@ -31,7 +30,7 @@ func jobForCheckClaimBlock() {
 				continue
 			}
 
-			block := getTxBlock(v.ClaimTx)
+			block := order_brc20_service.GetTxBlock(v.ClaimTx)
 			if block == 0 {
 				continue
 			}
@@ -54,7 +53,7 @@ func jobForCheckPoolUsedDealTxBlock() {
 		limit         int64 = 1000
 	)
 
-	poolOrderList, _ = mongo_service.FindPoolBrc20ModelListByDealTime(net, "", "", "", model.PoolStateClaim,
+	poolOrderList, _ = mongo_service.FindPoolBrc20ModelListByDealTime(net, "", "", "", model.PoolStateUsed,
 		limit, 0, model.ClaimTxBlockStateUnconfirmed)
 
 	if poolOrderList != nil && len(poolOrderList) != 0 {
@@ -65,11 +64,11 @@ func jobForCheckPoolUsedDealTxBlock() {
 			if v.DealCoinTxBlockState != model.ClaimTxBlockStateUnconfirmed {
 				continue
 			}
-			if v.ClaimTx == "" {
+			if v.DealCoinTx == "" {
 				continue
 			}
 
-			block := getTxBlock(v.ClaimTx)
+			block := order_brc20_service.GetTxBlock(v.DealCoinTx)
 			if block == 0 {
 				continue
 			}
@@ -83,17 +82,4 @@ func jobForCheckPoolUsedDealTxBlock() {
 			major.Println(fmt.Sprintf("[JOP-DEAL-BLOCK] SetPoolBrc20ModelForDealBlock success [%s]", v.OrderId))
 		}
 	}
-}
-
-func getTxBlock(claimTx string) int64 {
-	var (
-		blockHeight int64 = 0
-	)
-
-	tx, err := oklink_service.GetTxDetail(claimTx)
-	if err != nil {
-		return 0
-	}
-	blockHeight, _ = strconv.ParseInt(tx.Height, 10, 64)
-	return blockHeight
 }

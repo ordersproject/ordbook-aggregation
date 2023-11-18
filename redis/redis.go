@@ -14,6 +14,8 @@ const (
 	CacheGetUtxo_                           = "cache_get_utxo_"
 	UtxoTypeDummy_                          = "dummy_"
 	UtxoTypeDummy1200_                      = "dummy_1200_"
+	UtxoTypeDummyBidX_                      = "dummy_bid_x_"
+	UtxoTypeDummy1200BidX_                  = "dummy_1200_bid_x_"
 	UtxoTypeBidY_                           = "bid_y_"
 	UtxoTypeMultiSigInscription_            = "multi_sig_inscription_"
 	UtxoTypeMultiSigInscriptionFromRelease_ = "multi_sig_inscription_from_release"

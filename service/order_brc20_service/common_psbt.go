@@ -14,6 +14,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/hiro_service"
+	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/service/oklink_service"
 	"ordbook-aggregation/tool"
 	"strings"
@@ -596,10 +597,10 @@ func CheckBrc20Ordinals(preTxOut *wire.TxIn, tick, address string) (*oklink_serv
 		}
 	}
 	if !has {
-		return nil, errors.New("Not a valid inscription. ")
+		return nil, errors.New(fmt.Sprintf("Not a valid inscription. [%s]", inscriptionId))
 	}
 
-	brc20Resp, err := oklink_service.GetAddressBrc20BalanceResult(address, tick, 1, 50)
+	brc20Resp, err := oklink_service.GetAddressBrc20BalanceResult(address, tick, 1, 100)
 	if err != nil {
 		return nil, err
 	}
@@ -613,6 +614,14 @@ func CheckBrc20Ordinals(preTxOut *wire.TxIn, tick, address string) (*oklink_serv
 	if item.Amount == "" {
 		return nil, errors.New("Not a valid brc20. ")
 	}
+
+	//check order which is sold
+	soldOrderCount, _ := mongo_service.FindSoldInscriptionOrder(inscriptionId)
+	if soldOrderCount != 0 {
+		fmt.Printf("inscriptionId[%s] had been sold. \n", inscriptionId)
+		return nil, errors.New(fmt.Sprintf("inscriptionId[%s] had been sold. ", inscriptionId))
+	}
+
 	return item, err
 }
 
@@ -630,4 +639,8 @@ func GetBrc20Data(inscriptionId string) (*model.Brc20Protocol, error) {
 		return nil, errors.New(fmt.Sprintf("Parse Brc20 data err:%s", err))
 	}
 	return data, nil
+}
+
+func checkBrc20FromUnisat() {
+
 }

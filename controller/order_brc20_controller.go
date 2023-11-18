@@ -46,6 +46,7 @@ func PushOrder(c *gin.Context) {
 // @Param tick query string false "tick"
 // @Param sellerAddress query string false "sellerAddress"
 // @Param buyerAddress query string false "buyerAddress"
+// @Param address query string false "address"
 // @Param orderState query int false "orderState: 1-create,2-finish,3-cancel,5-timeout,6-err,100-all"
 // @Param orderType query int false "orderType: 1-sell,2-buy"
 // @Param limit query int false "limit: Max-50"
@@ -74,6 +75,7 @@ func FetchOrders(c *gin.Context) {
 			Page:          0,
 			SellerAddress: c.DefaultQuery("sellerAddress", ""),
 			BuyerAddress:  c.DefaultQuery("buyerAddress", ""),
+			Address:       c.DefaultQuery("address", ""),
 			SortKey:       c.DefaultQuery("sortKey", ""),
 			SortType:      0,
 		}
@@ -270,6 +272,7 @@ func UpdateOrder(c *gin.Context) {
 // @Tags brc20
 // @Param net query string false "net:mainnet/signet/testnet"
 // @Param tick query string false "tick"
+// @Param address query string false "address"
 // @Param limit query int false "limit: Max-50"
 // @Param flag query int false "flag"
 // @Param isPool query bool false "isPool"
@@ -282,8 +285,9 @@ func FetchPreBid(c *gin.Context) {
 		pageStr                                = c.DefaultQuery("page", "0")
 		isPoolStr                              = c.DefaultQuery("isPool", "false")
 		req       *request.OrderBrc20GetBidReq = &request.OrderBrc20GetBidReq{
-			Net:  c.DefaultQuery("net", ""),
-			Tick: c.DefaultQuery("tick", ""),
+			Net:     c.DefaultQuery("net", ""),
+			Tick:    c.DefaultQuery("tick", ""),
+			Address: c.DefaultQuery("address", ""),
 		}
 	)
 	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
@@ -337,6 +341,31 @@ func FetchBidPsbt(c *gin.Context) {
 	}
 	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
 	return
+}
+
+// @Summary Fetch bid v2
+// @Description Fetch bid v2
+// @Produce  json
+// @Tags brc20
+// @Param Request body request.OrderBrc20GetBidPlatformReq true "Request"
+// @Success 200 {object} respond.BidPsbt ""
+// @Router /brc20/order/bid-v2 [post]
+func FetchBidPsbtByPlatform(c *gin.Context) {
+	var (
+		t   int64 = tool.MakeTimestamp()
+		req *request.OrderBrc20GetBidPlatformReq
+	)
+	if c.ShouldBindJSON(&req) == nil {
+		responseModel, err := order_brc20_service.FetchBidPsbtByPlatform(req)
+		if err != nil {
+			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+			return
+		}
+		c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+		return
+	}
+	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
+
 }
 
 // @Summary Push bid order
