@@ -29,7 +29,7 @@ var (
 	saveUtxoLock       *sync.RWMutex = new(sync.RWMutex)
 )
 
-func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType model.UtxoType) ([]*model.OrderUtxoModel, error) {
+func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType model.UtxoType, fromOrderId string, networkFeeRate int64) ([]*model.OrderUtxoModel, error) {
 	var (
 		cacheType          string                  = cache_service.CacheLockUtxoTypeDummy
 		redisKeyPrefix     string                  = ""
@@ -48,6 +48,14 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 	case model.UtxoTypeDummy1200:
 		cacheType = cache_service.CacheLockUtxoTypeDummy1200
 		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeDummy1200_)
+		break
+	case model.UtxoTypeDummyAsk:
+		cacheType = cache_service.CacheLockUtxoTypeDummyAsk
+		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeDummyAsk_)
+		break
+	case model.UtxoTypeDummy1200Ask:
+		cacheType = cache_service.CacheLockUtxoTypeDummy1200Ask
+		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeDummy1200Ask_)
 		break
 	case model.UtxoTypeDummyBidX:
 		cacheType = cache_service.CacheLockUtxoTypeDummyBidX
@@ -77,7 +85,7 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 		limit = totalNeedAmount/perAmount + 1
 		break
 	case model.UtxoTypeMultiInscription:
-		perAmount = 5000
+		//perAmount = 5000
 		cacheType = cache_service.CacheLockUtxoTypeMultiSigInscription
 		redisKeyPrefix = fmt.Sprintf("%s%s", redis.CacheGetUtxo_, redis.UtxoTypeMultiSigInscription_)
 		break
@@ -119,11 +127,16 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 	confirmStatus := model.ConfirmStatus(-1)
 	if utxoType == model.UtxoTypeDummyBidX || utxoType == model.UtxoTypeDummy1200BidX ||
 		utxoType == model.UtxoTypeDummy || utxoType == model.UtxoTypeDummy1200 ||
+		utxoType == model.UtxoTypeDummyAsk || utxoType == model.UtxoTypeDummy1200Ask ||
+		utxoType == model.UtxoTypeRewardInscription || utxoType == model.UtxoTypeRewardSend ||
 		utxoType == model.UtxoTypeBidY || utxoType == model.UtxoTypeMultiInscription {
 		confirmStatus = model.Confirmed
 	}
+	if fromOrderId != "" && utxoType == model.UtxoTypeMultiInscription {
+		confirmStatus = model.ConfirmStatus(-1)
+	}
 
-	utxoList, _ = mongo_service.FindUtxoList(net, startIndex, maxLimit, perAmount, utxoType, confirmStatus)
+	utxoList, _ = mongo_service.FindUtxoList(net, startIndex, maxLimit, perAmount, utxoType, confirmStatus, fromOrderId, networkFeeRate)
 	if len(utxoList) == 0 {
 		return nil, errors.New("Unoccupied-Utxo: Empty utxo list. Please contact customer service and wait for the platform to add UTXO. ")
 	}
@@ -171,6 +184,12 @@ func ReleaseUtxoList(utxoList []*model.OrderUtxoModel) {
 		case model.UtxoTypeDummy1200:
 			cacheUtxoType = redis.UtxoTypeDummy1200_
 			break
+		case model.UtxoTypeDummyAsk:
+			cacheUtxoType = redis.UtxoTypeDummyAsk_
+			break
+		case model.UtxoTypeDummy1200Ask:
+			cacheUtxoType = redis.UtxoTypeDummy1200Ask_
+			break
 		case model.UtxoTypeDummyBidX:
 			cacheUtxoType = redis.UtxoTypeDummyBidX_
 			break
@@ -214,6 +233,12 @@ func cacheUtxoList(utxoList []*model.OrderUtxoModel) {
 			break
 		case model.UtxoTypeDummy1200:
 			cacheUtxoType = redis.UtxoTypeDummy1200_
+			break
+		case model.UtxoTypeDummyAsk:
+			cacheUtxoType = redis.UtxoTypeDummyAsk_
+			break
+		case model.UtxoTypeDummy1200Ask:
+			cacheUtxoType = redis.UtxoTypeDummy1200Ask_
 			break
 		case model.UtxoTypeDummyBidX:
 			cacheUtxoType = redis.UtxoTypeDummyBidX_

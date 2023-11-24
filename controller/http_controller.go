@@ -31,12 +31,14 @@ func Run() {
 		brc20.GET("/orders/user/:address", FetchUserOrders)
 		brc20.GET("/tickers", FetchTicker)
 		brc20.GET("/kline", FetchKline)
+		brc20.GET("/event/orders", FetchEventOrders)
 
 		brc20.GET("/order/bid/pre", FetchPreBid)
 		brc20.GET("/order/bid", FetchBidPsbt)
 		brc20.POST("/order/bid-v2", FetchBidPsbtByPlatform)
 		brc20.POST("/order/bid/push", auth.AuthSignMiddleware(), UpdateBidPsbt)
 		brc20.POST("/order/bid/do", DoBid)
+		brc20.GET("/order/bid/cal/fee", CalFeeAmount)
 		brc20.POST("/order/update", auth.AuthSignMiddleware(), UpdateOrder)
 
 		brc20.POST("/inscribe/pre", PreInscribe)
@@ -76,8 +78,14 @@ func Run() {
 		brc20.POST("/pool/reward/claim", ClaimReward)
 		brc20.GET("/pool/reward/orders", FetchPoolRewardOrders)
 
+		brc20.GET("/event/reward/info", FetchEventOwnerReward)
+		//brc20.POST("/pool/reward/claim", auth.AuthSignMiddleware(), ClaimReward)
+		brc20.GET("/event/reward/cal/fee", CalEventClaimFee)
+		brc20.POST("/event/reward/claim", ClaimEventReward)
+
 		brc20.GET("/common/notification/address", FetchAddressNotification)
 		brc20.GET("/common/notification/clear", ClearAllNotification)
+		brc20.GET("/common/rate/btc", FetchRate)
 
 	}
 

@@ -27,9 +27,9 @@ func BroadcastTx(net, hex string) (*BroadcastTxResp, error) {
 	)
 
 	fmt.Println(hex)
-	url = fmt.Sprintf("%s/wallet-api-v4/tx/broadcast", config.UnisatDomain)
+	url = fmt.Sprintf("%s/wallet-v4/tx/broadcast", config.UnisatDomain)
 	if strings.ToLower(net) == "testnet" {
-		url = fmt.Sprintf("%s/testnet/wallet-api-v4/tx/broadcast", config.UnisatDomain)
+		url = fmt.Sprintf("%s/testnet/wallet-v4/tx/broadcast", config.UnisatDomain)
 	}
 	fmt.Println(url)
 	result, err = tool.PostUrl(url, req, headers)

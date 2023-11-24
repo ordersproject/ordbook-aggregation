@@ -46,6 +46,10 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error) {
 		fromPriKeyHex, fromSegwitAddress = GetPlatformKeyAndAddressForDummy(req.Net)
 	} else if req.UtxoType == model.UtxoTypeDummy1200BidX {
 		fromPriKeyHex, fromSegwitAddress = GetPlatformKeyAndAddressForDummy(req.Net)
+	} else if req.UtxoType == model.UtxoTypeDummyAsk {
+		fromPriKeyHex, fromSegwitAddress = GetPlatformKeyAndAddressForDummyAsk(req.Net)
+	} else if req.UtxoType == model.UtxoTypeDummy1200Ask {
+		fromPriKeyHex, fromSegwitAddress = GetPlatformKeyAndAddressForDummyAsk(req.Net)
 	} else {
 		fromPriKeyHex, fromSegwitAddress, err = create_key.CreateSegwitKey(netParams)
 		if err != nil {
@@ -186,6 +190,42 @@ func ColdDownUtxo(req *request.ColdDownUtxo) (string, error) {
 	//txId = txResp
 
 	return txId, nil
+}
+
+func SaveNewDummyFromAsk(net string, out Output, priKeyHex string, index int64, txId string, utxoType model.UtxoType) error {
+	startIndex := GetSaveStartIndex(net, utxoType, 0)
+	netParams := GetNetParams(net)
+	addr, err := btcutil.DecodeAddress(out.Address, netParams)
+	if err != nil {
+		return err
+	}
+	pkScriptByte, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return err
+	}
+	pkScript := hex.EncodeToString(pkScriptByte)
+
+	newDummy := &model.OrderUtxoModel{
+		UtxoId:        fmt.Sprintf("%s_%d", txId, index),
+		Net:           net,
+		UtxoType:      utxoType,
+		Amount:        out.Amount,
+		Address:       out.Address,
+		PrivateKeyHex: priKeyHex,
+		TxId:          txId,
+		Index:         index,
+		PkScript:      pkScript,
+		UsedState:     model.UsedNo,
+		SortIndex:     startIndex + 1,
+		Timestamp:     tool.MakeTimestamp(),
+	}
+
+	_, err = mongo_service.SetOrderUtxoModel(newDummy)
+	if err != nil {
+		major.Println(fmt.Sprintf("SetOrderUtxoModel from bid err:%s", err.Error()))
+		return nil
+	}
+	return nil
 }
 
 func SaveNewDummyFromBid(net string, out Output, priKeyHex string, index int64, txId string) error {
@@ -336,7 +376,7 @@ func SaveNewDummy1200FromBidX(net string, out Output, priKeyHex string, index in
 	return nil
 }
 
-func SaveNewUtxoFromBid(net string, out Output, priKeyHex string, index int64, txId string, utxoType model.UtxoType) error {
+func SaveNewUtxoFromBid(net string, out Output, priKeyHex string, index int64, txId string, utxoType model.UtxoType, fromOrderId string, networkFeeRate int64) error {
 	if out.Script == "" && out.Address == "" {
 		return nil
 	}
@@ -358,18 +398,20 @@ func SaveNewUtxoFromBid(net string, out Output, priKeyHex string, index int64, t
 	}
 
 	newDummy := &model.OrderUtxoModel{
-		UtxoId:        fmt.Sprintf("%s_%d", txId, index),
-		Net:           net,
-		UtxoType:      utxoType,
-		Amount:        out.Amount,
-		Address:       out.Address,
-		PrivateKeyHex: priKeyHex,
-		TxId:          txId,
-		Index:         index,
-		PkScript:      pkScript,
-		UsedState:     model.UsedNo,
-		SortIndex:     startIndex + 1,
-		Timestamp:     tool.MakeTimestamp(),
+		UtxoId:         fmt.Sprintf("%s_%d", txId, index),
+		Net:            net,
+		UtxoType:       utxoType,
+		Amount:         out.Amount,
+		Address:        out.Address,
+		PrivateKeyHex:  priKeyHex,
+		TxId:           txId,
+		Index:          index,
+		PkScript:       pkScript,
+		UsedState:      model.UsedNo,
+		SortIndex:      startIndex + 1,
+		Timestamp:      tool.MakeTimestamp(),
+		FromOrderId:    fromOrderId,
+		NetworkFeeRate: networkFeeRate,
 	}
 	_, err := mongo_service.SetOrderUtxoModel(newDummy)
 	if err != nil {
@@ -552,7 +594,7 @@ func ColdDownBrc20TransferBatch(req *request.ColdDownBrcTransferBatch) (*respond
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
 		inscription_service.InscribeMultiDataFromUtxo(netParams, req.PriKeyHex, platformAddressSendBrc20,
-			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, "", req.IsOnlyCal, 0)
+			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, false, "", req.IsOnlyCal, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -601,7 +643,7 @@ func ColdDownBatchBrc20TransferAndMakeAsk(req *request.ColdDownBrcTransferBatch)
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
 		inscription_service.InscribeMultiDataFromUtxo(netParams, req.PriKeyHex, platformAddressSendBrc20ForAsk,
-			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, req.OutAddressType, req.IsOnlyCal, 0)
+			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, false, req.OutAddressType, req.IsOnlyCal, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -742,7 +784,7 @@ func ColdDownBatchBrc20TransferAndMakePool(req *request.ColdDownBrcTransferBatch
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
 		inscription_service.InscribeMultiDataFromUtxo(netParams, req.PriKeyHex, platformAddressRewardBrc20,
-			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, req.OutAddressType, req.IsOnlyCal, 0)
+			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, false, req.OutAddressType, req.IsOnlyCal, 0)
 	if err != nil {
 		return nil, err
 	}

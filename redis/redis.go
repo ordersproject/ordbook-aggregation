@@ -14,6 +14,8 @@ const (
 	CacheGetUtxo_                           = "cache_get_utxo_"
 	UtxoTypeDummy_                          = "dummy_"
 	UtxoTypeDummy1200_                      = "dummy_1200_"
+	UtxoTypeDummyAsk_                       = "dummy_ask_"
+	UtxoTypeDummy1200Ask_                   = "dummy_1200_ask_"
 	UtxoTypeDummyBidX_                      = "dummy_bid_x_"
 	UtxoTypeDummy1200BidX_                  = "dummy_1200_bid_x_"
 	UtxoTypeBidY_                           = "bid_y_"

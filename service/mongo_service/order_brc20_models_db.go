@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/godaddy-x/jorm/util"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"ordbook-aggregation/model"
 	"strings"
@@ -49,6 +50,9 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 	CreateIndex(collection, "poolOrderId")
 	CreateIndex(collection, "inscriptionId")
 	CreateIndex(collection, "sellInscriptionId")
+	CreateIndex(collection, "version")
+	CreateIndex(collection, "dealTxBlock")
+	CreateIndex(collection, "dealTxBlockState")
 
 	entity := &model.OrderBrc20Model{
 		Id:                  util.GetUUIDInt64(),
@@ -88,6 +92,16 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 		Integral:            orderBrc20.Integral,
 		FreeState:           orderBrc20.FreeState,
 		DealTime:            orderBrc20.DealTime,
+		DealTxBlockState:    orderBrc20.DealTxBlockState,
+		DealTxBlock:         orderBrc20.DealTxBlock,
+		Percentage:          orderBrc20.Percentage,
+		CalValue:            orderBrc20.CalValue,
+		CalTotalValue:       orderBrc20.CalTotalValue,
+		CalStartBlock:       orderBrc20.CalStartBlock,
+		CalEndBlock:         orderBrc20.CalEndBlock,
+		RewardAmount:        orderBrc20.RewardAmount,
+		RewardRealAmount:    orderBrc20.RewardRealAmount,
+		Version:             orderBrc20.Version,
 		Timestamp:           orderBrc20.Timestamp,
 		PlatformDummy:       orderBrc20.PlatformDummy,
 		CreateTime:          util.Time(),
@@ -153,6 +167,18 @@ func SetOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20Mod
 		bsonData = append(bsonData, bson.E{Key: "freeState", Value: orderBrc20.FreeState})
 		bsonData = append(bsonData, bson.E{Key: "dealTime", Value: orderBrc20.DealTime})
 		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: orderBrc20.Timestamp})
+
+		bsonData = append(bsonData, bson.E{Key: "dealTxBlockState", Value: orderBrc20.DealTxBlockState})
+		bsonData = append(bsonData, bson.E{Key: "dealTxBlock", Value: orderBrc20.DealTxBlock})
+		bsonData = append(bsonData, bson.E{Key: "percentage", Value: orderBrc20.Percentage})
+		bsonData = append(bsonData, bson.E{Key: "calValue", Value: orderBrc20.CalValue})
+		bsonData = append(bsonData, bson.E{Key: "calTotalValue", Value: orderBrc20.CalTotalValue})
+		bsonData = append(bsonData, bson.E{Key: "calStartBlock", Value: orderBrc20.CalStartBlock})
+		bsonData = append(bsonData, bson.E{Key: "calEndBlock", Value: orderBrc20.CalEndBlock})
+		bsonData = append(bsonData, bson.E{Key: "rewardAmount", Value: orderBrc20.RewardAmount})
+		bsonData = append(bsonData, bson.E{Key: "rewardRealAmount", Value: orderBrc20.RewardRealAmount})
+		bsonData = append(bsonData, bson.E{Key: "version", Value: orderBrc20.Version})
+
 		bsonData = append(bsonData, bson.E{Key: "platformDummy", Value: orderBrc20.PlatformDummy})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",
@@ -1530,4 +1556,459 @@ func FindSoldInscriptionOrder(inscriptionId string) (int64, error) {
 		return 0, err
 	}
 	return total, nil
+}
+
+func FindDealOrderBrc20ModelListByDealStartAndDealEndBlock(net, tick string,
+	orderType model.OrderType, orderState model.OrderState,
+	limit, page int64, startBlock, endBlock int64, version int) ([]*model.OrderBrc20Model, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"state": model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+	if orderType != 0 {
+		find["orderType"] = orderType
+	}
+	if version != 0 {
+		find["version"] = version
+	}
+	if orderState != 0 {
+		if orderState == model.OrderStateAll {
+			find["orderState"] = bson.M{IN_: []model.OrderState{
+				model.OrderStateCreate,
+				model.OrderStateFinish,
+				model.OrderStateCancel,
+				model.OrderStateErr,
+			}}
+		} else {
+			find["orderState"] = orderState
+		}
+	}
+
+	if startBlock != 0 && endBlock != 0 {
+		between := bson.M{
+			GTE_: startBlock,
+			LTE_: endBlock,
+		}
+		find["dealTxBlock"] = between
+	}
+
+	skip := int64(0)
+	if page != 0 {
+		skip = (page - 1) * limit
+	}
+
+	models := make([]*model.OrderBrc20Model, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(skip)
+	sort := options.Find().SetSort(bson.M{"dealTxBlock": 1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.OrderBrc20Model{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get OrderBrc20Model Error")
+	}
+	return models, nil
+}
+
+func SetOrderBrc20ModelForCalReward(orderBrc20 *model.OrderBrc20Model) error {
+	entity, err := FindOrderBrc20ModelByOrderId(orderBrc20.OrderId)
+	if err == nil && entity != nil {
+		collection, err := model.OrderBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", orderBrc20.OrderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "calValue", Value: orderBrc20.CalValue})
+		bsonData = append(bsonData, bson.E{Key: "calTotalValue", Value: orderBrc20.CalTotalValue})
+		bsonData = append(bsonData, bson.E{Key: "calStartBlock", Value: orderBrc20.CalStartBlock})
+		bsonData = append(bsonData, bson.E{Key: "calEndBlock", Value: orderBrc20.CalEndBlock})
+		bsonData = append(bsonData, bson.E{Key: "percentage", Value: orderBrc20.Percentage})
+		bsonData = append(bsonData, bson.E{Key: "rewardAmount", Value: orderBrc20.RewardAmount})
+		bsonData = append(bsonData, bson.E{Key: "rewardRealAmount", Value: orderBrc20.RewardRealAmount})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func FindOrderBrc20ModelListByDealTime(net, tick string,
+	orderType model.OrderType, orderState model.OrderState,
+	limit, page int64, dealTxBlockState model.ClaimTxBlockState, version int) ([]*model.OrderBrc20Model, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"state": model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+	if dealTxBlockState != 0 {
+		find["dealTxBlockState"] = dealTxBlockState
+	}
+	if orderType != 0 {
+		find["orderType"] = orderType
+	}
+	if version != 0 {
+		find["version"] = version
+	}
+	if orderState != 0 {
+		if orderState == model.OrderStateAll {
+			find["orderState"] = bson.M{IN_: []model.OrderState{
+				model.OrderStateCreate,
+				model.OrderStateFinish,
+				model.OrderStateCancel,
+				model.OrderStateErr,
+			}}
+		} else {
+			find["orderState"] = orderState
+		}
+	}
+
+	skip := int64(0)
+	if page != 0 {
+		skip = (page - 1) * limit
+	}
+
+	models := make([]*model.OrderBrc20Model, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(skip)
+	sort := options.Find().SetSort(bson.M{"dealTime": 1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.OrderBrc20Model{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get OrderBrc20Model Error")
+	}
+	return models, nil
+}
+
+func CountEventOrderBrc20ModelList(net, tick, address string,
+	orderType model.OrderType, orderState model.OrderState,
+	version int, eventTime int64) (int64, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return 0, err
+	}
+	find := bson.M{
+		"state": model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+	if orderType != 0 {
+		find["orderType"] = orderType
+	}
+	if orderState != 0 {
+		find["orderState"] = orderState
+	}
+	if version != 0 {
+		find["version"] = version
+	}
+	if address != "" {
+		find["$or"] = []bson.M{
+			{"sellerAddress": address},
+			{"buyerAddress": address},
+		}
+	}
+	if eventTime != 0 {
+		find["dealTime"] = bson.M{
+			GTE_: eventTime,
+		}
+	}
+
+	total, err := collection.CountDocuments(context.TODO(), find)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func FindEventOrderBrc20ModelList(net, tick, address string,
+	orderType model.OrderType, orderState model.OrderState,
+	limit, page int64, version int, eventTime int64) ([]*model.OrderBrc20Model, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"state": model.STATE_EXIST,
+	}
+	if net != "" {
+		find["net"] = net
+	}
+	if tick != "" {
+		find["tick"] = tick
+	}
+	if orderType != 0 {
+		find["orderType"] = orderType
+	}
+	if version != 0 {
+		find["version"] = version
+	}
+	if orderState != 0 {
+		if orderState == model.OrderStateAll {
+			find["orderState"] = bson.M{IN_: []model.OrderState{
+				model.OrderStateCreate,
+				model.OrderStateFinish,
+				model.OrderStateCancel,
+				model.OrderStateErr,
+			}}
+		} else {
+			find["orderState"] = orderState
+		}
+	}
+	if address != "" {
+		find["$or"] = []bson.M{
+			{"sellerAddress": address},
+			{"buyerAddress": address},
+		}
+	}
+	if eventTime != 0 {
+		find["dealTime"] = bson.M{
+			GTE_: eventTime,
+		}
+	}
+
+	skip := int64(0)
+	if page != 0 {
+		skip = (page - 1) * limit
+	}
+
+	models := make([]*model.OrderBrc20Model, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(skip)
+	sort := options.Find().SetSort(bson.M{"dealTime": 1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.OrderBrc20Model{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get OrderBrc20Model Error")
+	}
+	return models, nil
+}
+
+func SetOrderBrc20ModelForDealBlock(orderBrc20 *model.OrderBrc20Model) error {
+	entity, err := FindOrderBrc20ModelByOrderId(orderBrc20.OrderId)
+	if err == nil && entity != nil {
+		collection, err := model.OrderBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", orderBrc20.OrderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "dealTxBlock", Value: orderBrc20.DealTxBlock})
+		bsonData = append(bsonData, bson.E{Key: "dealTxBlockState", Value: orderBrc20.DealTxBlockState})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func CountOwnEventOrderBrc20RewardBySeller(net, tick, sellerAddress string, eventTime int64) (*model.EventRewardCount, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	countInfo := &model.EventRewardCount{
+		Id:                sellerAddress,
+		AmountTotal:       0,
+		RewardAmountTotal: 0,
+	}
+	countInfoList := make([]model.EventRewardCount, 0)
+
+	match := bson.M{
+		"net":              net,
+		"dealTxBlockState": model.ClaimTxBlockStateConfirmed,
+		"orderType":        model.OrderTypeBuy,
+		"orderState":       model.OrderStateFinish,
+		"version":          2,
+		//"dealCoinTxBlock":   bson.M{GTE_: config.PlatformRewardCalStartBlock},
+	}
+	if tick != "" {
+		match["tick"] = tick
+	}
+	if sellerAddress != "" {
+		match["sellerAddress"] = sellerAddress
+	}
+	if eventTime != 0 {
+		match["dealTime"] = bson.M{
+			GTE_: eventTime,
+		}
+	}
+
+	pipeline := mongo.Pipeline{
+		{
+			{"$match", match},
+		},
+		{
+			{"$group", bson.D{
+				{"_id", "$sellerAddress"},
+				{"amountTotal", bson.D{
+					{"$sum", "$amount"},
+				}},
+				{"orderCounts", bson.D{
+					{"$sum", 1},
+				}},
+				{"rewardAmountTotal", bson.D{
+					{"$sum", "$rewardRealAmount"},
+				}},
+			}},
+		},
+	}
+	if cursor, err := collection.Aggregate(context.Background(), pipeline); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			var entity model.EventRewardCount
+			if err = cursor.Decode(&entity); err == nil {
+				countInfoList = append(countInfoList, entity)
+			}
+		}
+		if countInfoList != nil && len(countInfoList) != 0 {
+			for _, v := range countInfoList {
+				if v.Id == sellerAddress {
+					countInfo = &v
+					break
+				}
+			}
+		}
+		return countInfo, nil
+	} else {
+		return nil, errors.New("db get EventRewardCount error")
+	}
+}
+
+func CountOwnEventOrderBrc20RewardByBuyer(net, tick, pair, buyerAddress string, eventTime int64) (*model.EventRewardCount, error) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	countInfo := &model.EventRewardCount{
+		Id:                buyerAddress,
+		AmountTotal:       0,
+		RewardAmountTotal: 0,
+	}
+	countInfoList := make([]model.EventRewardCount, 0)
+
+	match := bson.M{
+		"net":              net,
+		"dealTxBlockState": model.ClaimTxBlockStateConfirmed,
+		"orderType":        model.OrderTypeBuy,
+		"orderState":       model.OrderStateFinish,
+		"version":          2,
+		//"dealCoinTxBlock":   bson.M{GTE_: config.PlatformRewardCalStartBlock},
+	}
+	if tick != "" {
+		match["tick"] = tick
+	}
+	if pair != "" {
+		match["pair"] = pair
+	}
+	if buyerAddress != "" {
+		match["buyerAddress"] = buyerAddress
+	}
+	if eventTime != 0 {
+		match["dealTime"] = bson.M{
+			GTE_: eventTime,
+		}
+	}
+
+	pipeline := mongo.Pipeline{
+		{
+			{"$match", match},
+		},
+		{
+			{"$group", bson.D{
+				{"_id", "$buyerAddress"},
+				{"amountTotal", bson.D{
+					{"$sum", "$amount"},
+				}},
+				{"orderCounts", bson.D{
+					{"$sum", 1},
+				}},
+				{"rewardAmountTotal", bson.D{
+					{"$sum", "$rewardRealAmount"},
+				}},
+			}},
+		},
+	}
+	if cursor, err := collection.Aggregate(context.Background(), pipeline); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			var entity model.EventRewardCount
+			if err = cursor.Decode(&entity); err == nil {
+				countInfoList = append(countInfoList, entity)
+			}
+		}
+		if countInfoList != nil && len(countInfoList) != 0 {
+			for _, v := range countInfoList {
+				if v.Id == buyerAddress {
+					countInfo = &v
+					break
+				}
+			}
+		}
+		return countInfo, nil
+	} else {
+		return nil, errors.New("db get EventRewardCount error")
+	}
 }

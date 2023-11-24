@@ -11,6 +11,7 @@ type WhitelistType int
 const (
 	WhitelistTypeClaim   WhitelistType = 1
 	WhitelistTypeClaim1w WhitelistType = 2
+	WhitelistTypeRdexLp  WhitelistType = 10
 )
 
 type WhiteUseState int

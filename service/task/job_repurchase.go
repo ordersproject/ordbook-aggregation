@@ -188,7 +188,7 @@ func repurchaseAsk(askOrder *model.OrderBrc20Model, allFeesUtxoList []*model.Ord
 
 	brc20ReceiveValue = inValue
 
-	utxoDummyList, err = order_brc20_service.GetUnoccupiedUtxoList(askOrder.Net, 2, 0, model.UtxoTypeDummy)
+	utxoDummyList, err = order_brc20_service.GetUnoccupiedUtxoList(askOrder.Net, 2, 0, model.UtxoTypeDummy, "", 0)
 	defer order_brc20_service.ReleaseUtxoList(utxoDummyList)
 	if err != nil {
 		return nil, err

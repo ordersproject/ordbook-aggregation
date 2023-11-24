@@ -49,3 +49,13 @@ func TestGetInscriptions(t *testing.T) {
 		fmt.Printf("Item: %+v\n", *v)
 	}
 }
+
+func TestGetFeeDetail(t *testing.T) {
+	config.InitConfig()
+	res, err := GetFeeDetail()
+	if err != nil {
+		fmt.Printf("Err:%s\n", err.Error())
+		return
+	}
+	fmt.Printf("Res: %+v\n", res)
+}

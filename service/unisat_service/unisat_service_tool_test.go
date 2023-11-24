@@ -27,3 +27,13 @@ func TestGetAddressInscriptions(t *testing.T) {
 	}
 	fmt.Printf("Res:%+v\n", res)
 }
+
+func TestGetFeeDetail(t *testing.T) {
+	config.InitConfig()
+	res, err := GetFeeDetail()
+	if err != nil {
+		fmt.Printf("Err:%s\n", err.Error())
+		return
+	}
+	fmt.Printf("Res:%+v\n", res)
+}

@@ -61,7 +61,7 @@ func FetchOrders(c *gin.Context) {
 		t             int64                       = tool.MakeTimestamp()
 		orderStateStr                             = c.DefaultQuery("orderState", "0")
 		orderTypeStr                              = c.DefaultQuery("orderType", "0")
-		limitStr                                  = c.DefaultQuery("limit", "50")
+		limitStr                                  = c.DefaultQuery("limit", "1000")
 		pageStr                                   = c.DefaultQuery("page", "0")
 		flagStr                                   = c.DefaultQuery("flag", "0")
 		sortTypeStr                               = c.DefaultQuery("sortType", "0")
@@ -392,6 +392,35 @@ func UpdateBidPsbt(c *gin.Context) {
 	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
 }
 
+// @Summary Cal fee
+// @Description Cal fee
+// @Produce  json
+// @Tags brc20
+// @Param version query int false "version"
+// @Param networkFeeRate query int false "networkFeeRate"
+// @Success 200 {object} respond.CalFeeResp ""
+// @Router /brc20/order/bid/cal/fee [get]
+func CalFeeAmount(c *gin.Context) {
+	var (
+		t                 int64                        = tool.MakeTimestamp()
+		versionStr        string                       = c.DefaultQuery("version", "0")
+		networkFeeRateStr                              = c.DefaultQuery("networkFeeRate", "0")
+		req               *request.OrderBrc20CalFeeReq = &request.OrderBrc20CalFeeReq{
+			Version:        0,
+			NetworkFeeRate: 0,
+		}
+	)
+	req.Version, _ = strconv.ParseInt(versionStr, 10, 64)
+	req.NetworkFeeRate, _ = strconv.ParseInt(networkFeeRateStr, 10, 64)
+	responseModel, err := order_brc20_service.CalFeeAmount(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}
+
 // @Summary Do bid order
 // @Description Do bid order
 // @Produce  json
@@ -551,6 +580,40 @@ func GetBidDummyList(c *gin.Context) {
 	req.Skip, _ = strconv.ParseInt(skipStr, 10, 64)
 	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
 	resp, err := order_brc20_service.GetBidDummyList(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(resp, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary Fetch event orders
+// @Description Fetch event orders
+// @Produce  json
+// @Tags brc20
+// @Param net query string false "net:mainnet/signet/testnet"
+// @Param tick query string false "tick"
+// @Param address query string false "address"
+// @Param limit query int false "limit: Max-50"
+// @Param page query int false "page"
+// @Success 200 {object} respond.OrderEventResponse ""
+// @Router /brc20/event/orders [get]
+func FetchEventOrders(c *gin.Context) {
+	var (
+		t        int64                       = tool.MakeTimestamp()
+		pageStr  string                      = c.DefaultQuery("page", "1")
+		limitStr string                      = c.DefaultQuery("limit", "60")
+		req      *request.Brc20EventOrderReq = &request.Brc20EventOrderReq{
+			Net:     c.DefaultQuery("net", "livenet"),
+			Tick:    c.DefaultQuery("tick", "rdex"),
+			Limit:   0,
+			Address: c.DefaultQuery("address", ""),
+		}
+	)
+	req.Page, _ = strconv.ParseInt(pageStr, 10, 64)
+	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
+	resp, err := order_brc20_service.FetchEventOrders(req)
 	if err != nil {
 		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
 		return

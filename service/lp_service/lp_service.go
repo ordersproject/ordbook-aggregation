@@ -58,7 +58,7 @@ func AddOneLpStep1(req *request.LpAddOneStep1Request) (*respond.Brc20LpAddBatchS
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
 		inscription_service.InscribeMultiDataFromUtxo(netParams, req.PriKeyHex, platformAddressLp,
-			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, req.OutAddressType, req.IsOnlyCal, brc20InValue)
+			transferContent, req.FeeRate, req.ChangeAddress, req.Count, inscribeUtxoList, false, req.OutAddressType, req.IsOnlyCal, brc20InValue)
 	if err != nil {
 		return nil, err
 	}
@@ -216,10 +216,11 @@ func AddOneLpStep2Batch(req *request.LpAddOneStep2BatchRequest) (*respond.Brc20L
 	//if marketPrice == 0 {
 	//	return nil, errors.New("no marketPrice")
 	//}
-	marketPrice = 75
+	//marketPrice = 75
+	marketPrice = 280
 
 	switch req.Ratio {
-	case 12, 15, 18:
+	case 12, 15, 18, 50, 100:
 		break
 	default:
 		return nil, errors.New("ratio error")
@@ -299,6 +300,122 @@ func AddOneLpStep2Batch(req *request.LpAddOneStep2BatchRequest) (*respond.Brc20L
 		Fees: 0,
 		TxId: txId,
 		List: list,
+	}, nil
+}
+
+func CancelOneLpBatch(req *request.LpCancelOneBatchRequest) (*respond.Brc20LpCancelBatchResp, error) {
+	var (
+		netParams                               *chaincfg.Params = order_brc20_service.GetNetParams(req.Net)
+		platformPrivateKeyLp, platformAddressLp string           = order_brc20_service.GetPlatformKeyAndAddressForLp(req.Net)
+		txRaw                                   string
+		orderEntityList                         []*model.LpBrc20Model                 = make([]*model.LpBrc20Model, 0)
+		list                                    []*respond.Brc20LpCancelBatchItemResp = make([]*respond.Brc20LpCancelBatchItemResp, 0)
+		totalAmount                             int64                                 = 0
+		txId                                    string                                = ""
+
+		publicKeyLp string = tool.GetPublicKeyFromPrivateKey(platformPrivateKeyLp)
+	)
+
+	for _, lpOrderId := range req.LpOrderIdList {
+		orderEntity, _ := mongo_service.FindLpBrc20ModelByOrderId(lpOrderId)
+		if orderEntity == nil {
+			return nil, errors.New("no order")
+		}
+		orderEntityList = append(orderEntityList, orderEntity)
+	}
+
+	addrPlatformLp, err := btcutil.DecodeAddress(platformAddressLp, netParams)
+
+	if err != nil {
+		return nil, err
+	}
+	pkScriptAddrPlatformLp, err := txscript.PayToAddrScript(addrPlatformLp)
+	if err != nil {
+		return nil, err
+	}
+
+	inputs := make([]*order_brc20_service.TxInputUtxo, 0)
+	for _, orderEntity := range orderEntityList {
+		btcUtxoId := orderEntity.BtcUtxoId
+		btcUtxoIdStrs := strings.Split(btcUtxoId, "_")
+		if len(btcUtxoIdStrs) != 2 {
+			continue
+		}
+		btcUtxoTxId := btcUtxoIdStrs[0]
+		btcUtxoTxIndex, _ := strconv.ParseInt(btcUtxoIdStrs[1], 10, 64)
+
+		inputs = append(inputs, &order_brc20_service.TxInputUtxo{
+			TxId:     btcUtxoTxId,
+			TxIndex:  btcUtxoTxIndex,
+			PkScript: hex.EncodeToString(pkScriptAddrPlatformLp),
+			Amount:   uint64(orderEntity.BtcAmount),
+			PriHex:   platformPrivateKeyLp,
+		})
+		totalAmount = totalAmount + orderEntity.BtcAmount
+
+		list = append(list, &respond.Brc20LpCancelBatchItemResp{
+			LpOrderId: orderEntity.OrderId,
+			BtcUtxoId: orderEntity.BtcUtxoId,
+			BtcAmount: orderEntity.BtcAmount,
+		})
+	}
+
+	totalSize := int64(len(inputs))*order_brc20_service.SpendSize + 2*order_brc20_service.OutSize + order_brc20_service.OtherSize + 200
+	totalFee := totalSize * int64(req.FeeRate)
+	fmt.Printf("totalSize:%d, req.FeeRate:%d, totalFee:%d\n", totalSize, req.FeeRate, totalFee)
+	outputs := make([]*order_brc20_service.TxOutput, 0)
+	outputs = append(outputs, &order_brc20_service.TxOutput{
+		Address: req.Address,
+		Amount:  totalAmount - totalFee,
+	})
+
+	tx, err := order_brc20_service.BuildCommonTx(netParams, inputs, outputs, req.Address, req.FeeRate)
+	if err != nil {
+		fmt.Printf("[LP]BuildCommonTx err:%s\n", err.Error())
+		return nil, err
+	}
+	tx.SerializeSize()
+	txRaw, err = order_brc20_service.ToRaw(tx)
+	if err != nil {
+		fmt.Printf("[LP]ToRaw err:%s\n", err.Error())
+		return nil, err
+	}
+	if !req.IsCalOnly {
+		txResp, err := unisat_service.BroadcastTx(req.Net, txRaw)
+		if err != nil {
+			fmt.Printf("[LP][%s] [%s]-BroadcastTx err:%s\n", "cancel", req.Net, err.Error())
+			return nil, err
+		}
+		txId = txResp.Result
+
+		// remove lp
+		for _, orderEntity := range orderEntityList {
+			_, err := order_brc20_service.UpdatePoolOrder(&request.OrderPoolBrc20UpdateReq{
+				Net:       req.Net,
+				OrderId:   orderEntity.OrderId,
+				PoolState: model.PoolStateRemove,
+			}, publicKeyLp, "")
+			if err != nil {
+				fmt.Printf("[LP][cancel][%s] PushPoolOrder err:%s\n", orderEntity.OrderId, err.Error())
+				continue
+			}
+
+			orderEntity.PoolOrderState = 0
+			_, err = mongo_service.SetLpBrc20Model(orderEntity)
+			if err != nil {
+				fmt.Printf("[LP][cancel] [%s] SetLpBrc20Model err:%s\n", orderEntity.OrderId, err.Error())
+				continue
+			}
+		}
+	}
+
+	fee := int64(tx.SerializeSize()) * int64(req.FeeRate)
+
+	return &respond.Brc20LpCancelBatchResp{
+		Fees:        fee,
+		TxId:        txId,
+		TotalAmount: totalAmount,
+		List:        list,
 	}, nil
 }
 

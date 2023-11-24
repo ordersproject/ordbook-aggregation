@@ -47,25 +47,28 @@ func createOrderUtxoModel(orderUtxo *model.OrderUtxoModel) (*model.OrderUtxoMode
 	CreateIndex(collection, "sortIndex")
 	CreateIndex(collection, "timestamp")
 	CreateIndex(collection, "confirmStatus")
+	CreateIndex(collection, "fromOrderId")
 
 	entity := &model.OrderUtxoModel{
-		Id:            util.GetUUIDInt64(),
-		Net:           orderUtxo.Net,
-		UtxoId:        orderUtxo.UtxoId,
-		UtxoType:      orderUtxo.UtxoType,
-		Amount:        orderUtxo.Amount,
-		Address:       orderUtxo.Address,
-		PrivateKeyHex: orderUtxo.PrivateKeyHex,
-		TxId:          orderUtxo.TxId,
-		Index:         orderUtxo.Index,
-		PkScript:      orderUtxo.PkScript,
-		UsedState:     orderUtxo.UsedState,
-		UseTx:         orderUtxo.UseTx,
-		SortIndex:     orderUtxo.SortIndex,
-		Timestamp:     orderUtxo.Timestamp,
-		ConfirmStatus: orderUtxo.ConfirmStatus,
-		CreateTime:    util.Time(),
-		State:         model.STATE_EXIST,
+		Id:             util.GetUUIDInt64(),
+		Net:            orderUtxo.Net,
+		UtxoId:         orderUtxo.UtxoId,
+		UtxoType:       orderUtxo.UtxoType,
+		Amount:         orderUtxo.Amount,
+		Address:        orderUtxo.Address,
+		PrivateKeyHex:  orderUtxo.PrivateKeyHex,
+		TxId:           orderUtxo.TxId,
+		Index:          orderUtxo.Index,
+		PkScript:       orderUtxo.PkScript,
+		UsedState:      orderUtxo.UsedState,
+		UseTx:          orderUtxo.UseTx,
+		SortIndex:      orderUtxo.SortIndex,
+		Timestamp:      orderUtxo.Timestamp,
+		ConfirmStatus:  orderUtxo.ConfirmStatus,
+		FromOrderId:    orderUtxo.FromOrderId,
+		NetworkFeeRate: orderUtxo.NetworkFeeRate,
+		CreateTime:     util.Time(),
+		State:          model.STATE_EXIST,
 	}
 
 	_, err = collection.InsertOne(context.TODO(), entity)
@@ -104,6 +107,8 @@ func SetOrderUtxoModel(orderUtxo *model.OrderUtxoModel) (*model.OrderUtxoModel, 
 		bsonData = append(bsonData, bson.E{Key: "sortIndex", Value: orderUtxo.SortIndex})
 		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: orderUtxo.Timestamp})
 		bsonData = append(bsonData, bson.E{Key: "confirmStatus", Value: orderUtxo.ConfirmStatus})
+		bsonData = append(bsonData, bson.E{Key: "fromOrderId", Value: orderUtxo.FromOrderId})
+		bsonData = append(bsonData, bson.E{Key: "networkFeeRate", Value: orderUtxo.NetworkFeeRate})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",
 			bsonData,
@@ -218,7 +223,7 @@ func CountUtxoList(net string, perAmount int64, utxoType model.UtxoType) (int64,
 	return total, nil
 }
 
-func FindUtxoList(net string, startIndex, limit, perAmount int64, utxoType model.UtxoType, confirmStatus model.ConfirmStatus) ([]*model.OrderUtxoModel, error) {
+func FindUtxoList(net string, startIndex, limit, perAmount int64, utxoType model.UtxoType, confirmStatus model.ConfirmStatus, fromOrderId string, networkFeeRate int64) ([]*model.OrderUtxoModel, error) {
 	collection, err := model.OrderUtxoModel{}.GetReadDB()
 	if err != nil {
 		return nil, errors.New("db connect error")
@@ -241,6 +246,15 @@ func FindUtxoList(net string, startIndex, limit, perAmount int64, utxoType model
 	}
 	if confirmStatus != -1 {
 		find["confirmStatus"] = confirmStatus
+	}
+	if fromOrderId != "" {
+		find["fromOrderId"] = fromOrderId
+	}
+	if networkFeeRate != 0 {
+		find["networkFeeRate"] = bson.M{
+			GT_: networkFeeRate - 10,
+			LT_: networkFeeRate + 5,
+		}
 	}
 
 	models := make([]*model.OrderUtxoModel, 0)

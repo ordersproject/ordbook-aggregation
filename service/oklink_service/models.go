@@ -167,3 +167,14 @@ type TickMarketInfo struct {
 	High24h   string `json:"high24h"`
 	Low24h    string `json:"low24h"`
 }
+
+type FeeDetail struct {
+	ChainFullName       string `json:"chainFullName"`
+	ChainShortName      string `json:"chainShortName"`
+	Symbol              string `json:"symbol"`
+	BestTransactionFee  string `json:"bestTransactionFee"`
+	RecommendedGasPrice string `json:"recommendedGasPrice"`
+	RapidGasPrice       string `json:"rapidGasPrice"`
+	StandardGasPrice    string `json:"standardGasPrice"`
+	SlowGasPrice        string `json:"slowGasPrice"`
+}

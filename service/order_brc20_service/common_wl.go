@@ -149,3 +149,14 @@ func setWhitelist(address string, whitelistType model.WhitelistType, limit int64
 	}
 	return
 }
+
+func CheckLpWhiteList(address string) bool {
+	var (
+		entity *model.WhitelistModel
+	)
+	entity, _ = mongo_service.FindWhitelistModelByAddressAndType(address, model.WhitelistTypeRdexLp)
+	if entity == nil || entity.Id == 0 {
+		return false
+	}
+	return true
+}

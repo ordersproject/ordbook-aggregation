@@ -3,13 +3,14 @@ package request
 import "ordbook-aggregation/model"
 
 type OrderBrc20PushReq struct {
-	Net        string           `json:"net"` //livenet/signet/testnet
-	Tick       string           `json:"tick"`
-	OrderState model.OrderState `json:"orderState"` //1-create
-	OrderType  model.OrderType  `json:"orderType"`  //1-sell,2-buy
-	Address    string           `json:"address"`
-	PsbtRaw    string           `json:"psbtRaw"`
-	CoinAmount uint64           `json:"coinAmount"`
+	Net           string              `json:"net"` //livenet/signet/testnet
+	Tick          string              `json:"tick"`
+	OrderState    model.OrderState    `json:"orderState"` //1-create
+	OrderType     model.OrderType     `json:"orderType"`  //1-sell,2-buy
+	Address       string              `json:"address"`
+	PsbtRaw       string              `json:"psbtRaw"`
+	CoinAmount    uint64              `json:"coinAmount"`
+	PlatformDummy model.PlatformDummy `json:"platformDummy"` //0-no 1-yes
 }
 
 type OrderBrc20FetchReq struct {
@@ -28,10 +29,11 @@ type OrderBrc20FetchReq struct {
 }
 
 type OrderBrc20FetchOneReq struct {
-	Net          string `json:"net"` //livenet/signet/testnet
-	Tick         string `json:"tick"`
-	OrderId      string `json:"orderId"`
-	BuyerAddress string `json:"buyerAddress"`
+	Net               string `json:"net"` //livenet/signet/testnet
+	Tick              string `json:"tick"`
+	OrderId           string `json:"orderId"`
+	BuyerAddress      string `json:"buyerAddress"`
+	BuyerChangeAmount uint64 `json:"buyerChangeAmount"`
 }
 
 type TickBrc20FetchReq struct {
@@ -140,6 +142,15 @@ type OrderBrc20DoBidReq struct {
 	InscriptionId     string `json:"inscriptionId"`
 	InscriptionNumber string `json:"inscriptionNumber"`
 	NetworkFee        int64  `json:"networkFee"`
+
+	Version        int64 `json:"version"`
+	NetworkFeeRate int64 `json:"networkFeeRate"`
+}
+
+type OrderBrc20CalFeeReq struct {
+	Net            string `json:"net"`
+	Version        int64  `json:"version"`
+	NetworkFeeRate int64  `json:"networkFeeRate"`
 }
 
 type CheckBrc20InscriptionReq struct {
@@ -150,6 +161,14 @@ type CheckBrc20InscriptionReq struct {
 }
 
 type Brc20AddressReq struct {
+	Net     string `json:"net"` //livenet/signet/testnet
+	Tick    string `json:"tick"`
+	Address string `json:"address"`
+	Page    int64  `json:"page"`
+	Limit   int64  `json:"limit"`
+}
+
+type Brc20EventOrderReq struct {
 	Net     string `json:"net"` //livenet/signet/testnet
 	Tick    string `json:"tick"`
 	Address string `json:"address"`

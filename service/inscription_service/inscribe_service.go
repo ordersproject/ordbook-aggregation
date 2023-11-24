@@ -289,7 +289,7 @@ func InscribeOneDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddres
 	return commitTxHash.String(), revealTxHash, inscription, nil
 }
 
-func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddress, content string, feeRate int64, changeAddress string, count int64, utxoList []*InscribeUtxo, outAddressType string, isOnlyCal bool, revealOutValue int64) (string, []string, []string, int64, error) {
+func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddress, content string, feeRate int64, changeAddress string, count int64, utxoList []*InscribeUtxo, isLocalUtxo bool, outAddressType string, isOnlyCal bool, revealOutValue int64) (string, []string, []string, int64, error) {
 	//btcApiClient := mempool.NewClient(netParams)
 	btcApiClient := unisat.NewClient(netParams)
 	contentType := "text/plain;charset=utf-8"
@@ -297,7 +297,9 @@ func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddr
 	utxoPrivateKeyHex := fromPriKeyHex
 	destination := toAddress
 
+	localUtxo := isLocalUtxo
 	commitTxOutPointList := make([]*wire.OutPoint, 0)
+	commitTxPreOutputList := make([]*wire.TxOut, 0)
 	commitTxPrivateKeyList := make([]*btcec.PrivateKey, 0)
 	commitTxUtxoAddressTypeList := make([]ord.UtxoAddressType, 0)
 	dataList := make([]ord.InscriptionData, 0)
@@ -327,6 +329,7 @@ func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddr
 
 		unspentList := make([]*btcapi.UnspentOutput, 0)
 		if utxoList != nil && len(utxoList) != 0 {
+			localUtxo = true
 			for _, v := range utxoList {
 				txHash, err := chainhash.NewHashFromStr(v.OutTx)
 				if err != nil {
@@ -370,12 +373,15 @@ func InscribeMultiDataFromUtxo(netParams *chaincfg.Params, fromPriKeyHex, toAddr
 
 		for i := range unspentList {
 			commitTxOutPointList = append(commitTxOutPointList, unspentList[i].Outpoint)
+			commitTxPreOutputList = append(commitTxPreOutputList, unspentList[i].Output)
 			commitTxPrivateKeyList = append(commitTxPrivateKeyList, utxoPrivateKey)
 		}
 	}
 
 	request := ord.InscriptionRequest{
+		LocalUtxo:                   localUtxo,
 		CommitTxOutPointList:        commitTxOutPointList,
+		CommitTxPreOutputList:       commitTxPreOutputList,
 		CommitTxPrivateKeyList:      commitTxPrivateKeyList,
 		CommitTxUtxoAddressTypeList: commitTxUtxoAddressTypeList,
 		CommitFeeRate:               feeRate,

@@ -10,6 +10,7 @@ import (
 	"ordbook-aggregation/config"
 	"ordbook-aggregation/major"
 	"ordbook-aggregation/model"
+	"ordbook-aggregation/service/common_service"
 	"ordbook-aggregation/service/inscription_service"
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/service/oklink_service"
@@ -20,12 +21,32 @@ import (
 	"time"
 )
 
-func jobForRewardOrder() {
-	jobForCheckRewardOrderInscription()
-	jobForCheckRewardOrderSend()
+func JobForRewardOrder() {
+	currentNetworkFee := common_service.GetFeeSummary()
+
+	//nomal
+	jobForCheckRewardOrderInscription(model.RewardTypeNormal, currentNetworkFee)
+	jobForCheckRewardOrderSend(model.RewardTypeNormal, currentNetworkFee)
+
+	//event
+	//jobForCheckRewardOrderInscription(model.RewardTypeEventOneLp, currentNetworkFee)
+	//jobForCheckRewardOrderSend(model.RewardTypeEventOneLp, currentNetworkFee)
+	//jobForCheckRewardOrderInscription(model.RewardTypeEventOneBid, currentNetworkFee)
+	//jobForCheckRewardOrderSend(model.RewardTypeEventOneBid, currentNetworkFee)
 }
 
-func jobForCheckRewardOrderInscription() {
+func getPlatformRewardPrivateKeyAndAddress(net string, rewardType model.RewardType) (string, string) {
+	switch rewardType {
+	case model.RewardTypeNormal:
+		return order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20(net)
+	case model.RewardTypeEventOneLp, model.RewardTypeEventOneBid:
+		return config.EventPlatformPrivateKeyRewardBrc20, config.EventPlatformAddressRewardBrc20
+	default:
+		return "", ""
+	}
+}
+
+func jobForCheckRewardOrderInscription(rewardType model.RewardType, currentNetworkFeeRate int64) {
 	var (
 		net                       string = "livenet"
 		tick                      string = config.PlatformRewardTick
@@ -38,10 +59,11 @@ func jobForCheckRewardOrderInscription() {
 		inscriptionId             string = ""
 		err                       error
 		utxoLimit                 int64 = 1
-		revealOutValue            int64 = 546
+		//utxoLimit      int64 = 4
+		revealOutValue int64 = 546
 	)
 
-	entityList, _ = mongo_service.FindPoolRewardOrderModelListByTimestamp(net, tick, pair, limit, timestamp, model.RewardStateCreate)
+	entityList, _ = mongo_service.FindPoolRewardOrderModelListByTimestamp(net, tick, pair, limit, timestamp, model.RewardStateCreate, rewardType)
 	if entityList == nil || len(entityList) == 0 {
 		return
 	}
@@ -56,7 +78,7 @@ func jobForCheckRewardOrderInscription() {
 			continue
 		}
 
-		utxoRewardInscriptionList, err = order_brc20_service.GetUnoccupiedUtxoList(net, utxoLimit, 0, model.UtxoTypeRewardInscription)
+		utxoRewardInscriptionList, err = order_brc20_service.GetUnoccupiedUtxoList(net, utxoLimit, 0, model.UtxoTypeRewardInscription, "", currentNetworkFeeRate)
 		if err != nil {
 			major.Println(fmt.Sprintf("[REWARD-INSCRIPTION]  [%s]get utxo err:%s", v.OrderId, err.Error()))
 			order_brc20_service.ReleaseUtxoList(utxoRewardInscriptionList)
@@ -69,8 +91,9 @@ func jobForCheckRewardOrderInscription() {
 		}
 
 		commitTxHash, inscriptionId, err = inscriptionReward(
-			utxoRewardInscriptionList[0].TxId, utxoRewardInscriptionList[0].Index, int64(utxoRewardInscriptionList[0].Amount),
-			net, tick, v.RewardCoinAmount, revealOutValue)
+			utxoRewardInscriptionList,
+			net, tick, v.RewardCoinAmount, revealOutValue,
+			rewardType, currentNetworkFeeRate)
 		if err != nil {
 			major.Println(fmt.Sprintf("[REWARD-INSCRIPTION] [%s]inscription err: %s", v.OrderId, err.Error()))
 			order_brc20_service.ReleaseUtxoList(utxoRewardInscriptionList)
@@ -93,29 +116,41 @@ func jobForCheckRewardOrderInscription() {
 	}
 }
 
-func inscriptionReward(utxoTxId string, utxoTxIndex, utxoAmount int64, net, tick string, amount, revealOutValue int64) (string, string, error) {
+func inscriptionReward(utxoList []*model.OrderUtxoModel, net, tick string, amount, revealOutValue int64, rewardType model.RewardType, currentNetworkFeeRate int64) (string, string, error) {
 	var (
-		netParams                                *chaincfg.Params = order_brc20_service.GetNetParams(net)
-		_, platformAddressRewardBrc20            string           = order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20(net)
-		platformPrivateKeyRewardBrc20FeeUtxos, _ string           = order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(net)
-		transferContent                          string           = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, tick, amount)
-		commitTxHash                             string           = ""
-		revealTxHashList, inscriptionIdList      []string         = make([]string, 0), make([]string, 0)
-		err                                      error
-		brc20BalanceResult                       *oklink_service.OklinkBrc20BalanceDetails
-		availableBalance                         int64                               = 0
-		fees                                     int64                               = 0
-		feeRate                                  int64                               = 14
-		inscribeUtxoList                         []*inscription_service.InscribeUtxo = make([]*inscription_service.InscribeUtxo, 0)
-		changeAddress                            string                              = ""
+		netParams                                                                 *chaincfg.Params = order_brc20_service.GetNetParams(net)
+		_, platformAddressRewardBrc20                                             string           = getPlatformRewardPrivateKeyAndAddress(net, rewardType)
+		platformPrivateKeyRewardBrc20FeeUtxos, platformAddressRewardBrc20FeeUtxos string           = order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(net)
+		transferContent                                                           string           = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, tick, amount)
+		commitTxHash                                                              string           = ""
+		revealTxHashList, inscriptionIdList                                       []string         = make([]string, 0), make([]string, 0)
+		err                                                                       error
+		brc20BalanceResult                                                        *oklink_service.OklinkBrc20BalanceDetails
+		availableBalance                                                          int64 = 0
+		fees                                                                      int64 = 0
+		feeRate                                                                   int64 = 14
+		//feeRate int64 = 10
+		//feeRate          int64                               = 60
+		inscribeUtxoList []*inscription_service.InscribeUtxo = make([]*inscription_service.InscribeUtxo, 0)
+		changeAddress    string                              = ""
 	)
-	inscribeUtxoList = append(inscribeUtxoList, &inscription_service.InscribeUtxo{
-		OutTx:     utxoTxId,
-		OutIndex:  utxoTxIndex,
-		OutAmount: utxoAmount,
-	})
+	for _, utxo := range utxoList {
+		if utxo.Address != platformAddressRewardBrc20FeeUtxos {
+			continue
+		}
+		inscribeUtxoList = append(inscribeUtxoList, &inscription_service.InscribeUtxo{
+			OutTx:     utxo.TxId,
+			OutIndex:  utxo.Index,
+			OutAmount: int64(utxo.Amount),
+		})
+		feeRate = feeRate + int64(7)
+	}
+	if currentNetworkFeeRate != 0 {
+		feeRate = currentNetworkFeeRate
+	}
 
 	fmt.Println(transferContent)
+	fmt.Println(feeRate)
 	brc20BalanceResult, err = oklink_service.GetAddressBrc20BalanceResult(platformAddressRewardBrc20, tick, 1, 50)
 	if err != nil {
 		return "", "", err
@@ -127,7 +162,7 @@ func inscriptionReward(utxoTxId string, utxoTxIndex, utxoAmount int64, net, tick
 	}
 	commitTxHash, revealTxHashList, inscriptionIdList, fees, err =
 		inscription_service.InscribeMultiDataFromUtxo(netParams, platformPrivateKeyRewardBrc20FeeUtxos, platformAddressRewardBrc20,
-			transferContent, feeRate, changeAddress, 1, inscribeUtxoList, "segwit", false, revealOutValue)
+			transferContent, feeRate, changeAddress, 1, inscribeUtxoList, false, "segwit", false, revealOutValue)
 	if err != nil {
 		return "", "", err
 	}
@@ -137,7 +172,7 @@ func inscriptionReward(utxoTxId string, utxoTxIndex, utxoAmount int64, net, tick
 	return commitTxHash, inscriptionIdList[0], nil
 }
 
-func jobForCheckRewardOrderSend() {
+func jobForCheckRewardOrderSend(rewardType model.RewardType, currentNetworkFeeRate int64) {
 	var (
 		net                string = "livenet"
 		tick               string = config.PlatformRewardTick
@@ -149,9 +184,10 @@ func jobForCheckRewardOrderSend() {
 		sendId             string = ""
 		err                error
 		utxoLimit          int64 = 1
+		//utxoLimit             int64 = 5
 	)
 
-	entityList, _ = mongo_service.FindPoolRewardOrderModelListByTimestamp(net, tick, pair, limit, timestamp, model.RewardStateInscription)
+	entityList, _ = mongo_service.FindPoolRewardOrderModelListByTimestamp(net, tick, pair, limit, timestamp, model.RewardStateInscription, rewardType)
 	if entityList == nil || len(entityList) == 0 {
 		return
 	}
@@ -166,7 +202,7 @@ func jobForCheckRewardOrderSend() {
 			continue
 		}
 
-		utxoRewardSendList, err = order_brc20_service.GetUnoccupiedUtxoList(net, utxoLimit, 0, model.UtxoTypeRewardSend)
+		utxoRewardSendList, err = order_brc20_service.GetUnoccupiedUtxoList(net, utxoLimit, 0, model.UtxoTypeRewardSend, "", currentNetworkFeeRate)
 		if err != nil {
 			major.Println(fmt.Sprintf("[REWARD-SEND]  [%s]get utxo err:%s", v.OrderId, err.Error()))
 			order_brc20_service.ReleaseUtxoList(utxoRewardSendList)
@@ -178,7 +214,7 @@ func jobForCheckRewardOrderSend() {
 			continue
 		}
 
-		sendId, err = sendReward(utxoRewardSendList[0].TxId, utxoRewardSendList[0].Index, int64(utxoRewardSendList[0].Amount), net, v.InscriptionId, v.InscriptionOutValue, v.Address)
+		sendId, err = sendReward(utxoRewardSendList, net, v.InscriptionId, v.InscriptionOutValue, v.Address, rewardType, currentNetworkFeeRate)
 		if err != nil {
 			major.Println(fmt.Sprintf("[REWARD-SEND]  [%s]send err:%s", v.OrderId, err.Error()))
 			order_brc20_service.ReleaseUtxoList(utxoRewardSendList)
@@ -200,15 +236,17 @@ func jobForCheckRewardOrderSend() {
 	}
 }
 
-func sendReward(utxoTxId string, utxoTxIndex, utxoAmount int64, net, inscriptionId string, inscriptionOutValue int64, sendAddress string) (string, error) {
+func sendReward(utxoList []*model.OrderUtxoModel, net, inscriptionId string, inscriptionOutValue int64, sendAddress string, rewardType model.RewardType, currentNetworkFeeRate int64) (string, error) {
 	var (
 		netParams                                                                 *chaincfg.Params = order_brc20_service.GetNetParams(net)
-		platformPrivateKeyRewardBrc20, platformAddressRewardBrc20                 string           = order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20(net)
+		platformPrivateKeyRewardBrc20, platformAddressRewardBrc20                 string           = getPlatformRewardPrivateKeyAndAddress(net, rewardType)
 		platformPrivateKeyRewardBrc20FeeUtxos, platformAddressRewardBrc20FeeUtxos string           = order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(net)
 		_, platformAddressReceiveBidValue                                         string           = order_brc20_service.GetPlatformKeyAndAddressReceiveBidValue(net)
 		changeAddress                                                             string           = platformAddressReceiveBidValue
 		inscriptionIdStrs                                                         []string
 		txRaw                                                                     string = ""
+		feeRate                                                                          = int64(10)
+		//feeRate = int64(60)
 	)
 	if inscriptionId == "" {
 		return "", errors.New("inscriptionId is empty")
@@ -222,23 +260,22 @@ func sendReward(utxoTxId string, utxoTxIndex, utxoAmount int64, net, inscription
 
 	addrRewardBrc20, err := btcutil.DecodeAddress(platformAddressRewardBrc20, netParams)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	pkScriptRewardBrc20, err := txscript.PayToAddrScript(addrRewardBrc20)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	addrRewardBrc20FeeUtxos, err := btcutil.DecodeAddress(platformAddressRewardBrc20FeeUtxos, netParams)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	pkScriptRewardBrc20FeeUtxos, err := txscript.PayToAddrScript(addrRewardBrc20FeeUtxos)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
-	fee := int64(10)
 	inputs := make([]*order_brc20_service.TxInputUtxo, 0)
 	inputs = append(inputs, &order_brc20_service.TxInputUtxo{
 		TxId:     inscriptionTxId,
@@ -247,20 +284,30 @@ func sendReward(utxoTxId string, utxoTxIndex, utxoAmount int64, net, inscription
 		Amount:   uint64(inscriptionOutValue),
 		PriHex:   platformPrivateKeyRewardBrc20,
 	})
-	inputs = append(inputs, &order_brc20_service.TxInputUtxo{
-		TxId:     utxoTxId,
-		TxIndex:  utxoTxIndex,
-		PkScript: hex.EncodeToString(pkScriptRewardBrc20FeeUtxos),
-		Amount:   uint64(utxoAmount),
-		PriHex:   platformPrivateKeyRewardBrc20FeeUtxos,
-	})
+
+	for _, utxo := range utxoList {
+		if utxo.Address != platformAddressRewardBrc20FeeUtxos {
+			continue
+		}
+		inputs = append(inputs, &order_brc20_service.TxInputUtxo{
+			TxId:     utxo.TxId,
+			TxIndex:  utxo.Index,
+			PkScript: hex.EncodeToString(pkScriptRewardBrc20FeeUtxos),
+			Amount:   uint64(utxo.Amount),
+			PriHex:   platformPrivateKeyRewardBrc20FeeUtxos,
+		})
+		feeRate = feeRate + int64(2)
+	}
+	if currentNetworkFeeRate != 0 {
+		feeRate = currentNetworkFeeRate
+	}
 
 	outputs := make([]*order_brc20_service.TxOutput, 0)
 	outputs = append(outputs, &order_brc20_service.TxOutput{
 		Address: sendAddress,
 		Amount:  int64(inscriptionOutValue),
 	})
-	tx, err := order_brc20_service.BuildCommonTx(netParams, inputs, outputs, changeAddress, fee)
+	tx, err := order_brc20_service.BuildCommonTx(netParams, inputs, outputs, changeAddress, feeRate)
 	if err != nil {
 		fmt.Printf("[REWARD-SEND]BuildCommonTx err:%s\n", err.Error())
 		return "", err

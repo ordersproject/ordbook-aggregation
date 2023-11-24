@@ -58,6 +58,14 @@ definitions:
     x-enum-varnames:
     - OrderTypeSell
     - OrderTypeBuy
+  model.PlatformDummy:
+    enum:
+    - 0
+    - 1
+    type: integer
+    x-enum-varnames:
+    - PlatformDummyNo
+    - PlatformDummyYes
   model.PoolMode:
     enum:
     - 0
@@ -110,6 +118,18 @@ definitions:
     - RewardStateInscription
     - RewardStateSend
     - RewardStateAll
+  model.RewardType:
+    enum:
+    - 1
+    - 2
+    - 11
+    - 12
+    type: integer
+    x-enum-varnames:
+    - RewardTypeNormal
+    - RewardTypeExtra
+    - RewardTypeEventOneLp
+    - RewardTypeEventOneBid
   model.UtxoType:
     enum:
     - 1
@@ -118,11 +138,19 @@ definitions:
     - 5
     - 2
     - 6
+    - 7
+    - 8
     - 10
     - 11
     - 20
     - 21
     - 30
+    - 50
+    - 51
+    - 60
+    - 61
+    - 70
+    - 71
     type: integer
     x-enum-varnames:
     - UtxoTypeDummy
@@ -131,11 +159,19 @@ definitions:
     - UtxoTypeDummy1200BidX
     - UtxoTypeBidY
     - UtxoTypeFakerInscription
+    - UtxoTypeDummyAsk
+    - UtxoTypeDummy1200Ask
     - UtxoTypeMultiInscription
     - UtxoTypeMultiInscriptionFromRelease
     - UtxoTypeRewardInscription
     - UtxoTypeRewardSend
     - UtxoTypeLoop
+    - UtxoTypeAirdropInscription
+    - UtxoTypeAirdropSend
+    - UtxoTypeToolClaimBackupInscription
+    - UtxoTypeToolClaimBackupSend
+    - UtxoTypeToolClaimAirdropInscription
+    - UtxoTypeToolClaimAirdropSend
   request.BidTxInput:
     properties:
       address:
@@ -324,6 +360,10 @@ definitions:
       net:
         description: livenet/signet/testnet
         type: string
+      networkFee:
+        type: integer
+      networkFeeRate:
+        type: integer
       orderId:
         type: string
       psbtRaw:
@@ -331,6 +371,8 @@ definitions:
       tick:
         type: string
       value:
+        type: integer
+      version:
         type: integer
     type: object
   request.OrderBrc20GetBidPlatformReq:
@@ -357,6 +399,9 @@ definitions:
         type: integer
       poolOrderId:
         type: string
+      switchPrice:
+        description: 0-no 1-yes
+        type: integer
       tick:
         type: string
     type: object
@@ -377,6 +422,10 @@ definitions:
         allOf:
         - $ref: '#/definitions/model.OrderType'
         description: 1-sell,2-buy
+      platformDummy:
+        allOf:
+        - $ref: '#/definitions/model.PlatformDummy'
+        description: 0-no 1-yes
       psbtRaw:
         type: string
       tick:
@@ -457,13 +506,27 @@ definitions:
     properties:
       address:
         type: string
+      feeInscription:
+        type: integer
+      feeRawTx:
+        type: string
+      feeSend:
+        type: integer
+      feeUtxoTxId:
+        type: string
       net:
         description: livenet/signet/testnet
         type: string
+      networkFeeRate:
+        type: integer
       rewardAmount:
         type: integer
+      rewardType:
+        $ref: '#/definitions/model.RewardType'
       tick:
         type: string
+      version:
+        type: integer
     type: object
   request.PoolBrc20ClaimUpdateReq:
     properties:
@@ -509,7 +572,7 @@ definitions:
         description: BTC
         type: string
       ratio:
-        description: 'ratio: 12/15/18'
+        description: 'ratio: 12/15/18/100//10000'
         type: integer
       tick:
         type: string
@@ -631,6 +694,84 @@ definitions:
         description: Brc20 symbol
         type: string
     type: object
+  respond.Brc20EventItem:
+    properties:
+      amount:
+        description: 'Btc: sat'
+        type: integer
+      buyerAddress:
+        description: Buyer's address
+        type: string
+      calEndBlock:
+        type: integer
+      calStartBlock:
+        type: integer
+      calTotalValue:
+        type: integer
+      calValue:
+        type: integer
+      coinAmount:
+        description: Brc20 amount
+        type: integer
+      coinDecimalNum:
+        description: omitempty
+        type: integer
+      coinPrice:
+        description: MAX-9223372036854775807
+        type: integer
+      coinPriceDecimalNum:
+        description: default-8
+        type: integer
+      coinRatePrice:
+        description: Rate for brc20-btc
+        type: integer
+      dealTxBlock:
+        type: integer
+      dealTxBlockState:
+        description: psbtBidTxId
+        type: integer
+      decimalNum:
+        description: Btc decimal
+        type: integer
+      freeState:
+        allOf:
+        - $ref: '#/definitions/model.FreeState'
+        description: 1-for free
+      inscriptionId:
+        description: InscriptionId
+        type: string
+      net:
+        description: Net env
+        type: string
+      orderId:
+        description: Order ID
+        type: string
+      orderState:
+        allOf:
+        - $ref: '#/definitions/model.OrderState'
+        description: Order state：1-create,2-finish,3-cancel
+      orderType:
+        allOf:
+        - $ref: '#/definitions/model.OrderType'
+        description: Order type：1-sell,2-buy
+      percentage:
+        type: integer
+      rewardAmount:
+        type: integer
+      rewardRealAmount:
+        type: integer
+      sellerAddress:
+        description: Seller's address
+        type: string
+      tick:
+        description: Brc20 symbol
+        type: string
+      timestamp:
+        description: Create time
+        type: integer
+      version:
+        type: integer
+    type: object
   respond.Brc20Item:
     properties:
       amount:
@@ -644,6 +785,12 @@ definitions:
         type: integer
       coinDecimalNum:
         description: omitempty
+        type: integer
+      coinPrice:
+        description: MAX-9223372036854775807
+        type: integer
+      coinPriceDecimalNum:
+        description: default-8
         type: integer
       coinRatePrice:
         description: Rate for brc20-btc
@@ -678,6 +825,9 @@ definitions:
       sellerAddress:
         description: Seller's address
         type: string
+      takePsbtRaw:
+        description: Take PSBT Raw
+        type: string
       tick:
         description: Brc20 symbol
         type: string
@@ -707,6 +857,10 @@ definitions:
         type: string
       buy:
         type: string
+      coinPrice:
+        type: integer
+      coinPriceDecimalNum:
+        type: integer
       high:
         type: string
       icon:
@@ -734,6 +888,8 @@ definitions:
         type: string
       tick:
         description: tick
+        type: string
+      visionPrice:
         type: string
       vol:
         type: string
@@ -763,6 +919,19 @@ definitions:
         type: string
       revealTxHash:
         type: string
+    type: object
+  respond.CalFeeResp:
+    properties:
+      feeAddress:
+        type: string
+      platformFee:
+        type: integer
+      releaseInscriptionFee:
+        type: integer
+      rewardInscriptionFee:
+        type: integer
+      rewardSendFee:
+        type: integer
     type: object
   respond.CheckBrc20InscriptionReq:
     properties:
@@ -855,6 +1024,17 @@ definitions:
       total:
         type: integer
     type: object
+  respond.OrderEventResponse:
+    properties:
+      flag:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/respond.Brc20EventItem'
+        type: array
+      total:
+        type: integer
+    type: object
   respond.OrderResponse:
     properties:
       flag:
@@ -910,6 +1090,10 @@ definitions:
         type: integer
       bidCount:
         type: integer
+      calEndBlock:
+        type: integer
+      calStartBlock:
+        type: integer
       coinAddress:
         description: tick
         type: string
@@ -919,8 +1103,18 @@ definitions:
       coinDecimalNum:
         description: tick
         type: integer
+      coinPrice:
+        description: MAX-9223372036854775807
+        type: integer
+      coinPriceDecimalNum:
+        description: "8"
+        type: integer
       coinPsbtRaw:
         description: coin PSBT Raw
+        type: string
+      coinRatePrice:
+        type: integer
+      dealCoinTx:
         type: string
       dealCoinTxBlock:
         type: integer
@@ -939,6 +1133,8 @@ definitions:
         type: integer
       dealTime:
         type: integer
+      dealTx:
+        type: string
       decimalNum:
         type: integer
       decreasing:
@@ -1010,6 +1206,9 @@ definitions:
         type: integer
       net:
         description: Net env
+        type: string
+      rewardTick:
+        description: reward Brc20 symbol
         type: string
       tick:
         description: Brc20 symbol
@@ -1111,6 +1310,8 @@ definitions:
     properties:
       address:
         type: string
+      inscriptionId:
+        type: string
       net:
         type: string
       orderId:
@@ -1121,6 +1322,8 @@ definitions:
         type: integer
       rewardState:
         $ref: '#/definitions/model.RewardState'
+      sendId:
+        type: string
       tick:
         type: string
       timestamp:
@@ -1136,6 +1339,13 @@ definitions:
         type: array
       total:
         type: integer
+    type: object
+  respond.RateResp:
+    properties:
+      usd:
+        additionalProperties:
+          type: string
+        type: object
     type: object
   respond.WsUuidResp:
     properties:
@@ -1331,6 +1541,127 @@ paths:
           schema:
             $ref: '#/definitions/respond.Message'
       summary: Clear address notification
+      tags:
+      - brc20
+  /brc20/common/rate/btc:
+    get:
+      description: Fetch rate
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.RateResp'
+      summary: Fetch rate
+      tags:
+      - brc20
+  /brc20/event/orders:
+    get:
+      description: Fetch event orders
+      parameters:
+      - description: net:mainnet/signet/testnet
+        in: query
+        name: net
+        type: string
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: address
+        in: query
+        name: address
+        type: string
+      - description: 'limit: Max-50'
+        in: query
+        name: limit
+        type: integer
+      - description: page
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.OrderEventResponse'
+      summary: Fetch event orders
+      tags:
+      - brc20
+  /brc20/event/reward/cal/fee:
+    get:
+      description: Cal event claim fee
+      parameters:
+      - description: version
+        in: query
+        name: version
+        type: integer
+      - description: networkFeeRate
+        in: query
+        name: networkFeeRate
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.CalFeeResp'
+      summary: Cal event claim fee
+      tags:
+      - brc20
+  /brc20/event/reward/claim:
+    post:
+      description: create one event claim reward order
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.PoolBrc20ClaimRewardReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Message'
+      summary: create one event claim reward order
+      tags:
+      - brc20
+  /brc20/event/reward/info:
+    get:
+      description: Fetch pool reward info
+      parameters:
+      - description: net
+        in: query
+        name: net
+        required: true
+        type: string
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: address
+        in: query
+        name: address
+        required: true
+        type: string
+      - description: rewardType
+        in: query
+        name: rewardType
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolBrc20RewardResp'
+      summary: Fetch event reward info
       tags:
       - brc20
   /brc20/guide/price/set:
@@ -1544,6 +1875,28 @@ paths:
       summary: Fetch bid v2
       tags:
       - brc20
+  /brc20/order/bid/cal/fee:
+    get:
+      description: Cal fee
+      parameters:
+      - description: version
+        in: query
+        name: version
+        type: integer
+      - description: networkFeeRate
+        in: query
+        name: networkFeeRate
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.CalFeeResp'
+      summary: Cal fee
+      tags:
+      - brc20
   /brc20/order/bid/do:
     post:
       description: Do bid order
@@ -1692,6 +2045,10 @@ paths:
       - description: buyerAddress
         in: query
         name: buyerAddress
+        type: string
+      - description: address
+        in: query
+        name: address
         type: string
       - description: 'orderState: 1-create,2-finish,3-cancel,5-timeout,6-err,100-all'
         in: query
@@ -2084,6 +2441,10 @@ paths:
         name: address
         required: true
         type: string
+      - description: rewardType
+        in: query
+        name: rewardType
+        type: integer
       produces:
       - application/json
       responses:

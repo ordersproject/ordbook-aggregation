@@ -111,8 +111,9 @@ type PoolBrc20ClaimResp struct {
 }
 
 type PoolBrc20RewardResp struct {
-	Net                    string `json:"net,omitempty"`  //Net env
-	Tick                   string `json:"tick,omitempty"` //Brc20 symbol
+	Net                    string `json:"net,omitempty"`        //Net env
+	Tick                   string `json:"tick,omitempty"`       //Brc20 symbol
+	RewardTick             string `json:"rewardTick,omitempty"` //reward Brc20 symbol
 	TotalRewardAmount      uint64 `json:"totalRewardAmount"`
 	TotalRewardExtraAmount uint64 `json:"totalRewardExtraAmount"`
 	//ClaimedOwnCoinAmount     uint64 `json:"claimedOwnCoinAmount"`
@@ -138,4 +139,6 @@ type PoolRewardOrderItem struct {
 	Address          string            `json:"address,omitempty"`
 	RewardState      model.RewardState `json:"rewardState,omitempty"`
 	Timestamp        int64             `json:"timestamp,omitempty"`
+	InscriptionId    string            `json:"inscriptionId,omitempty"`
+	SendId           string            `json:"sendId,omitempty"`
 }

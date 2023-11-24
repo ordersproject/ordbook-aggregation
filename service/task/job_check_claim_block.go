@@ -83,3 +83,42 @@ func jobForCheckPoolUsedDealTxBlock() {
 		}
 	}
 }
+
+func jobForCheckBidOrderUsedDealTxBlock() {
+	var (
+		net       string = "livenet"
+		tick      string = "rdex"
+		orderList []*model.OrderBrc20Model
+		limit     int64 = 1000
+	)
+
+	orderList, _ = mongo_service.FindOrderBrc20ModelListByDealTime(net, tick, model.OrderTypeBuy, model.OrderStateFinish,
+		limit, 0, model.ClaimTxBlockStateUnconfirmed, 2)
+
+	if orderList != nil && len(orderList) != 0 {
+		for _, v := range orderList {
+			if v.DealTxBlock != 0 {
+				continue
+			}
+			if v.DealTxBlockState != model.ClaimTxBlockStateUnconfirmed {
+				continue
+			}
+			if v.PsbtBidTxId == "" {
+				continue
+			}
+
+			block := order_brc20_service.GetTxBlock(v.PsbtBidTxId)
+			if block == 0 {
+				continue
+			}
+			v.DealTxBlock = block
+			v.DealTxBlockState = model.ClaimTxBlockStateConfirmed
+			err := mongo_service.SetOrderBrc20ModelForDealBlock(v)
+			if err != nil {
+				major.Println(fmt.Sprintf("[JOP-DEAL-BID-BLOCK] SetOrderBrc20ModelForDealBlock err:%s", err.Error()))
+				continue
+			}
+			major.Println(fmt.Sprintf("[JOP-DEAL-BID-BLOCK] SetOrderBrc20ModelForDealBlock success [%s]", v.OrderId))
+		}
+	}
+}

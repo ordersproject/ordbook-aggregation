@@ -479,3 +479,43 @@ func GetBrc20TickMarketData(inscriptionsStr string) ([]*TickMarketInfo, error) {
 	}
 	return data, nil
 }
+
+// Get fee detail
+func GetFeeDetail() (*FeeDetail, error) {
+	var (
+		url    string
+		result string
+		resp   *OklinkResp
+		data   []*FeeDetail = make([]*FeeDetail, 0)
+		err    error
+		query  map[string]string = map[string]string{
+			"chainShortName": "btc",
+		}
+		headers map[string]string = map[string]string{
+			"Ok-Access-Key": config.OklinkKey,
+		}
+	)
+
+	url = fmt.Sprintf("%s/api/v5/explorer/blockchain/fee", config.OklinkDomain)
+	result, err = tool.GetUrl(url, query, headers)
+	if err != nil {
+		return nil, err
+	}
+	//fmt.Println(result)
+	if err = tool.JsonToObject(result, &resp); err != nil {
+		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
+	}
+
+	if resp.Code != OklinkCodeSuccess {
+		return nil, errors.New(fmt.Sprintf("Msg:%s", resp.Msg))
+	}
+
+	if err = tool.JsonToAny(resp.Data, &data); err != nil {
+		return nil, errors.New(fmt.Sprintf("Get request err:%s", err))
+	}
+	if len(data) == 0 {
+		return nil, errors.New("No Data. ")
+	}
+
+	return data[0], nil
+}

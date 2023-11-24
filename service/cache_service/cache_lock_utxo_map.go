@@ -7,6 +7,8 @@ import (
 const (
 	CacheLockUtxoTypeDummy                          = "dummy"
 	CacheLockUtxoTypeDummy1200                      = "dummy1200"
+	CacheLockUtxoTypeDummyAsk                       = "dummyask"
+	CacheLockUtxoTypeDummy1200Ask                   = "dummy1200ask"
 	CacheLockUtxoTypeDummyBidX                      = "dummybidx"
 	CacheLockUtxoTypeDummy1200BidX                  = "dummy1200bidx"
 	CacheLockUtxoTypeBidpay                         = "bidpay"

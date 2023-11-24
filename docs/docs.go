@@ -297,6 +297,191 @@ const docTemplate = `{
                 }
             }
         },
+        "/brc20/common/rate/btc": {
+            "get": {
+                "description": "Fetch rate",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch rate",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.RateResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/event/orders": {
+            "get": {
+                "description": "Fetch event orders",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch event orders",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "net:mainnet/signet/testnet",
+                        "name": "net",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "tick",
+                        "name": "tick",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "limit: Max-50",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "page",
+                        "name": "page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.OrderEventResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/event/reward/cal/fee": {
+            "get": {
+                "description": "Cal event claim fee",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Cal event claim fee",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "version",
+                        "name": "version",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "networkFeeRate",
+                        "name": "networkFeeRate",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.CalFeeResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/event/reward/claim": {
+            "post": {
+                "description": "create one event claim reward order",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "create one event claim reward order",
+                "parameters": [
+                    {
+                        "description": "Request",
+                        "name": "Request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/request.PoolBrc20ClaimRewardReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Message"
+                        }
+                    }
+                }
+            }
+        },
+        "/brc20/event/reward/info": {
+            "get": {
+                "description": "Fetch pool reward info",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch event reward info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "net",
+                        "name": "net",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "tick",
+                        "name": "tick",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "rewardType",
+                        "name": "rewardType",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.PoolBrc20RewardResp"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/guide/price/set": {
             "post": {
                 "description": "Set guide price",
@@ -583,6 +768,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/brc20/order/bid/cal/fee": {
+            "get": {
+                "description": "Cal fee",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Cal fee",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "version",
+                        "name": "version",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "networkFeeRate",
+                        "name": "networkFeeRate",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.CalFeeResp"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/order/bid/do": {
             "post": {
                 "description": "Do bid order",
@@ -850,6 +1069,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "buyerAddress",
                         "name": "buyerAddress",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "address",
+                        "name": "address",
                         "in": "query"
                     },
                     {
@@ -1447,6 +1672,12 @@ const docTemplate = `{
                         "name": "address",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "rewardType",
+                        "name": "rewardType",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1816,6 +2047,17 @@ const docTemplate = `{
                 "OrderTypeBuy"
             ]
         },
+        "model.PlatformDummy": {
+            "type": "integer",
+            "enum": [
+                0,
+                1
+            ],
+            "x-enum-varnames": [
+                "PlatformDummyNo",
+                "PlatformDummyYes"
+            ]
+        },
         "model.PoolMode": {
             "type": "integer",
             "enum": [
@@ -1880,6 +2122,21 @@ const docTemplate = `{
                 "RewardStateAll"
             ]
         },
+        "model.RewardType": {
+            "type": "integer",
+            "enum": [
+                1,
+                2,
+                11,
+                12
+            ],
+            "x-enum-varnames": [
+                "RewardTypeNormal",
+                "RewardTypeExtra",
+                "RewardTypeEventOneLp",
+                "RewardTypeEventOneBid"
+            ]
+        },
         "model.UtxoType": {
             "type": "integer",
             "enum": [
@@ -1889,11 +2146,19 @@ const docTemplate = `{
                 5,
                 2,
                 6,
+                7,
+                8,
                 10,
                 11,
                 20,
                 21,
-                30
+                30,
+                50,
+                51,
+                60,
+                61,
+                70,
+                71
             ],
             "x-enum-varnames": [
                 "UtxoTypeDummy",
@@ -1902,11 +2167,19 @@ const docTemplate = `{
                 "UtxoTypeDummy1200BidX",
                 "UtxoTypeBidY",
                 "UtxoTypeFakerInscription",
+                "UtxoTypeDummyAsk",
+                "UtxoTypeDummy1200Ask",
                 "UtxoTypeMultiInscription",
                 "UtxoTypeMultiInscriptionFromRelease",
                 "UtxoTypeRewardInscription",
                 "UtxoTypeRewardSend",
-                "UtxoTypeLoop"
+                "UtxoTypeLoop",
+                "UtxoTypeAirdropInscription",
+                "UtxoTypeAirdropSend",
+                "UtxoTypeToolClaimBackupInscription",
+                "UtxoTypeToolClaimBackupSend",
+                "UtxoTypeToolClaimAirdropInscription",
+                "UtxoTypeToolClaimAirdropSend"
             ]
         },
         "request.BidTxInput": {
@@ -2191,6 +2464,12 @@ const docTemplate = `{
                     "description": "livenet/signet/testnet",
                     "type": "string"
                 },
+                "networkFee": {
+                    "type": "integer"
+                },
+                "networkFeeRate": {
+                    "type": "integer"
+                },
                 "orderId": {
                     "type": "string"
                 },
@@ -2201,6 +2480,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "value": {
+                    "type": "integer"
+                },
+                "version": {
                     "type": "integer"
                 }
             }
@@ -2240,6 +2522,10 @@ const docTemplate = `{
                 "poolOrderId": {
                     "type": "string"
                 },
+                "switchPrice": {
+                    "description": "0-no 1-yes",
+                    "type": "integer"
+                },
                 "tick": {
                     "type": "string"
                 }
@@ -2271,6 +2557,14 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/model.OrderType"
+                        }
+                    ]
+                },
+                "platformDummy": {
+                    "description": "0-no 1-yes",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.PlatformDummy"
                         }
                     ]
                 },
@@ -2396,15 +2690,36 @@ const docTemplate = `{
                 "address": {
                     "type": "string"
                 },
+                "feeInscription": {
+                    "type": "integer"
+                },
+                "feeRawTx": {
+                    "type": "string"
+                },
+                "feeSend": {
+                    "type": "integer"
+                },
+                "feeUtxoTxId": {
+                    "type": "string"
+                },
                 "net": {
                     "description": "livenet/signet/testnet",
                     "type": "string"
                 },
+                "networkFeeRate": {
+                    "type": "integer"
+                },
                 "rewardAmount": {
                     "type": "integer"
                 },
+                "rewardType": {
+                    "$ref": "#/definitions/model.RewardType"
+                },
                 "tick": {
                     "type": "string"
+                },
+                "version": {
+                    "type": "integer"
                 }
             }
         },
@@ -2478,7 +2793,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "ratio": {
-                    "description": "ratio: 12/15/18",
+                    "description": "ratio: 12/15/18/100//10000",
                     "type": "integer"
                 },
                 "tick": {
@@ -2661,6 +2976,122 @@ const docTemplate = `{
                 }
             }
         },
+        "respond.Brc20EventItem": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "description": "Btc: sat",
+                    "type": "integer"
+                },
+                "buyerAddress": {
+                    "description": "Buyer's address",
+                    "type": "string"
+                },
+                "calEndBlock": {
+                    "type": "integer"
+                },
+                "calStartBlock": {
+                    "type": "integer"
+                },
+                "calTotalValue": {
+                    "type": "integer"
+                },
+                "calValue": {
+                    "type": "integer"
+                },
+                "coinAmount": {
+                    "description": "Brc20 amount",
+                    "type": "integer"
+                },
+                "coinDecimalNum": {
+                    "description": "omitempty",
+                    "type": "integer"
+                },
+                "coinPrice": {
+                    "description": "MAX-9223372036854775807",
+                    "type": "integer"
+                },
+                "coinPriceDecimalNum": {
+                    "description": "default-8",
+                    "type": "integer"
+                },
+                "coinRatePrice": {
+                    "description": "Rate for brc20-btc",
+                    "type": "integer"
+                },
+                "dealTxBlock": {
+                    "type": "integer"
+                },
+                "dealTxBlockState": {
+                    "description": "psbtBidTxId",
+                    "type": "integer"
+                },
+                "decimalNum": {
+                    "description": "Btc decimal",
+                    "type": "integer"
+                },
+                "freeState": {
+                    "description": "1-for free",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.FreeState"
+                        }
+                    ]
+                },
+                "inscriptionId": {
+                    "description": "InscriptionId",
+                    "type": "string"
+                },
+                "net": {
+                    "description": "Net env",
+                    "type": "string"
+                },
+                "orderId": {
+                    "description": "Order ID",
+                    "type": "string"
+                },
+                "orderState": {
+                    "description": "Order state：1-create,2-finish,3-cancel",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.OrderState"
+                        }
+                    ]
+                },
+                "orderType": {
+                    "description": "Order type：1-sell,2-buy",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.OrderType"
+                        }
+                    ]
+                },
+                "percentage": {
+                    "type": "integer"
+                },
+                "rewardAmount": {
+                    "type": "integer"
+                },
+                "rewardRealAmount": {
+                    "type": "integer"
+                },
+                "sellerAddress": {
+                    "description": "Seller's address",
+                    "type": "string"
+                },
+                "tick": {
+                    "description": "Brc20 symbol",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Create time",
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
         "respond.Brc20Item": {
             "type": "object",
             "properties": {
@@ -2678,6 +3109,14 @@ const docTemplate = `{
                 },
                 "coinDecimalNum": {
                     "description": "omitempty",
+                    "type": "integer"
+                },
+                "coinPrice": {
+                    "description": "MAX-9223372036854775807",
+                    "type": "integer"
+                },
+                "coinPriceDecimalNum": {
+                    "description": "default-8",
                     "type": "integer"
                 },
                 "coinRatePrice": {
@@ -2732,6 +3171,10 @@ const docTemplate = `{
                     "description": "Seller's address",
                     "type": "string"
                 },
+                "takePsbtRaw": {
+                    "description": "Take PSBT Raw",
+                    "type": "string"
+                },
                 "tick": {
                     "description": "Brc20 symbol",
                     "type": "string"
@@ -2775,6 +3218,12 @@ const docTemplate = `{
                 "buy": {
                     "type": "string"
                 },
+                "coinPrice": {
+                    "type": "integer"
+                },
+                "coinPriceDecimalNum": {
+                    "type": "integer"
+                },
                 "high": {
                     "type": "string"
                 },
@@ -2812,6 +3261,9 @@ const docTemplate = `{
                 },
                 "tick": {
                     "description": "tick",
+                    "type": "string"
+                },
+                "visionPrice": {
                     "type": "string"
                 },
                 "vol": {
@@ -2856,6 +3308,26 @@ const docTemplate = `{
                 },
                 "revealTxHash": {
                     "type": "string"
+                }
+            }
+        },
+        "respond.CalFeeResp": {
+            "type": "object",
+            "properties": {
+                "feeAddress": {
+                    "type": "string"
+                },
+                "platformFee": {
+                    "type": "integer"
+                },
+                "releaseInscriptionFee": {
+                    "type": "integer"
+                },
+                "rewardInscriptionFee": {
+                    "type": "integer"
+                },
+                "rewardSendFee": {
+                    "type": "integer"
                 }
             }
         },
@@ -2996,6 +3468,23 @@ const docTemplate = `{
                 }
             }
         },
+        "respond.OrderEventResponse": {
+            "type": "object",
+            "properties": {
+                "flag": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/respond.Brc20EventItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "respond.OrderResponse": {
             "type": "object",
             "properties": {
@@ -3074,6 +3563,12 @@ const docTemplate = `{
                 "bidCount": {
                     "type": "integer"
                 },
+                "calEndBlock": {
+                    "type": "integer"
+                },
+                "calStartBlock": {
+                    "type": "integer"
+                },
                 "coinAddress": {
                     "description": "tick",
                     "type": "string"
@@ -3086,8 +3581,22 @@ const docTemplate = `{
                     "description": "tick",
                     "type": "integer"
                 },
+                "coinPrice": {
+                    "description": "MAX-9223372036854775807",
+                    "type": "integer"
+                },
+                "coinPriceDecimalNum": {
+                    "description": "8",
+                    "type": "integer"
+                },
                 "coinPsbtRaw": {
                     "description": "coin PSBT Raw",
+                    "type": "string"
+                },
+                "coinRatePrice": {
+                    "type": "integer"
+                },
+                "dealCoinTx": {
                     "type": "string"
                 },
                 "dealCoinTxBlock": {
@@ -3114,6 +3623,9 @@ const docTemplate = `{
                 },
                 "dealTime": {
                     "type": "integer"
+                },
+                "dealTx": {
+                    "type": "string"
                 },
                 "decimalNum": {
                     "type": "integer"
@@ -3215,6 +3727,10 @@ const docTemplate = `{
                 },
                 "net": {
                     "description": "Net env",
+                    "type": "string"
+                },
+                "rewardTick": {
+                    "description": "reward Brc20 symbol",
                     "type": "string"
                 },
                 "tick": {
@@ -3365,6 +3881,9 @@ const docTemplate = `{
                 "address": {
                     "type": "string"
                 },
+                "inscriptionId": {
+                    "type": "string"
+                },
                 "net": {
                     "type": "string"
                 },
@@ -3379,6 +3898,9 @@ const docTemplate = `{
                 },
                 "rewardState": {
                     "$ref": "#/definitions/model.RewardState"
+                },
+                "sendId": {
+                    "type": "string"
                 },
                 "tick": {
                     "type": "string"
@@ -3402,6 +3924,17 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "respond.RateResp": {
+            "type": "object",
+            "properties": {
+                "usd": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },

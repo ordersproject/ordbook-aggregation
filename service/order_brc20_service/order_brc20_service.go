@@ -131,6 +131,7 @@ func PushOrder(req *request.OrderBrc20PushReq, publicKey string) (string, error)
 		PsbtRawPreAsk:       req.PsbtRaw,
 		InscriptionId:       inscriptionId,
 		Timestamp:           tool.MakeTimestamp(),
+		PlatformDummy:       req.PlatformDummy,
 	}
 	_, err = mongo_service.SetOrderBrc20Model(entity)
 	if err != nil {
@@ -704,12 +705,12 @@ func FetchBidPsbtByPlatform(req *request.OrderBrc20GetBidPlatformReq) (*respond.
 	}
 
 	//find dummy utxo
-	utxoDummyList, err = GetUnoccupiedUtxoList(req.Net, 2, 0, model.UtxoTypeDummyBidX)
+	utxoDummyList, err = GetUnoccupiedUtxoList(req.Net, 2, 0, model.UtxoTypeDummyBidX, "", 0)
 	defer ReleaseUtxoList(utxoDummyList)
 	if err != nil {
 		return nil, err
 	}
-	utxoDummy1200List, err = GetUnoccupiedUtxoList(req.Net, 1, 0, model.UtxoTypeDummy1200BidX)
+	utxoDummy1200List, err = GetUnoccupiedUtxoList(req.Net, 1, 0, model.UtxoTypeDummy1200BidX, "", 0)
 	defer ReleaseUtxoList(utxoDummy1200List)
 	if err != nil {
 		return nil, err
@@ -927,6 +928,7 @@ func FetchBidPsbtByPlatform(req *request.OrderBrc20GetBidPlatformReq) (*respond.
 		PoolOrderId:         poolOrderId,
 		PlatformDummy:       model.PlatformDummy(req.PlatformDummy),
 		Timestamp:           tool.MakeTimestamp(),
+		Version:             2,
 	}
 	_, err = mongo_service.SetOrderBrc20Model(entityOrder)
 	if err != nil {
@@ -1207,6 +1209,24 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 	return req.OrderId, nil
 }
 
+func CalFeeAmount(req *request.OrderBrc20CalFeeReq) (*respond.CalFeeResp, error) {
+	var (
+		feeAmountForReleaseInscription int64 = 5000
+		feeAmountForRewardInscription  int64 = 4000
+		feeAmountForRewardSend         int64 = 4000
+		feeAmountForPlatform           int64 = 3000
+	)
+	if req.Version == 2 {
+		feeAmountForReleaseInscription, feeAmountForRewardInscription, feeAmountForRewardSend = GenerateBidTakerFee(req.NetworkFeeRate)
+	}
+	return &respond.CalFeeResp{
+		ReleaseInscriptionFee: feeAmountForReleaseInscription,
+		RewardInscriptionFee:  feeAmountForRewardInscription,
+		RewardSendFee:         feeAmountForRewardSend,
+		PlatformFee:           feeAmountForPlatform,
+	}, nil
+}
+
 func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	var (
 		entity                *model.OrderBrc20Model
@@ -1283,6 +1303,11 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		newBidXUtxoOuputIndexForRewardInscription  int64 = 0
 		newBidXUtxoOuputIndexForRewardSend         int64 = 0
 	)
+	if req.Version == 2 {
+		feeAmountForReleaseInscription, feeAmountForRewardInscription, feeAmountForRewardSend = GenerateBidTakerFee(req.NetworkFeeRate)
+		fmt.Printf("feeAmountForReleaseInscription:%d, feeAmountForRewardInscription:%d, feeAmountForRewardSend:%d\n", feeAmountForReleaseInscription, feeAmountForRewardInscription, feeAmountForRewardSend)
+	}
+
 	entity, _ = mongo_service.FindOrderBrc20ModelByOrderId(req.OrderId)
 	if entity == nil {
 		return nil, errors.New("Bid is empty. ")
@@ -1391,6 +1416,8 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		sellerNetworkFeeAmount = (int64(sellerPayFee) - int64(sellerChangeOutput.Amount)) - (feeAmountForReleaseInscription + feeAmountForRewardInscription + feeAmountForRewardSend + feeAmountForPlatform)
 		if req.NetworkFee != 0 {
 			if req.NetworkFee != sellerNetworkFeeAmount {
+				fmt.Printf("sellerPayFee:%d, sellerChangeOutput.Amount:%d\n", sellerPayFee, sellerChangeOutput.Amount)
+				fmt.Printf("sellerNetworkFeeAmount:%d, req.NetworkFee:%d\n", sellerNetworkFeeAmount, req.NetworkFee)
 				return nil, errors.New("Wrong Psbt: seller's network Fee amount dose not match. ")
 			}
 		}
@@ -1613,13 +1640,13 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		}
 	}
 
-	utxoDummy1200List, err = GetUnoccupiedUtxoList(req.Net, 1, 0, model.UtxoTypeDummy1200)
+	utxoDummy1200List, err = GetUnoccupiedUtxoList(req.Net, 1, 0, model.UtxoTypeDummy1200, "", 0)
 	defer ReleaseUtxoList(utxoDummy1200List)
 	if err != nil {
 		return nil, err
 	}
 
-	utxoDummyList, err = GetUnoccupiedUtxoList(req.Net, 2, 0, model.UtxoTypeDummy)
+	utxoDummyList, err = GetUnoccupiedUtxoList(req.Net, 2, 0, model.UtxoTypeDummy, "", 0)
 	defer ReleaseUtxoList(utxoDummyList)
 	if err != nil {
 		return nil, err
@@ -1630,21 +1657,27 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	if supplementaryAmount <= 600 {
 		supplementaryAmount = 600
 	}
-	totalNeedAmount := int64(supplementaryAmount+sellerReceiveValue+entity.Fee+inscriptionOutputValue) - sellerNetworkFeeAmount
+	networkFee := entity.Fee
+	if sellerNetworkFeeAmount != 0 {
+		networkFee = uint64(sellerNetworkFeeAmount)
+	}
+
+	totalNeedAmount := int64(supplementaryAmount+sellerReceiveValue+networkFee+inscriptionOutputValue) - sellerNetworkFeeAmount
 	limit := totalNeedAmount/platformPayPerAmount + 1
 	changeAmount := platformPayPerAmount*limit - totalNeedAmount
+	fmt.Printf("[DO][not-pool]totalNeedAmount: %d， supplementaryAmount：%d, sellerReceiveValue: %d, entity.Fee: %d, inscriptionOutputValue: %d, sellerNetworkFeeAmount:%d\n", totalNeedAmount, supplementaryAmount, sellerReceiveValue, entity.Fee, inscriptionOutputValue, sellerNetworkFeeAmount)
 	if poolBtcAmount != 0 {
-		totalNeedAmount = totalNeedAmount - int64(poolBtcAmount) - sellerNetworkFeeAmount
+		totalNeedAmount = totalNeedAmount - int64(poolBtcAmount)
+		fmt.Printf("[DO][pool]totalNeedAmount: %d， poolBtcAmount：%d\n", totalNeedAmount, poolBtcAmount)
 		limit = totalNeedAmount/platformPayPerAmount + 1
 		changeAmount = platformPayPerAmount*limit - totalNeedAmount
 	}
+	fmt.Printf("[DO]totalNeedAmount: %d， poolBtcAmount：%d, changeAmount: %d, sellerNetworkFeeAmount: %d\n", totalNeedAmount, poolBtcAmount, changeAmount, sellerNetworkFeeAmount)
 	if totalNeedAmount <= 0 {
 		return nil, errors.New("Wrong Psbt: totalNeedAmount is less than 0. ")
 	}
 
-	fmt.Printf("[DO]totalNeedAmount: %d， poolBtcAmount：%d, changeAmount: %d, sellerNetworkFeeAmount: %d\n", totalNeedAmount, poolBtcAmount, changeAmount, sellerNetworkFeeAmount)
-
-	utxoBidYList, err = GetUnoccupiedUtxoList(req.Net, int64(limit), int64(totalNeedAmount), model.UtxoTypeBidY)
+	utxoBidYList, err = GetUnoccupiedUtxoList(req.Net, int64(limit), int64(totalNeedAmount), model.UtxoTypeBidY, "", 0)
 	defer ReleaseUtxoList(utxoBidYList)
 	if err != nil {
 		return nil, err
@@ -2194,15 +2227,15 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		SaveNewDummy1200FromBid(req.Net, newDummy1200Out, platformPrivateKeyReceiveDummyValue, 0, psbtYTxId)
 		SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, newDummy600Index, psbtYTxId)
 		SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, newDummy600Index+1, psbtYTxId)
-		SaveNewUtxoFromBid(req.Net, feeOutputForReleaseInscription, "", newBidXUtxoOuputIndexForReleaseInscription, psbtYTxId, model.UtxoTypeMultiInscription)
-		SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardInscription, psbtYTxId, model.UtxoTypeRewardInscription)
-		SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardSend, psbtYTxId, model.UtxoTypeRewardSend)
+		SaveNewUtxoFromBid(req.Net, feeOutputForReleaseInscription, "", newBidXUtxoOuputIndexForReleaseInscription, psbtYTxId, model.UtxoTypeMultiInscription, entity.PoolOrderId, req.NetworkFeeRate)
+		SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardInscription, psbtYTxId, model.UtxoTypeRewardInscription, entity.PoolOrderId, req.NetworkFeeRate)
+		SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardSend, psbtYTxId, model.UtxoTypeRewardSend, entity.PoolOrderId, req.NetworkFeeRate)
 
 		if entity.PoolOrderId != "" {
 			setCoinStatusPoolBrc20Order(entity, model.PoolStateUsed, dealCoinTxIndex, dealCoinTxOutValue, entity.DealTime)
 		}
 
-		time.Sleep(800 * time.Second)
+		time.Sleep(800 * time.Millisecond)
 		txPsbtXResp, err := unisat_service.BroadcastTx(req.Net, txRawPsbtX)
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s. Please try again or contact customer service for assistance. ", req.Net, err.Error()))
@@ -2242,11 +2275,11 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		SaveNewDummy1200FromBid(req.Net, newDummy1200Out, platformPrivateKeyReceiveDummyValue, 0, psbtYTxId)
 		SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, newDummy600Index, psbtYTxId)
 		SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, newDummy600Index+1, psbtYTxId)
-		SaveNewUtxoFromBid(req.Net, feeOutputForReleaseInscription, "", newBidXUtxoOuputIndexForReleaseInscription, psbtYTxId, model.UtxoTypeMultiInscription)
-		SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardInscription, psbtYTxId, model.UtxoTypeRewardInscription)
-		SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardSend, psbtYTxId, model.UtxoTypeRewardSend)
+		SaveNewUtxoFromBid(req.Net, feeOutputForReleaseInscription, "", newBidXUtxoOuputIndexForReleaseInscription, psbtYTxId, model.UtxoTypeMultiInscription, entity.PoolOrderId, req.NetworkFeeRate)
+		SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardInscription, psbtYTxId, model.UtxoTypeRewardInscription, entity.PoolOrderId, req.NetworkFeeRate)
+		SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardSend, psbtYTxId, model.UtxoTypeRewardSend, entity.PoolOrderId, req.NetworkFeeRate)
 
-		time.Sleep(800 * time.Second)
+		time.Sleep(800 * time.Millisecond)
 		txPsbtXResp, err := unisat_service.BroadcastTx(req.Net, txRawPsbtX)
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s. Please try again or contact customer service for assistance. ", req.Net, err.Error()))
@@ -2294,6 +2327,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	//SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardSend, psbtYTxId, model.UtxoTypeRewardSend)
 
 	entity.OrderState = model.OrderStateFinish
+	entity.DealTxBlockState = model.ClaimTxBlockStateUnconfirmed
 	_, err = mongo_service.SetOrderBrc20Model(entity)
 	if err != nil {
 		return nil, err
@@ -2304,6 +2338,9 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		setStatusPoolBrc20Order(entity, model.PoolStateUsed, dealTxIndex, dealTxOutValue, entity.DealTime)
 		setCoinStatusPoolBrc20Order(entity, model.PoolStateUsed, dealCoinTxIndex, dealCoinTxOutValue, entity.DealTime)
 		removeInvalidBidByPoolOrderId(entity.PoolOrderId)
+		if req.Version == 2 {
+			mongo_service.SetPoolBrc20ModelForVersion(entity.PoolOrderId, req.Version)
+		}
 	}
 
 	UpdateMarketPrice(req.Net, entity.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(entity.Tick)))
@@ -2348,6 +2385,10 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey, ip string) (string
 				finalAskPsbtBuilder, err = NewPsbtBuilder(netParams, req.PsbtRaw)
 				if err != nil {
 					return "", errors.New(fmt.Sprintf("PSBT: NewPsbtBuilder err:%s", err.Error()))
+				}
+				finalAskPsbtRaw, err := finalAskPsbtBuilder.ToString()
+				if err != nil {
+					return "", errors.New(fmt.Sprintf("PSBT(X): ToString err:%s", err.Error()))
 				}
 				txRaw, err := finalAskPsbtBuilder.ExtractPsbtTransaction()
 				if err != nil {
@@ -2416,6 +2457,11 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey, ip string) (string
 
 					entityOrder.PsbtAskTxId = txPsbtResp.Result
 					entityOrder.OrderState = model.OrderStateFinish
+
+					if entityOrder.PlatformDummy == model.PlatformDummyYes {
+						UpdateAndNewDummyForAsk(entityOrder.Net, finalAskPsbtRaw, txPsbtResp.Result)
+					}
+
 					//setWhitelist(entityOrder.BuyerAddress, model.WhitelistTypeClaim, 1, 0)
 				}
 				AddNotificationForOrderFinish(entityOrder.SellerAddress)

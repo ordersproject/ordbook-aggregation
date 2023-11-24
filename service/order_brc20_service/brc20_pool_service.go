@@ -283,8 +283,10 @@ func PushPoolOrder(req *request.PoolBrc20PushReq, publicKey string) (string, err
 	_ = marketPrice
 
 	if publicKey != publicKeyLp {
-		if req.Tick == "rdex" {
-			return "", errors.New("rdex not in pool")
+		if !CheckLpWhiteList(req.Address) {
+			if req.Tick == "rdex" {
+				return "", errors.New("rdex not in pool")
+			}
 		}
 	}
 
@@ -702,7 +704,7 @@ func UpdatePoolOrder(req *request.OrderPoolBrc20UpdateReq, publicKey, ip string)
 				})
 				refundAmount := entityOrder.Amount
 
-				utxoListForRefundFee, err = GetUnoccupiedUtxoList(req.Net, 1, 0, model.UtxoTypeBidY)
+				utxoListForRefundFee, err = GetUnoccupiedUtxoList(req.Net, 1, 0, model.UtxoTypeBidY, "", 0)
 				defer ReleaseUtxoList(utxoListForRefundFee)
 				refundUtxoList = append(refundUtxoList, utxoListForRefundFee...)
 				//todo
@@ -829,7 +831,7 @@ func ClaimPool(req *request.PoolBrc20ClaimReq, publicKey, ip string) (*respond.P
 	_ = coinTransferPsbtRaw
 
 	//btc
-	if entityOrder.PoolType == model.PoolTypeBoth && entityOrder.UtxoId != "" {
+	if entityOrder.PoolType == model.PoolTypeBoth {
 		btcReceiveAddress = entityOrder.Address
 	}
 	tx, psbtRaw, err = claimPoolBrc20Order(req.PoolOrderId, btcReceiveAddress, model.PoolTypeBtc, preSigScriptByte)
@@ -865,15 +867,15 @@ func ClaimPool(req *request.PoolBrc20ClaimReq, publicKey, ip string) (*respond.P
 
 func UpdateClaim(req *request.PoolBrc20ClaimUpdateReq, publicKey, ip string) (string, error) {
 	var (
-		netParams                                                *chaincfg.Params
-		entityOrder                                              *model.PoolBrc20Model
-		err                                                      error
-		txRaw                                                    string = ""
-		finalClaimPsbtBuilder                                    *PsbtBuilder
-		platformAddressReceiveBidValue                           string = ""
-		platformAddressMultiSigInscription                       string = ""
-		hasAddressMultiSigInscription, hasAddressReceiveBidValue bool   = false, false
-		multiSigInscriptionTxIndex, multiSigInscriptionTxAmount  int64  = 0, 0
+		netParams             *chaincfg.Params
+		entityOrder           *model.PoolBrc20Model
+		err                   error
+		txRaw                 string = ""
+		finalClaimPsbtBuilder *PsbtBuilder
+		//platformAddressReceiveBidValue                           string = ""
+		platformAddressMultiSigInscription                                          string = ""
+		hasAddressMultiSigInscription, hasAddressReceiveBtc, hasAddressReceiveBrc20 bool   = false, false, false
+		multiSigInscriptionTxIndex, multiSigInscriptionTxAmount                     int64  = 0, 0
 
 		rewardEntity *model.OrderBrc20Model
 	)
@@ -882,7 +884,7 @@ func UpdateClaim(req *request.PoolBrc20ClaimUpdateReq, publicKey, ip string) (st
 		return "", errors.New("Order is empty. ")
 	}
 
-	_, platformAddressReceiveBidValue = GetPlatformKeyAndAddressReceiveBidValue(entityOrder.Net)
+	//_, platformAddressReceiveBidValue = GetPlatformKeyAndAddressReceiveBidValue(entityOrder.Net)
 	_, platformAddressMultiSigInscription = GetPlatformKeyAndAddressForMultiSigInscription(entityOrder.Net)
 	if req.RewardIndex == 1 {
 		//finalClaimPsbtBuilder, err = addPoolRewardPsbt(entityOrder.Net, req.Address, req.PsbtRaw)
@@ -915,11 +917,18 @@ func UpdateClaim(req *request.PoolBrc20ClaimUpdateReq, publicKey, ip string) (st
 				if v.Value != 4000 && v.Value != 5000 {
 					return "", errors.New(fmt.Sprintf("Wrong Psbt: value of output[%d] is not 4000 or 5000", k))
 				}
-			} else if addrs[0].EncodeAddress() == platformAddressReceiveBidValue {
-				hasAddressReceiveBidValue = true
+				//} else if addrs[0].EncodeAddress() == platformAddressReceiveBidValue {
+			} else {
+				if addrs[0].EncodeAddress() == entityOrder.Address {
+					hasAddressReceiveBtc = true
+				}
+				if addrs[0].EncodeAddress() == entityOrder.CoinAddress {
+					hasAddressReceiveBrc20 = true
+				}
 			}
 		}
-		if !(hasAddressMultiSigInscription && hasAddressReceiveBidValue) {
+		if !(hasAddressMultiSigInscription && hasAddressReceiveBtc && hasAddressReceiveBrc20) {
+			//fmt.Printf("[Release]hasAddressMultiSigInscription:%v, hasAddressReceiveBtc:%v, hasAddressReceiveBrc20:%v\n", hasAddressMultiSigInscription, hasAddressReceiveBtc, hasAddressReceiveBrc20)
 			return "", errors.New(fmt.Sprintf("Wrong PSBT: outputs missing"))
 		}
 
@@ -974,7 +983,10 @@ func FetchOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20Reward
 		//claimedOwnCount        uint64 = 0
 		hadClaimRewardAmount uint64 = 0
 		//hadClaimRewardOrderCount uint64 = 0
-		hasReleasePoolOrderCount int64 = 0
+		hasReleasePoolOrderCount int64            = 0
+		rewardType               model.RewardType = model.RewardTypeNormal
+		tick                     string           = ""
+		rewardTick               string           = config.PlatformRewardTick
 	)
 
 	//if req.Tick != config.PlatformRewardTick {
@@ -995,7 +1007,13 @@ func FetchOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20Reward
 	//
 	hasReleasePoolOrderCount, _ = mongo_service.CountPoolBrc20ModelList(req.Net, req.Tick, "", req.Address, model.PoolTypeAll, model.PoolStateUsed)
 
-	entityReward, _ = mongo_service.CountOwnPoolReward(req.Net, "", "", req.Address)
+	if req.Tick == "rdex" {
+		tick = "rdex"
+		rewardType = model.RewardTypeEventOneLp
+		rewardTick = config.EventOneRewardTick
+	}
+
+	entityReward, _ = mongo_service.CountOwnPoolReward(req.Net, tick, "", req.Address)
 	if entityReward != nil {
 		totalRewardAmount = uint64(entityReward.RewardAmountTotal)
 		totalRewardExtraAmount = uint64(entityReward.RewardExtraAmountTotal)
@@ -1003,7 +1021,7 @@ func FetchOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20Reward
 		//claimedOwnAmount = uint64(entityReward.AmountTotal)
 		//claimedOwnCount = uint64(entityReward.OrderCounts)
 
-		entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, "", "", req.Address)
+		entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, rewardTick, "", req.Address, rewardType)
 		if entityRewardOrderCount != nil {
 			hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
 			//hadClaimRewardOrderCount = uint64(entityRewardOrderCount.RewardCoinOrderCount)
@@ -1012,6 +1030,7 @@ func FetchOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20Reward
 	return &respond.PoolBrc20RewardResp{
 		Net:                    req.Net,
 		Tick:                   req.Tick,
+		RewardTick:             rewardTick,
 		TotalRewardAmount:      totalRewardAmount,
 		TotalRewardExtraAmount: totalRewardExtraAmount,
 		//ClaimedOwnCoinAmount:   claimedOwnCoinAmount,
@@ -1032,10 +1051,13 @@ func ClaimReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string) (st
 		entityReward           *model.PoolRewardCount
 		entityRewardOrderCount *model.PoolRewardOrderCount
 		entityBlockReward      *model.PoolRewardBlockUserCount
-		totalRewardAmount      uint64 = 0
-		totalRewardExtraAmount uint64 = 0
-		hadClaimRewardAmount   uint64 = 0
-		remainingRewardAmount  int64  = 0
+		totalRewardAmount      uint64           = 0
+		totalRewardExtraAmount uint64           = 0
+		hadClaimRewardAmount   uint64           = 0
+		remainingRewardAmount  int64            = 0
+		rewardType             model.RewardType = model.RewardTypeNormal
+		tick                   string           = ""
+		rewardTick             string           = config.PlatformRewardTick
 	)
 	if req.Tick != config.PlatformRewardTick {
 		return "", errors.New(fmt.Sprintf("tick wrong:%s", config.PlatformRewardTick))
@@ -1060,13 +1082,19 @@ func ClaimReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string) (st
 	//	}
 	//}
 
+	if req.Tick == "rdex" {
+		tick = "rdex"
+		rewardType = model.RewardTypeEventOneLp
+		rewardTick = config.EventOneRewardTick
+	}
+
 	_ = entityReward
-	entityReward, _ = mongo_service.CountOwnPoolReward(req.Net, "", "", req.Address)
+	entityReward, _ = mongo_service.CountOwnPoolReward(req.Net, tick, "", req.Address)
 	if entityReward != nil {
 		totalRewardAmount = uint64(entityReward.RewardAmountTotal)
 		totalRewardExtraAmount = uint64(entityReward.RewardExtraAmountTotal)
 
-		entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, "", "", req.Address)
+		entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, rewardTick, "", req.Address, rewardType)
 		if entityRewardOrderCount != nil {
 			hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
 
@@ -1081,7 +1109,7 @@ func ClaimReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string) (st
 		return "", errors.New(fmt.Sprintf("You only have %d rdex to claim.", remainingRewardAmount))
 	}
 
-	orderId = fmt.Sprintf("%s_%s_%s_%d_%d", req.Net, req.Tick, req.Address, req.RewardAmount, nowTime)
+	orderId = fmt.Sprintf("%s_%s_%s_%d_%d", req.Net, rewardTick, req.Address, req.RewardAmount, nowTime)
 	orderId = hex.EncodeToString(tool.SHA256([]byte(orderId)))
 	entityOrder, _ = mongo_service.FindPoolRewardOrderModelByOrderId(orderId)
 	if entityOrder != nil {
@@ -1090,13 +1118,14 @@ func ClaimReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string) (st
 
 	entityOrder = &model.PoolRewardOrderModel{
 		Net:              req.Net,
-		Tick:             req.Tick,
+		Tick:             rewardTick,
 		OrderId:          orderId,
-		Pair:             fmt.Sprintf("%s-BTC", strings.ToUpper(req.Tick)),
+		Pair:             fmt.Sprintf("%s-BTC", strings.ToUpper(rewardTick)),
 		RewardCoinAmount: req.RewardAmount,
 		Address:          req.Address,
 		RewardState:      model.RewardStateCreate,
 		Timestamp:        nowTime,
+		RewardType:       rewardType,
 	}
 
 	_, err = mongo_service.SetPoolRewardOrderModel(entityOrder)
@@ -1113,14 +1142,23 @@ func FetchPoolRewardOrders(req *request.PoolRewardOrderFetchReq) (*respond.PoolR
 		total      int64                          = 0
 		list       []*respond.PoolRewardOrderItem = make([]*respond.PoolRewardOrderItem, 0)
 		flag       int64                          = 0
+
+		rewardType model.RewardType = model.RewardTypeNormal
+		rewardTick string           = config.PlatformRewardTick
 	)
-	if req.Tick != config.PlatformRewardTick {
-		return nil, errors.New(fmt.Sprintf("tick wrong:%s", config.PlatformRewardTick))
+	//if req.Tick != config.PlatformRewardTick {
+	//	return nil, errors.New(fmt.Sprintf("tick wrong:%s", config.PlatformRewardTick))
+	//}
+	if req.RewardType != 0 {
+		rewardType = req.RewardType
+		if req.RewardType == model.RewardTypeEventOneLp || req.RewardType == model.RewardTypeEventOneBid {
+			rewardTick = config.EventOneRewardTick
+		}
 	}
 
-	total, _ = mongo_service.CountPoolRewardOrderModelList(req.Net, req.Tick, req.Pair, req.Address, req.RewardState)
-	entityList, _ = mongo_service.FindPoolRewardOrderModelList(req.Net, req.Tick, req.Pair, req.Address, req.RewardState,
-		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType)
+	total, _ = mongo_service.CountPoolRewardOrderModelList(req.Net, rewardTick, req.Pair, req.Address, req.RewardState, rewardType)
+	entityList, _ = mongo_service.FindPoolRewardOrderModelList(req.Net, rewardTick, req.Pair, req.Address, req.RewardState,
+		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType, rewardType)
 	for _, v := range entityList {
 		item := &respond.PoolRewardOrderItem{
 			Net:              v.Net,
@@ -1131,6 +1169,8 @@ func FetchPoolRewardOrders(req *request.PoolRewardOrderFetchReq) (*respond.PoolR
 			Address:          v.Address,
 			RewardState:      v.RewardState,
 			Timestamp:        v.Timestamp,
+			InscriptionId:    v.InscriptionId,
+			SendId:           v.SendId,
 		}
 		if req.SortKey == "todo" {
 			//flag = int64(v.CoinRatePrice)

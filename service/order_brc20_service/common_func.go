@@ -398,7 +398,7 @@ func GetTxHash(rawTxByte []byte) string {
 }
 
 func GetTestFakerInscription(net string) []*model.OrderUtxoModel {
-	utxoMockInscriptionList, _ := mongo_service.FindUtxoList(net, -1, 1000, 0, model.UtxoTypeFakerInscription, -1)
+	utxoMockInscriptionList, _ := mongo_service.FindUtxoList(net, -1, 1000, 0, model.UtxoTypeFakerInscription, -1, "", 0)
 	return utxoMockInscriptionList
 }
 
@@ -560,6 +560,13 @@ func GetPlatformKeyAndAddressForDummy(net string) (string, string) {
 		return config.PlatformTestnetPrivateKeyDummy, config.PlatformTestnetAddressDummy
 	}
 	return config.PlatformMainnetPrivateKeyDummy, config.PlatformMainnetAddressDummy
+}
+
+func GetPlatformKeyAndAddressForDummyAsk(net string) (string, string) {
+	if strings.ToLower(net) == "testnet" {
+		return config.PlatformTestnetPrivateKeyDummyAsk, config.PlatformTestnetAddressDummyAsk
+	}
+	return config.PlatformMainnetPrivateKeyDummyAsk, config.PlatformMainnetAddressDummyAsk
 }
 
 func GetPlatformKeyAndAddressForLp(net string) (string, string) {
@@ -937,4 +944,235 @@ func GetTxConfirm(txId string) int64 {
 	}
 	blockHeight, _ = strconv.ParseInt(tx.Height, 10, 64)
 	return blockHeight
+}
+
+func MakeAskTakerPsbtRaw(net, psbtRaw, buyerAddress string, buyerChangeAmount uint64) (string, error) {
+	var (
+		takerPsbtRaw                                        string           = ""
+		netParams                                           *chaincfg.Params = GetNetParams(net)
+		askBuilder                                          *PsbtBuilder
+		builder                                             *PsbtBuilder
+		utxoDummy1200List                                   []*model.OrderUtxoModel
+		utxoDummyList                                       []*model.OrderUtxoModel
+		err                                                 error
+		platformPrivateKeyDummyAsk, platformAddressDummyAsk string = GetPlatformKeyAndAddressForDummyAsk(net)
+		inscriptionOutValue                                 uint64 = 0
+	)
+	askBuilder, err = NewPsbtBuilder(netParams, psbtRaw)
+	if err != nil {
+		return "", err
+	}
+	askPreOutList := askBuilder.GetInputs()
+	if askPreOutList == nil || len(askPreOutList) == 0 {
+		return "", errors.New("Wrong ask Psbt: empty inputs in brc20 psbt. ")
+	}
+	askInput := askPreOutList[0]
+	askOutputList := askBuilder.GetOutputs()
+	if askOutputList == nil || len(askOutputList) == 0 {
+		return "", errors.New("Wrong ask Psbt: empty outputs in brc20 psbt. ")
+	}
+	askOutput := askOutputList[0]
+
+	preTx, err := oklink_service.GetTxDetail(askInput.PreviousOutPoint.Hash.String())
+	if err != nil {
+		return "", err
+	}
+	preTxOut := preTx.OutputDetails[askInput.PreviousOutPoint.Index]
+	preTxOutAmountDe, err := decimal.NewFromString(preTxOut.Amount)
+	if err != nil {
+		return "", errors.New("The value of platform brc input decimal parse err. ")
+	}
+	inscriptionOutValue = uint64(preTxOutAmountDe.Mul(decimal.New(1, 8)).IntPart())
+
+	//find dummy utxo
+	utxoDummyList, err = GetUnoccupiedUtxoList(net, 2, 0, model.UtxoTypeDummyAsk, "", 0)
+	defer ReleaseUtxoList(utxoDummyList)
+	if err != nil {
+		return "", err
+	}
+	utxoDummy1200List, err = GetUnoccupiedUtxoList(net, 1, 0, model.UtxoTypeDummy1200Ask, "", 0)
+	defer ReleaseUtxoList(utxoDummy1200List)
+	if err != nil {
+		return "", err
+	}
+
+	inputs := make([]Input, 0)
+	dummyOutValue := uint64(0)
+	//add dummy input: 0,1
+	for _, dummy := range utxoDummyList {
+		inputs = append(inputs, Input{
+			OutTxId:  dummy.TxId,
+			OutIndex: uint32(dummy.Index),
+		})
+		dummyOutValue = dummyOutValue + dummy.Amount
+	}
+
+	//add brc20 input: 2
+	inputs = append(inputs, Input{
+		OutTxId:  askInput.PreviousOutPoint.Hash.String(),
+		OutIndex: uint32(askInput.PreviousOutPoint.Index),
+	})
+
+	//add dummy1200 input: 3
+	for _, dummy := range utxoDummy1200List {
+		inputs = append(inputs, Input{
+			OutTxId:  dummy.TxId,
+			OutIndex: uint32(dummy.Index),
+		})
+	}
+
+	outputs := make([]Output, 0)
+	// add dummy1200 output: 0
+	outputs = append(outputs, Output{
+		Address: platformAddressDummyAsk,
+		Amount:  dummyOutValue,
+	})
+
+	// add buyer receive brc20 output: 1
+	outputs = append(outputs, Output{
+		Address: buyerAddress,
+		Amount:  inscriptionOutValue,
+	})
+
+	// add receive btc output: 2
+	outputs = append(outputs, Output{
+		Amount: uint64(askOutput.Value),
+		Script: hex.EncodeToString(askOutput.PkScript),
+	})
+
+	// add dummy output: 3,4
+	dummyOut600 := Output{
+		Address: platformAddressDummyAsk,
+		Amount:  600,
+	}
+	outputs = append(outputs, dummyOut600)
+	outputs = append(outputs, dummyOut600)
+
+	// add change output: 7
+	if buyerChangeAmount > 0 {
+		changeOut := Output{
+			Address: buyerAddress,
+			Amount:  buyerChangeAmount,
+		}
+		outputs = append(outputs, changeOut)
+	}
+
+	inputSigns := make([]*InputSign, 0)
+	platformDummyPkScript, err := AddressToPkScript(net, platformPrivateKeyDummyAsk)
+	if err != nil {
+		return "", errors.New("AddressToPkScript err: " + err.Error())
+	}
+	//add dummy inputSign: 0,1
+	inputSigns = append(inputSigns, &InputSign{
+		Index:       0,
+		OutRaw:      "",
+		PkScript:    platformDummyPkScript,
+		SighashType: txscript.SigHashAll | txscript.SigHashAnyOneCanPay,
+		PriHex:      platformPrivateKeyDummyAsk,
+		UtxoType:    Witness,
+		Amount:      600,
+	})
+	inputSigns = append(inputSigns, &InputSign{
+		Index:       1,
+		OutRaw:      "",
+		PkScript:    platformDummyPkScript,
+		SighashType: txscript.SigHashAll | txscript.SigHashAnyOneCanPay,
+		PriHex:      platformPrivateKeyDummyAsk,
+		UtxoType:    Witness,
+		Amount:      600,
+	})
+
+	inputSigns = append(inputSigns, &InputSign{
+		Index:       3,
+		OutRaw:      "",
+		PkScript:    platformDummyPkScript,
+		SighashType: txscript.SigHashAll | txscript.SigHashAnyOneCanPay,
+		PriHex:      platformPrivateKeyDummyAsk,
+		UtxoType:    Witness,
+		Amount:      1200,
+	})
+
+	builder, err = CreatePsbtBuilder(netParams, inputs, outputs)
+	if err != nil {
+		return "", err
+	}
+
+	finalScriptWitness := askBuilder.PsbtUpdater.Upsbt.Inputs[0].FinalScriptWitness
+	witnessUtxo := askBuilder.PsbtUpdater.Upsbt.Inputs[0].WitnessUtxo
+	sighashType := askBuilder.PsbtUpdater.Upsbt.Inputs[0].SighashType
+	err = builder.AddSigIn(witnessUtxo, sighashType, finalScriptWitness, 2)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("PSBT(Ask): AddPartialSigIn err:%s", err.Error()))
+	}
+
+	err = builder.UpdateAndSignInput(inputSigns)
+	if err != nil {
+		return "", err
+	}
+
+	takerPsbtRaw, err = builder.ToString()
+	if err != nil {
+		return "", err
+	}
+
+	return takerPsbtRaw, nil
+}
+
+func UpdateAndNewDummyForAsk(net, takerPsbtRaw, askTxId string) {
+	var (
+		netParams                                           *chaincfg.Params = GetNetParams(net)
+		builder                                             *PsbtBuilder
+		utxoDummy1200AskList                                []*model.OrderUtxoModel
+		utxoDummyAskList                                    []*model.OrderUtxoModel
+		err                                                 error
+		platformPrivateKeyDummyAsk, platformAddressDummyAsk string = GetPlatformKeyAndAddressForDummyAsk(net)
+	)
+	builder, err = NewPsbtBuilder(netParams, takerPsbtRaw)
+	if err != nil {
+		return
+	}
+	askPreOutList := builder.GetInputs()
+	if askPreOutList == nil || len(askPreOutList) == 0 {
+		return
+	}
+	askOutputList := builder.GetOutputs()
+	if askOutputList == nil || len(askOutputList) == 0 {
+		return
+	}
+	for k, preOut := range askPreOutList {
+		utxoId := fmt.Sprintf("%s_%d", preOut.PreviousOutPoint.Hash.String(), preOut.PreviousOutPoint.Index)
+		if k == 0 || k == 1 {
+			dummyUtxo, _ := mongo_service.FindOrderUtxoModelByUtxorId(utxoId)
+			if dummyUtxo != nil {
+				//if dummyUtxo.ConfirmStatus == model.Unconfirmed {
+				//	return nil, errors.New(fmt.Sprintf("PSBT(X):dummy Utxo still not confirmed. Please wait for the confirmation of the dummy Utxo. "))
+				//}
+				utxoDummyAskList = append(utxoDummyAskList, dummyUtxo)
+			}
+		} else if k == 3 {
+			dummyUtxo, _ := mongo_service.FindOrderUtxoModelByUtxorId(utxoId)
+			if dummyUtxo != nil {
+				//if dummyUtxo.ConfirmStatus == model.Unconfirmed {
+				//	return nil, errors.New(fmt.Sprintf("PSBT(X):dummy Utxo still not confirmed. Please wait for the confirmation of the dummy Utxo. "))
+				//}
+				utxoDummy1200AskList = append(utxoDummy1200AskList, dummyUtxo)
+			}
+		}
+	}
+
+	for k, out := range askOutputList {
+		if k == 0 {
+			newDummyOut := Output{
+				Address: platformAddressDummyAsk,
+				Amount:  uint64(out.Value),
+			}
+			SaveNewDummyFromAsk(net, newDummyOut, platformPrivateKeyDummyAsk, int64(k), askTxId, model.UtxoTypeDummy1200Ask)
+		} else if k == 3 || k == 4 {
+			newDummyOut := Output{
+				Address: platformAddressDummyAsk,
+				Amount:  uint64(out.Value),
+			}
+			SaveNewDummyFromAsk(net, newDummyOut, platformPrivateKeyDummyAsk, int64(k), askTxId, model.UtxoTypeDummyAsk)
+		}
+	}
 }

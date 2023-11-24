@@ -106,6 +106,7 @@ type PoolBrc20Model struct {
 	Ratio             int64             `json:"ratio" bson:"ratio"`
 	RewardRatio       int64             `json:"rewardRatio" bson:"rewardRatio"`
 	Timestamp         int64             `json:"timestamp" bson:"timestamp"`
+	Version           int64             `json:"version" bson:"version"`
 	CreateTime        int64             `json:"createTime" bson:"createTime"`
 	UpdateTime        int64             `json:"updateTime" bson:"updateTime"`
 	State             int64             `json:"state" bson:"state"`
@@ -216,6 +217,15 @@ const (
 	RewardStateAll         RewardState = 100
 )
 
+type RewardType int
+
+const (
+	RewardTypeNormal      RewardType = 1
+	RewardTypeExtra       RewardType = 2
+	RewardTypeEventOneLp  RewardType = 11
+	RewardTypeEventOneBid RewardType = 12
+)
+
 type PoolRewardOrderModel struct {
 	Id                  int64       `json:"id" bson:"_id" tb:"pool_reward_order_model" mg:"true"`
 	Net                 string      `json:"net" bson:"net"`
@@ -224,10 +234,17 @@ type PoolRewardOrderModel struct {
 	Pair                string      `json:"pair" bson:"pair"`
 	RewardCoinAmount    int64       `json:"rewardCoinAmount" bson:"rewardCoinAmount"`
 	Address             string      `json:"address" bson:"address"`
+	RewardType          RewardType  `json:"rewardType" bson:"rewardType"`
 	RewardState         RewardState `json:"rewardState" bson:"rewardState"`
 	InscriptionId       string      `json:"inscriptionId" bson:"inscriptionId"`
 	InscriptionOutValue int64       `json:"inscriptionOutValue" bson:"inscriptionOutValue"`
 	SendId              string      `json:"sendId" bson:"sendId"`
+	FeeRawTx            string      `json:"feeRawTx" bson:"feeRawTx"`
+	FeeUtxoTxId         string      `json:"feeUtxoTxId" bson:"feeUtxoTxId"`
+	FeeInscription      int64       `json:"feeInscription" bson:"feeInscription"`
+	FeeSend             int64       `json:"feeSend" bson:"feeSend"`
+	NetworkFeeRate      int64       `json:"networkFeeRate" bson:"networkFeeRate"`
+	Version             int         `json:"version" bson:"version"`
 	Timestamp           int64       `json:"timestamp" bson:"timestamp"`
 	CreateTime          int64       `json:"createTime" bson:"createTime"`
 	UpdateTime          int64       `json:"updateTime" bson:"updateTime"`
@@ -341,21 +358,31 @@ func (s PoolBlockUserInfoModel) GetWriteDB() (*mongo.Collection, error) {
 	return collection, nil
 }
 
+type CalType int
+
+const (
+	CalTypePlatform CalType = 1
+	CalTypeEventOne CalType = 11
+)
+
 type PoolBlockInfoModel struct {
-	Id                           int64             `json:"id" bson:"_id" tb:"pool_block_info_model" mg:"true"`
-	BigBlockId                   string            `json:"bigBlockId" bson:"bigBlockId"` //bigBlock_cycleBlock
-	BigBlock                     int64             `json:"bigBlock" bson:"bigBlock"`
-	StartBlock                   int64             `json:"startBlock" bson:"startBlock"`
-	EndBlock                     int64             `json:"endBlock" bson:"endBlock"`
-	CycleBlock                   int64             `json:"cycleBlock" bson:"cycleBlock"`
-	CalPoolRewardInfo            map[string]string `json:"calPoolRewardInfo" bson:"calPoolRewardInfo"` //{"poolOrderId":"value:percentage:amount:coinAmount:price"}
-	CalPoolRewardTotalValue      int64             `json:"calPoolRewardTotalValue" bson:"calPoolRewardTotalValue"`
-	CalPoolExtraRewardInfo       map[string]string `json:"calPoolExtraRewardInfo" bson:"calPoolExtraRewardInfo"` //{"poolOrderId":"value:percentage:amount:coinAmount:price"}
-	CalPoolExtraRewardTotalValue int64             `json:"calPoolExtraRewardTotalValue" bson:"calPoolExtraRewardTotalValue"`
-	Timestamp                    int64             `json:"timestamp" bson:"timestamp"`
-	CreateTime                   int64             `json:"createTime" bson:"createTime"`
-	UpdateTime                   int64             `json:"updateTime" bson:"updateTime"`
-	State                        int64             `json:"state" bson:"state"`
+	Id                                   int64             `json:"id" bson:"_id" tb:"pool_block_info_model" mg:"true"`
+	BigBlockId                           string            `json:"bigBlockId" bson:"bigBlockId"` //bigBlock_cycleBlock
+	BigBlock                             int64             `json:"bigBlock" bson:"bigBlock"`
+	StartBlock                           int64             `json:"startBlock" bson:"startBlock"`
+	EndBlock                             int64             `json:"endBlock" bson:"endBlock"`
+	CycleBlock                           int64             `json:"cycleBlock" bson:"cycleBlock"`
+	CalPoolRewardInfo                    map[string]string `json:"calPoolRewardInfo" bson:"calPoolRewardInfo"` //{"poolOrderId":"value:percentage:amount:coinAmount:price"}
+	CalPoolRewardTotalValue              int64             `json:"calPoolRewardTotalValue" bson:"calPoolRewardTotalValue"`
+	CalPoolExtraRewardInfo               map[string]string `json:"calPoolExtraRewardInfo" bson:"calPoolExtraRewardInfo"` //{"poolOrderId":"value:percentage:amount:coinAmount:price"}
+	CalPoolExtraRewardTotalValue         int64             `json:"calPoolExtraRewardTotalValue" bson:"calPoolExtraRewardTotalValue"`
+	CalEventBidDealExtraRewardInfo       map[string]string `json:"calEventBidDealExtraRewardInfo" bson:"calEventBidDealExtraRewardInfo"` //{"brc20OrderId":"value:percentage:dealAmount"}
+	CalEventBidDealExtraRewardTotalValue int64             `json:"calEventBidDealExtraRewardTotalValue" bson:"calEventBidDealExtraRewardTotalValue"`
+	CalType                              CalType           `json:"calType" bson:"calType"`
+	Timestamp                            int64             `json:"timestamp" bson:"timestamp"`
+	CreateTime                           int64             `json:"createTime" bson:"createTime"`
+	UpdateTime                           int64             `json:"updateTime" bson:"updateTime"`
+	State                                int64             `json:"state" bson:"state"`
 }
 
 func (s PoolBlockInfoModel) getCollection() string {

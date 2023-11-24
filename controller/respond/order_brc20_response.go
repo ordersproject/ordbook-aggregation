@@ -26,6 +26,7 @@ type Brc20Item struct {
 	BuyerAddress        string           `json:"buyerAddress,omitempty"`        //Buyer's address
 	InscriptionId       string           `json:"inscriptionId,omitempty"`       //InscriptionId
 	PsbtRaw             string           `json:"psbtRaw,omitempty"`             //PSBT Raw
+	TakePsbtRaw         string           `json:"takePsbtRaw,omitempty"`         //Take PSBT Raw
 	Timestamp           int64            `json:"timestamp"`                     //Create time
 }
 
@@ -168,4 +169,48 @@ type DummyItem struct {
 	Order     string `json:"order"`
 	DummyId   string `json:"dummyId"`
 	Timestamp int64  `json:"timestamp"`
+}
+
+type OrderEventResponse struct {
+	Total   int64             `json:"total,omitempty"`
+	Results []*Brc20EventItem `json:"results,omitempty"`
+	Flag    int64             `json:"flag,omitempty"`
+}
+
+type Brc20EventItem struct {
+	Net                 string                  `json:"net,omitempty"`                            //Net env
+	OrderId             string                  `json:"orderId,omitempty"`                        //Order ID
+	Tick                string                  `json:"tick,omitempty"`                           //Brc20 symbol
+	Amount              uint64                  `json:"amount,omitempty"`                         //Btc: sat
+	DecimalNum          int                     `json:"decimalNum,omitempty"`                     //Btc decimal
+	CoinAmount          uint64                  `json:"coinAmount,omitempty"`                     //Brc20 amount
+	CoinDecimalNum      int                     `json:"coinDecimalNum,omitempty"`                 //omitempty
+	CoinRatePrice       uint64                  `json:"coinRatePrice,omitempty"`                  //Rate for brc20-btc
+	CoinPrice           int64                   `json:"coinPrice,omitempty"`                      //MAX-9223372036854775807
+	CoinPriceDecimalNum int32                   `json:"coinPriceDecimalNum,omitempty"`            //default-8
+	OrderState          model.OrderState        `json:"orderState,omitempty"`                     //Order state：1-create,2-finish,3-cancel
+	OrderType           model.OrderType         `json:"orderType,omitempty"`                      //Order type：1-sell,2-buy
+	FreeState           model.FreeState         `json:"freeState,omitempty"`                      //1-for free
+	SellerAddress       string                  `json:"sellerAddress,omitempty"`                  //Seller's address
+	BuyerAddress        string                  `json:"buyerAddress,omitempty"`                   //Buyer's address
+	InscriptionId       string                  `json:"inscriptionId,omitempty"`                  //InscriptionId
+	Timestamp           int64                   `json:"timestamp"`                                //Create time
+	DealTxBlockState    model.ClaimTxBlockState `json:"dealTxBlockState" bson:"dealTxBlockState"` //psbtBidTxId
+	DealTxBlock         int64                   `json:"dealTxBlock" bson:"dealTxBlock"`
+	Percentage          int64                   `json:"percentage" bson:"percentage"`
+	CalValue            int64                   `json:"calValue" bson:"calValue"`
+	CalTotalValue       int64                   `json:"calTotalValue" bson:"calTotalValue"`
+	CalStartBlock       int64                   `json:"calStartBlock" bson:"calStartBlock"`
+	CalEndBlock         int64                   `json:"calEndBlock" bson:"calEndBlock"`
+	RewardAmount        int64                   `json:"rewardAmount" bson:"rewardAmount"`
+	RewardRealAmount    int64                   `json:"rewardRealAmount" bson:"rewardRealAmount"`
+	Version             int                     `json:"version" bson:"version"`
+}
+
+type CalFeeResp struct {
+	ReleaseInscriptionFee int64  `json:"releaseInscriptionFee,omitempty"`
+	RewardInscriptionFee  int64  `json:"rewardInscriptionFee,omitempty"`
+	RewardSendFee         int64  `json:"rewardSendFee,omitempty"`
+	PlatformFee           int64  `json:"platformFee,omitempty"`
+	FeeAddress            string `json:"feeAddress,omitempty"`
 }

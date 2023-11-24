@@ -73,22 +73,31 @@ type PoolBrc20ClaimUpdateReq struct {
 }
 
 type PoolBrc20RewardReq struct {
-	Net     string `json:"net"` //livenet/signet/testnet
-	Tick    string `json:"tick"`
-	Address string `json:"address"`
+	Net        string           `json:"net"` //livenet/signet/testnet
+	Tick       string           `json:"tick"`
+	Address    string           `json:"address"`
+	RewardType model.RewardType `json:"rewardType"`
 }
 
 type PoolBrc20ClaimRewardReq struct {
-	Net          string `json:"net"` //livenet/signet/testnet
-	Tick         string `json:"tick"`
-	Address      string `json:"address"`
-	RewardAmount int64  `json:"rewardAmount"`
+	Net            string           `json:"net"` //livenet/signet/testnet
+	Tick           string           `json:"tick"`
+	Address        string           `json:"address"`
+	RewardAmount   int64            `json:"rewardAmount"`
+	RewardType     model.RewardType `json:"rewardType"`
+	Version        int              `json:"version"`
+	FeeRawTx       string           `json:"feeRawTx"`
+	FeeUtxoTxId    string           `json:"feeUtxoTxId"`
+	FeeInscription int64            `json:"feeInscription"`
+	FeeSend        int64            `json:"feeSend"`
+	NetworkFeeRate int64            `json:"networkFeeRate"`
 }
 
 type PoolRewardOrderFetchReq struct {
 	Net         string            `json:"net"` //livenet/signet/testnet
 	Tick        string            `json:"tick"`
 	Pair        string            `json:"pair"`
+	RewardType  model.RewardType  `json:"rewardType"`
 	RewardState model.RewardState `json:"rewardState"` //1-create,2-inscription,3-send,100-all
 	Limit       int64             `json:"limit"`
 	Flag        int64             `json:"flag"`

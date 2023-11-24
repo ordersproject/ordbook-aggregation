@@ -47,3 +47,11 @@ type LpAddOneStep2BatchRequest struct {
 	Ratio         int64    `json:"ratio"`
 	BtcOutValue   int64    `json:"btcOutValue"`
 }
+
+type LpCancelOneBatchRequest struct {
+	LpOrderIdList []string `json:"lpOrderIdList"`
+	Net           string   `json:"net"`
+	Address       string   `json:"address"`
+	FeeRate       int64    `json:"feeRate"`
+	IsCalOnly     bool     `json:"isCalOnly"`
+}

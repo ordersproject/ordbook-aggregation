@@ -2,6 +2,7 @@ package common_service
 
 import (
 	"github.com/btcsuite/btcd/chaincfg"
+	"ordbook-aggregation/service/unisat_service"
 	"strings"
 )
 
@@ -79,4 +80,21 @@ func GetNetParams(net string) *chaincfg.Params {
 		break
 	}
 	return netParams
+}
+
+func GetFeeSummary() int64 {
+	var (
+		currentFee int64 = 0
+		feeSummary *unisat_service.FeeSummary
+	)
+	feeSummary, _ = unisat_service.GetFeeDetail()
+	if feeSummary != nil {
+		for _, v := range feeSummary.List {
+			if strings.ToLower(v.Title) == "avg" {
+				currentFee = int64(v.FeeRate)
+				break
+			}
+		}
+	}
+	return currentFee
 }

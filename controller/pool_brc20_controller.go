@@ -313,17 +313,21 @@ func UpdateClaim(c *gin.Context) {
 // @Param net query string true "net"
 // @Param tick query string false "tick"
 // @Param address query string true "address"
+// @Param rewardType query int false "rewardType"
 // @Success 200 {object} respond.PoolBrc20RewardResp ""
 // @Router /brc20/pool/reward/info [get]
 func FetchOwnerReward(c *gin.Context) {
 	var (
-		t   int64                       = tool.MakeTimestamp()
-		req *request.PoolBrc20RewardReq = &request.PoolBrc20RewardReq{
+		t             int64                       = tool.MakeTimestamp()
+		rewardTypeStr                             = c.DefaultQuery("rewardType", "0")
+		req           *request.PoolBrc20RewardReq = &request.PoolBrc20RewardReq{
 			Net:     c.DefaultQuery("net", ""),
 			Tick:    c.DefaultQuery("tick", ""),
 			Address: c.DefaultQuery("address", ""),
 		}
 	)
+	rewardType, _ := strconv.ParseInt(rewardTypeStr, 10, 64)
+	req.RewardType = model.RewardType(rewardType)
 	responseModel, err := order_brc20_service.FetchOwnerReward(req)
 	if err != nil {
 		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
@@ -382,6 +386,7 @@ func FetchPoolRewardOrders(c *gin.Context) {
 		pageStr                                         = c.DefaultQuery("page", "0")
 		flagStr                                         = c.DefaultQuery("flag", "0")
 		sortTypeStr                                     = c.DefaultQuery("sortType", "0")
+		rewardTypeStr                                   = c.DefaultQuery("rewardType", "0")
 		req            *request.PoolRewardOrderFetchReq = &request.PoolRewardOrderFetchReq{
 			Net:         c.DefaultQuery("net", ""),
 			Tick:        c.DefaultQuery("tick", ""),
@@ -394,6 +399,8 @@ func FetchPoolRewardOrders(c *gin.Context) {
 			SortType:    0,
 		}
 	)
+	rewardType, _ := strconv.ParseInt(rewardTypeStr, 10, 64)
+	req.RewardType = model.RewardType(rewardType)
 	rewardState, _ := strconv.ParseInt(rewardStateStr, 10, 64)
 	req.RewardState = model.RewardState(rewardState)
 	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
@@ -407,4 +414,91 @@ func FetchPoolRewardOrders(c *gin.Context) {
 	}
 	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
 	return
+}
+
+// @Summary Fetch event reward info
+// @Description Fetch pool reward info
+// @Produce  json
+// @Tags brc20
+// @Param net query string true "net"
+// @Param tick query string false "tick"
+// @Param address query string true "address"
+// @Param rewardType query int false "rewardType"
+// @Success 200 {object} respond.PoolBrc20RewardResp ""
+// @Router /brc20/event/reward/info [get]
+func FetchEventOwnerReward(c *gin.Context) {
+	var (
+		t             int64                       = tool.MakeTimestamp()
+		rewardTypeStr                             = c.DefaultQuery("rewardType", "0")
+		req           *request.PoolBrc20RewardReq = &request.PoolBrc20RewardReq{
+			Net:     c.DefaultQuery("net", ""),
+			Tick:    c.DefaultQuery("tick", ""),
+			Address: c.DefaultQuery("address", ""),
+		}
+	)
+	rewardType, _ := strconv.ParseInt(rewardTypeStr, 10, 64)
+	req.RewardType = model.RewardType(rewardType)
+	responseModel, err := order_brc20_service.FetchEventOwnerReward(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary Cal event claim fee
+// @Description Cal event claim fee
+// @Produce  json
+// @Tags brc20
+// @Param version query int false "version"
+// @Param networkFeeRate query int false "networkFeeRate"
+// @Success 200 {object} respond.CalFeeResp ""
+// @Router /brc20/event/reward/cal/fee [get]
+func CalEventClaimFee(c *gin.Context) {
+	var (
+		t                 int64                        = tool.MakeTimestamp()
+		versionStr        string                       = c.DefaultQuery("version", "0")
+		networkFeeRateStr                              = c.DefaultQuery("networkFeeRate", "0")
+		req               *request.OrderBrc20CalFeeReq = &request.OrderBrc20CalFeeReq{
+			Version:        0,
+			NetworkFeeRate: 0,
+			Net:            c.DefaultQuery("net", "livenet"),
+		}
+	)
+	req.Version, _ = strconv.ParseInt(versionStr, 10, 64)
+	req.NetworkFeeRate, _ = strconv.ParseInt(networkFeeRateStr, 10, 64)
+	responseModel, err := order_brc20_service.CalEventClaimFee(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary create one event claim reward order
+// @Description create one event claim reward order
+// @Produce  json
+// @Param Request body request.PoolBrc20ClaimRewardReq true "Request"
+// @Tags brc20
+// @Success 200 {object} respond.Message ""
+// @Router /brc20/event/reward/claim [post]
+func ClaimEventReward(c *gin.Context) {
+	var (
+		t            int64 = tool.MakeTimestamp()
+		requestModel *request.PoolBrc20ClaimRewardReq
+		publicKey    string = ""
+	)
+	if c.ShouldBindJSON(&requestModel) == nil {
+		publicKey = getAuthParams(c)
+		responseModel, err := order_brc20_service.ClaimEventReward(requestModel, publicKey, c.ClientIP())
+		if err != nil {
+			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+			return
+		}
+		c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+		return
+	}
+	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
 }

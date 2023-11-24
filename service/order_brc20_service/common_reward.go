@@ -538,22 +538,28 @@ func getUserBlockRewardAmountNoUser(percentage int64) int64 {
 }
 
 func UpdatePoolBlockInfo(startBlock, endBlock, cycleBlock, nowTime int64,
-	calPoolRewardInfo map[string]string, calPoolRewardTotalValue int64, calPoolExtraRewardInfo map[string]string, calPoolExtraRewardTotalValue int64) {
+	calPoolRewardInfo map[string]string, calPoolRewardTotalValue int64,
+	calPoolExtraRewardInfo map[string]string, calPoolExtraRewardTotalValue int64,
+	calEventBidDealExtraRewardInfo map[string]string, calEventBidDealExtraRewardTotalValue int64,
+	calType model.CalType) {
 	var (
 		entity   *model.PoolBlockInfoModel
 		bigBlock int64 = GetCurrentBigBlock(startBlock)
 	)
 	entity = &model.PoolBlockInfoModel{
-		BigBlockId:                   fmt.Sprintf("%d_%d", bigBlock, cycleBlock),
-		BigBlock:                     bigBlock,
-		StartBlock:                   startBlock,
-		EndBlock:                     endBlock,
-		CycleBlock:                   cycleBlock,
-		Timestamp:                    nowTime,
-		CalPoolRewardInfo:            calPoolRewardInfo,
-		CalPoolRewardTotalValue:      calPoolRewardTotalValue,
-		CalPoolExtraRewardInfo:       calPoolExtraRewardInfo,
-		CalPoolExtraRewardTotalValue: calPoolExtraRewardTotalValue,
+		BigBlockId:                           fmt.Sprintf("%d_%d_%d", bigBlock, cycleBlock, calType),
+		BigBlock:                             bigBlock,
+		StartBlock:                           startBlock,
+		EndBlock:                             endBlock,
+		CycleBlock:                           cycleBlock,
+		Timestamp:                            nowTime,
+		CalPoolRewardInfo:                    calPoolRewardInfo,
+		CalPoolRewardTotalValue:              calPoolRewardTotalValue,
+		CalPoolExtraRewardInfo:               calPoolExtraRewardInfo,
+		CalPoolExtraRewardTotalValue:         calPoolExtraRewardTotalValue,
+		CalEventBidDealExtraRewardInfo:       calEventBidDealExtraRewardInfo,
+		CalEventBidDealExtraRewardTotalValue: calEventBidDealExtraRewardTotalValue,
+		CalType:                              calType,
 	}
 	mongo_service.SetPoolBlockInfoModel(entity)
 }

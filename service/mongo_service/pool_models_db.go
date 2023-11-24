@@ -294,6 +294,7 @@ func SetPoolBrc20ModelForClaim(poolBrc20 *model.PoolBrc20Model) error {
 		bsonData = append(bsonData, bson.E{Key: "poolState", Value: poolBrc20.PoolState})
 		bsonData = append(bsonData, bson.E{Key: "poolCoinState", Value: poolBrc20.PoolCoinState})
 		bsonData = append(bsonData, bson.E{Key: "rewardRealAmount", Value: poolBrc20.RewardRealAmount})
+		bsonData = append(bsonData, bson.E{Key: "decreasing", Value: poolBrc20.Decreasing})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",
 			bsonData,
@@ -452,6 +453,31 @@ func SetPoolBrc20ModelForMultiSigScriptAddressTickAvailableState(poolBrc20 *mode
 		}
 		bsonData := bson.D{}
 		bsonData = append(bsonData, bson.E{Key: "multiSigScriptAddressTickAvailableState", Value: poolBrc20.MultiSigScriptAddressTickAvailableState})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func SetPoolBrc20ModelForVersion(orderId string, version int64) error {
+	entity, err := FindPoolBrc20ModelByOrderId(orderId)
+	if err == nil && entity != nil {
+		collection, err := model.PoolBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", orderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "version", Value: version})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",
 			bsonData,
@@ -1366,6 +1392,8 @@ func createPoolRewardOrderModel(poolRewardOrder *model.PoolRewardOrderModel) (*m
 	CreateIndex(collection, "address")
 	CreateIndex(collection, "rewardState")
 	CreateIndex(collection, "timestamp")
+	CreateIndex(collection, "rewardType")
+	CreateIndex(collection, "freeAskOrderId")
 
 	entity := &model.PoolRewardOrderModel{
 		Id:                  util.GetUUIDInt64(),
@@ -1375,10 +1403,17 @@ func createPoolRewardOrderModel(poolRewardOrder *model.PoolRewardOrderModel) (*m
 		Tick:                poolRewardOrder.Tick,
 		RewardCoinAmount:    poolRewardOrder.RewardCoinAmount,
 		Address:             poolRewardOrder.Address,
+		RewardType:          poolRewardOrder.RewardType,
 		RewardState:         poolRewardOrder.RewardState,
 		InscriptionId:       poolRewardOrder.InscriptionId,
 		InscriptionOutValue: poolRewardOrder.InscriptionOutValue,
 		SendId:              poolRewardOrder.SendId,
+		FeeRawTx:            poolRewardOrder.FeeRawTx,
+		FeeUtxoTxId:         poolRewardOrder.FeeUtxoTxId,
+		FeeInscription:      poolRewardOrder.FeeInscription,
+		FeeSend:             poolRewardOrder.FeeSend,
+		NetworkFeeRate:      poolRewardOrder.NetworkFeeRate,
+		Version:             poolRewardOrder.Version,
 		Timestamp:           poolRewardOrder.Timestamp,
 		CreateTime:          util.Time(),
 		State:               model.STATE_EXIST,
@@ -1412,10 +1447,17 @@ func SetPoolRewardOrderModel(poolRewardOrder *model.PoolRewardOrderModel) (*mode
 		bsonData = append(bsonData, bson.E{Key: "tick", Value: poolRewardOrder.Tick})
 		bsonData = append(bsonData, bson.E{Key: "rewardCoinAmount", Value: poolRewardOrder.RewardCoinAmount})
 		bsonData = append(bsonData, bson.E{Key: "address", Value: poolRewardOrder.Address})
+		bsonData = append(bsonData, bson.E{Key: "rewardType", Value: poolRewardOrder.RewardType})
 		bsonData = append(bsonData, bson.E{Key: "rewardState", Value: poolRewardOrder.RewardState})
 		bsonData = append(bsonData, bson.E{Key: "inscriptionId", Value: poolRewardOrder.InscriptionId})
 		bsonData = append(bsonData, bson.E{Key: "inscriptionOutValue", Value: poolRewardOrder.InscriptionOutValue})
 		bsonData = append(bsonData, bson.E{Key: "sendId", Value: poolRewardOrder.SendId})
+		bsonData = append(bsonData, bson.E{Key: "feeRawTx", Value: poolRewardOrder.FeeRawTx})
+		bsonData = append(bsonData, bson.E{Key: "feeUtxoTxId", Value: poolRewardOrder.FeeUtxoTxId})
+		bsonData = append(bsonData, bson.E{Key: "feeInscription", Value: poolRewardOrder.FeeInscription})
+		bsonData = append(bsonData, bson.E{Key: "feeSend", Value: poolRewardOrder.FeeSend})
+		bsonData = append(bsonData, bson.E{Key: "networkFeeRate", Value: poolRewardOrder.NetworkFeeRate})
+		bsonData = append(bsonData, bson.E{Key: "version", Value: poolRewardOrder.Version})
 		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: poolRewardOrder.Timestamp})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",
@@ -1431,7 +1473,7 @@ func SetPoolRewardOrderModel(poolRewardOrder *model.PoolRewardOrderModel) (*mode
 	}
 }
 
-func CountPoolRewardOrderModelList(net, tick, pair, address string, rewardState model.RewardState) (int64, error) {
+func CountPoolRewardOrderModelList(net, tick, pair, address string, rewardState model.RewardState, rewardType model.RewardType) (int64, error) {
 	collection, err := model.PoolRewardOrderModel{}.GetReadDB()
 	if err != nil {
 		return 0, err
@@ -1450,6 +1492,9 @@ func CountPoolRewardOrderModelList(net, tick, pair, address string, rewardState 
 	}
 	if address != "" {
 		find["address"] = address
+	}
+	if rewardType != 0 {
+		find["rewardType"] = rewardType
 	}
 	//if poolType != 0 {
 	//	find["poolType"] = poolType
@@ -1475,7 +1520,7 @@ func CountPoolRewardOrderModelList(net, tick, pair, address string, rewardState 
 
 func FindPoolRewardOrderModelList(net, tick, pair, address string,
 	rewardState model.RewardState,
-	limit, flag, page int64, sortKey string, sortType int64) ([]*model.PoolRewardOrderModel, error) {
+	limit, flag, page int64, sortKey string, sortType int64, rewardType model.RewardType) ([]*model.PoolRewardOrderModel, error) {
 	collection, err := model.PoolRewardOrderModel{}.GetReadDB()
 	if err != nil {
 		return nil, errors.New("db connect error")
@@ -1501,6 +1546,9 @@ func FindPoolRewardOrderModelList(net, tick, pair, address string,
 	}
 	if address != "" {
 		find["address"] = address
+	}
+	if rewardType != 0 {
+		find["rewardType"] = rewardType
 	}
 	//if poolType != 0 {
 	//	find["poolType"] = poolType
@@ -1555,7 +1603,7 @@ func FindPoolRewardOrderModelList(net, tick, pair, address string,
 	return models, nil
 }
 
-func CountOwnPoolRewardOrder(net, tick, pair, address string) (*model.PoolRewardOrderCount, error) {
+func CountOwnPoolRewardOrder(net, tick, pair, address string, rewardType model.RewardType) (*model.PoolRewardOrderCount, error) {
 	collection, err := model.PoolRewardOrderModel{}.GetReadDB()
 	if err != nil {
 		return nil, err
@@ -1582,6 +1630,9 @@ func CountOwnPoolRewardOrder(net, tick, pair, address string) (*model.PoolReward
 	}
 	if address != "" {
 		match["address"] = address
+	}
+	if rewardType != 0 {
+		match["rewardType"] = rewardType
 	}
 
 	pipeline := mongo.Pipeline{
@@ -1699,7 +1750,7 @@ func CountPoolRewardOrder(net, tick, pair, address string, poolState model.PoolS
 	}
 }
 
-func FindPoolRewardOrderModelListByTimestamp(net, tick, pair string, limit, timestamp int64, rewardState model.RewardState) ([]*model.PoolRewardOrderModel, error) {
+func FindPoolRewardOrderModelListByTimestamp(net, tick, pair string, limit, timestamp int64, rewardState model.RewardState, rewardType model.RewardType) ([]*model.PoolRewardOrderModel, error) {
 	collection, err := model.PoolRewardOrderModel{}.GetReadDB()
 	if err != nil {
 		return nil, errors.New("db connect error")
@@ -1723,6 +1774,9 @@ func FindPoolRewardOrderModelListByTimestamp(net, tick, pair string, limit, time
 	}
 	if rewardState != 0 {
 		find["rewardState"] = rewardState
+	}
+	if rewardType != 0 {
+		find["rewardType"] = rewardType
 	}
 
 	skip := int64(0)
@@ -1969,21 +2023,25 @@ func createPoolBlockInfoModel(poolBlockInfo *model.PoolBlockInfoModel) (*model.P
 	CreateIndex(collection, "bigBlock")
 	CreateIndex(collection, "cycleBlock")
 	CreateIndex(collection, "timestamp")
+	CreateIndex(collection, "calType")
 
 	entity := &model.PoolBlockInfoModel{
-		Id:                           util.GetUUIDInt64(),
-		BigBlockId:                   poolBlockInfo.BigBlockId,
-		BigBlock:                     poolBlockInfo.BigBlock,
-		StartBlock:                   poolBlockInfo.StartBlock,
-		EndBlock:                     poolBlockInfo.EndBlock,
-		CycleBlock:                   poolBlockInfo.CycleBlock,
-		CalPoolRewardInfo:            poolBlockInfo.CalPoolRewardInfo,
-		CalPoolRewardTotalValue:      poolBlockInfo.CalPoolRewardTotalValue,
-		CalPoolExtraRewardInfo:       poolBlockInfo.CalPoolExtraRewardInfo,
-		CalPoolExtraRewardTotalValue: poolBlockInfo.CalPoolExtraRewardTotalValue,
-		Timestamp:                    poolBlockInfo.Timestamp,
-		CreateTime:                   util.Time(),
-		State:                        model.STATE_EXIST,
+		Id:                                   util.GetUUIDInt64(),
+		BigBlockId:                           poolBlockInfo.BigBlockId,
+		BigBlock:                             poolBlockInfo.BigBlock,
+		StartBlock:                           poolBlockInfo.StartBlock,
+		EndBlock:                             poolBlockInfo.EndBlock,
+		CycleBlock:                           poolBlockInfo.CycleBlock,
+		CalPoolRewardInfo:                    poolBlockInfo.CalPoolRewardInfo,
+		CalPoolRewardTotalValue:              poolBlockInfo.CalPoolRewardTotalValue,
+		CalPoolExtraRewardInfo:               poolBlockInfo.CalPoolExtraRewardInfo,
+		CalPoolExtraRewardTotalValue:         poolBlockInfo.CalPoolExtraRewardTotalValue,
+		CalEventBidDealExtraRewardInfo:       poolBlockInfo.CalEventBidDealExtraRewardInfo,
+		CalEventBidDealExtraRewardTotalValue: poolBlockInfo.CalEventBidDealExtraRewardTotalValue,
+		CalType:                              poolBlockInfo.CalType,
+		Timestamp:                            poolBlockInfo.Timestamp,
+		CreateTime:                           util.Time(),
+		State:                                model.STATE_EXIST,
 	}
 
 	_, err = collection.InsertOne(context.TODO(), entity)
@@ -2017,6 +2075,9 @@ func SetPoolBlockInfoModel(poolBlockInfo *model.PoolBlockInfoModel) (*model.Pool
 		bsonData = append(bsonData, bson.E{Key: "calPoolRewardTotalValue", Value: poolBlockInfo.CalPoolRewardTotalValue})
 		bsonData = append(bsonData, bson.E{Key: "calPoolExtraRewardInfo", Value: poolBlockInfo.CalPoolExtraRewardInfo})
 		bsonData = append(bsonData, bson.E{Key: "calPoolExtraRewardTotalValue", Value: poolBlockInfo.CalPoolExtraRewardTotalValue})
+		bsonData = append(bsonData, bson.E{Key: "calEventBidDealExtraRewardInfo", Value: poolBlockInfo.CalEventBidDealExtraRewardInfo})
+		bsonData = append(bsonData, bson.E{Key: "calEventBidDealExtraRewardTotalValue", Value: poolBlockInfo.CalEventBidDealExtraRewardTotalValue})
+		bsonData = append(bsonData, bson.E{Key: "calType", Value: poolBlockInfo.CalType})
 		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: poolBlockInfo.Timestamp})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",
@@ -2040,6 +2101,28 @@ func FindNewestPoolBlockInfoModelByCycleBlock(cycleBlock int64) (*model.PoolBloc
 		{"cycleBlock", cycleBlock},
 		//{"state", model.STATE_EXIST},
 	}
+
+	sort := options.FindOne().SetSort(bson.M{"bigBlock": -1})
+
+	entity := &model.PoolBlockInfoModel{}
+	err = collection.FindOne(context.TODO(), queryBson, sort).Decode(entity)
+	if err != nil {
+		return nil, err
+	}
+	return entity, nil
+}
+
+func FindNewestPoolBlockInfoModelByCycleBlockAndCalType(cycleBlock int64, calType model.CalType) (*model.PoolBlockInfoModel, error) {
+	collection, err := model.PoolBlockInfoModel{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.D{
+		{"cycleBlock", cycleBlock},
+		{"calType", calType},
+		//{"state", model.STATE_EXIST},
+	}
+
 	sort := options.FindOne().SetSort(bson.M{"bigBlock": -1})
 
 	entity := &model.PoolBlockInfoModel{}

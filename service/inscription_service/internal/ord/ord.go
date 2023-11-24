@@ -35,7 +35,9 @@ type InscriptionData struct {
 }
 
 type InscriptionRequest struct {
+	LocalUtxo                   bool
 	CommitTxOutPointList        []*wire.OutPoint
+	CommitTxPreOutputList       []*wire.TxOut
 	CommitTxPrivateKeyList      []*btcec.PrivateKey // If used without RPC,
 	CommitTxUtxoAddressTypeList []UtxoAddressType   // sign utxo type
 	// a local signature is required for committing the commit tx.
@@ -144,7 +146,7 @@ func (tool *InscriptionTool) _initTool(net *chaincfg.Params, request *Inscriptio
 		}
 	}
 
-	err = tool.buildCommitTx(request.CommitTxOutPointList, totalRevealPrevOutput, request.CommitFeeRate, &changePkScriptByte)
+	err = tool.buildCommitTx(request.CommitTxOutPointList, request.CommitTxPreOutputList, request.LocalUtxo, totalRevealPrevOutput, request.CommitFeeRate, &changePkScriptByte)
 	if err != nil {
 		return err
 	}
@@ -335,15 +337,23 @@ func (tool *InscriptionTool) getTxOutByOutPoint(outPoint *wire.OutPoint) (*wire.
 	return txOut, nil
 }
 
-func (tool *InscriptionTool) buildCommitTx(commitTxOutPointList []*wire.OutPoint, totalRevealPrevOutput, commitFeeRate int64, changePkScriptByte *[]byte) error {
+func (tool *InscriptionTool) buildCommitTx(commitTxOutPointList []*wire.OutPoint, commitTxPreOutputList []*wire.TxOut, localUtxo bool, totalRevealPrevOutput, commitFeeRate int64, changePkScriptByte *[]byte) error {
 	totalSenderAmount := btcutil.Amount(0)
 	tx := wire.NewMsgTx(wire.TxVersion)
 	var changePkScript *[]byte
 	for i := range commitTxOutPointList {
-		txOut, err := tool.getTxOutByOutPoint(commitTxOutPointList[i])
-		if err != nil {
-			return err
+		var txOut *wire.TxOut
+		var err error
+		if localUtxo {
+			txOut = commitTxPreOutputList[i]
+			tool.commitTxPrevOutputFetcher.AddPrevOut(*commitTxOutPointList[i], txOut)
+		} else {
+			txOut, err = tool.getTxOutByOutPoint(commitTxOutPointList[i])
+			if err != nil {
+				return err
+			}
 		}
+
 		if changePkScript == nil { // first sender as change address
 			changePkScript = &txOut.PkScript
 			if changePkScriptByte != nil {

@@ -34,7 +34,9 @@ func jobForCalPoolOrder() {
 		//order_brc20_service.CalAllPoolOrder(net, startBlock, endBlock, nowTime)
 		calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue := order_brc20_service.CalAllPoolOrderV2(net, startBlock, endBlock, nowTime)
 		order_brc20_service.UpdatePoolBlockInfo(startBlock, endBlock, (endBlock-startBlock)+1, nowTime,
-			calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue)
+			calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue,
+			nil, 0,
+			model.CalTypePlatform)
 	}
 }
 
@@ -45,7 +47,7 @@ func getCurrentProcessingBigBlock() int64 {
 		err        error
 	)
 
-	blockInfo, err = mongo_service.FindNewestPoolBlockInfoModelByCycleBlock(cycleBlock)
+	blockInfo, err = mongo_service.FindNewestPoolBlockInfoModelByCycleBlockAndCalType(cycleBlock, model.CalTypePlatform)
 	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
 		return -1
 	}

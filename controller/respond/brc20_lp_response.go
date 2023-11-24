@@ -33,3 +33,16 @@ type Brc20LpAddStep2BatchItemResp struct {
 	CoinRatePrice uint64 `json:"coinRatePrice"`
 	Ratio         int64  `json:"ratio"`
 }
+
+type Brc20LpCancelBatchResp struct {
+	Fees        int64                         `json:"fees"`
+	TxId        string                        `json:"txId"`
+	TotalAmount int64                         `json:"totalAmount"`
+	List        []*Brc20LpCancelBatchItemResp `json:"list"`
+}
+
+type Brc20LpCancelBatchItemResp struct {
+	LpOrderId string `json:"lpOrderId"`
+	BtcUtxoId string `json:"btcUtxoId"`
+	BtcAmount int64  `json:"btcAmount"`
+}

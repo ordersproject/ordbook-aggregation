@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/shopspring/decimal"
+	"ordbook-aggregation/config"
 	"ordbook-aggregation/controller/request"
 	"ordbook-aggregation/controller/respond"
 	"ordbook-aggregation/model"
@@ -28,6 +29,7 @@ func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*
 		netParams                    *chaincfg.Params = GetNetParams(req.Net)
 		count                        int64            = 0
 		todayStartTime, todayEndTime int64            = tool.GetToday0Time(), tool.GetToday24Time()
+		takerPsbtRaw                 string           = ""
 	)
 	entity, _ = mongo_service.FindOrderBrc20ModelByOrderId(req.OrderId)
 	if entity == nil {
@@ -56,6 +58,13 @@ func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*
 		}
 	}
 
+	if entity.PlatformDummy == model.PlatformDummyYes {
+		takerPsbtRaw, err = MakeAskTakerPsbtRaw(entity.Net, entity.PsbtRawPreAsk, req.BuyerAddress, req.BuyerChangeAmount)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	item := &respond.Brc20Item{
 		Net:                 entity.Net,
 		OrderId:             entity.OrderId,
@@ -73,6 +82,7 @@ func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*
 		SellerAddress:       entity.SellerAddress,
 		BuyerAddress:        entity.BuyerAddress,
 		PsbtRaw:             entity.PsbtRawPreAsk,
+		TakePsbtRaw:         takerPsbtRaw,
 		Timestamp:           entity.Timestamp,
 	}
 	return item, nil
@@ -85,8 +95,8 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 		total      int64 = 0
 		flag       int64 = 0
 	)
-	if req.Limit < 0 || req.Limit >= 500 {
-		req.Limit = 500
+	if req.Limit < 0 || req.Limit >= 1000 {
+		req.Limit = 1000
 	}
 	total, _ = mongo_service.CountOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress, req.OrderType, req.OrderState)
 	entityList, _ = mongo_service.FindOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress,
@@ -94,6 +104,9 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType, 0, 0)
 	list = make([]*respond.Brc20Item, len(entityList))
 	for k, v := range entityList {
+		if v.OrderId == "387aed98502eb6639488bf6b41edba83d62de1da5b70e5575a8c68ca12359446" {
+			fmt.Printf("[FIND]387aed98502eb6639488bf6b41edba83d62de1da5b70e5575a8c68ca12359446\n")
+		}
 		if req.Address != "" && v.PoolOrderId != "" {
 			poolOwner := checkPoolAddress(v.OrderId, req.Address)
 			if poolOwner > 0 {
@@ -495,4 +508,63 @@ func FetchTickRecentlyInfo(req *request.TickRecentlyInfoFetchReq) {
 	//	limit              int64                = req.Limit
 	//	dis                int64                = 1000 * 60 * 15
 	//)
+}
+
+func FetchEventOrders(req *request.Brc20EventOrderReq) (*respond.OrderEventResponse, error) {
+	var (
+		entityList []*model.OrderBrc20Model
+		list       []*respond.Brc20EventItem
+		total      int64 = 0
+		flag       int64 = 0
+	)
+	if req.Limit < 0 || req.Limit >= 1000 {
+		req.Limit = 1000
+	}
+	total, _ = mongo_service.CountEventOrderBrc20ModelList(req.Net, req.Tick, req.Address,
+		model.OrderTypeBuy, model.OrderStateFinish, 2,
+		config.EventOneStartTime)
+	entityList, _ = mongo_service.FindEventOrderBrc20ModelList(req.Net, req.Tick, req.Address,
+		model.OrderTypeBuy, model.OrderStateFinish,
+		req.Limit, req.Page, 2,
+		config.EventOneStartTime)
+	list = make([]*respond.Brc20EventItem, len(entityList))
+	for k, v := range entityList {
+		item := &respond.Brc20EventItem{
+			Net:                 v.Net,
+			OrderId:             v.OrderId,
+			Tick:                v.Tick,
+			Amount:              v.Amount,
+			DecimalNum:          v.DecimalNum,
+			CoinAmount:          v.CoinAmount,
+			CoinDecimalNum:      v.CoinDecimalNum,
+			CoinRatePrice:       v.CoinRatePrice,
+			CoinPrice:           v.CoinPrice,
+			CoinPriceDecimalNum: v.CoinPriceDecimalNum,
+			OrderState:          v.OrderState,
+			OrderType:           v.OrderType,
+			FreeState:           v.FreeState,
+			SellerAddress:       v.SellerAddress,
+			BuyerAddress:        v.BuyerAddress,
+			//InscriptionId:       v.InscriptionId,
+			//PsbtRaw:        v.PsbtRawPreAsk,
+			Timestamp:        v.Timestamp,
+			DealTxBlockState: v.DealTxBlockState,
+			DealTxBlock:      v.DealTxBlock,
+			Percentage:       v.Percentage,
+			CalValue:         v.CalValue,
+			CalTotalValue:    v.CalTotalValue,
+			CalStartBlock:    v.CalStartBlock,
+			CalEndBlock:      v.CalEndBlock,
+			RewardAmount:     v.RewardAmount / 2,
+			RewardRealAmount: v.RewardRealAmount / 2,
+			Version:          v.Version,
+		}
+		//list = append(list, item)
+		list[k] = item
+	}
+	return &respond.OrderEventResponse{
+		Total:   total,
+		Results: list,
+		Flag:    flag,
+	}, nil
 }

@@ -290,7 +290,10 @@ func inscriptionMultiSigTransfer(poolOrder *model.PoolBrc20Model) error {
 
 	transferContent = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, poolOrder.Tick, poolOrder.CoinAmount)
 
-	utxoMultiSigInscriptionList, err = GetUnoccupiedUtxoList(poolOrder.Net, 3, 0, model.UtxoTypeMultiInscription)
+	utxoMultiSigInscriptionList, err = GetUnoccupiedUtxoList(poolOrder.Net, 2, 0, model.UtxoTypeMultiInscription, "", 0)
+	if poolOrder.Version == 2 {
+		utxoMultiSigInscriptionList, err = GetUnoccupiedUtxoList(poolOrder.Net, 1, 0, model.UtxoTypeMultiInscription, poolOrder.OrderId, 0)
+	}
 	defer ReleaseUtxoList(utxoMultiSigInscriptionList)
 	if err != nil {
 		return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] get utxo err:%s", err.Error()))
@@ -305,7 +308,11 @@ func inscriptionMultiSigTransfer(poolOrder *model.PoolBrc20Model) error {
 			OutIndex:  v.Index,
 			OutAmount: int64(v.Amount),
 		})
-		feeRate = feeRate + int64(10*i)
+		if poolOrder.Version == 2 {
+			feeRate = v.NetworkFeeRate
+		} else {
+			feeRate = feeRate + int64(10*i)
+		}
 	}
 	if len(inscribeUtxoList) <= 0 {
 		return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] get utxo empty"))
@@ -313,7 +320,7 @@ func inscriptionMultiSigTransfer(poolOrder *model.PoolBrc20Model) error {
 
 	commitTxHash, revealTxHashList, inscriptionIdList, _, err =
 		inscription_service.InscribeMultiDataFromUtxo(netParams, platformPrivateKeyMultiSigInscription, inscriptionAddress,
-			transferContent, feeRate, changeAddress, 1, inscribeUtxoList, "segwit", false, dealInscriptionTxOutValue)
+			transferContent, feeRate, changeAddress, 1, inscribeUtxoList, false, "segwit", false, dealInscriptionTxOutValue)
 	if err != nil {
 		return errors.New(fmt.Sprintf("[POOL-INSCRIPTION] Inscribe err:%s", err.Error()))
 	}
@@ -878,4 +885,12 @@ func removeInvalidBidByPoolOrderId(poolOrderId string) {
 		}
 		AddNotificationForBidInvalid(v.BuyerAddress)
 	}
+}
+
+// auto fix 2-way pool order which is used state in half part
+// 1.check poolCoinState and poolState
+// 2.get YtoX utxoId
+// 3.get
+func Auto() {
+
 }

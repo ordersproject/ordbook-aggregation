@@ -36,6 +36,7 @@ type OrderBrc20Model struct {
 	PsbtRawPreAsk       string           `json:"psbtRawPreAsk" bson:"psbtRawPreAsk"`
 	PsbtRawFinalAsk     string           `json:"psbtRawFinalAsk" bson:"psbtRawFinalAsk"`
 	PsbtAskTxId         string           `json:"psbtAskTxId" bson:"psbtAskTxId"`
+	BidValueToXUtxoId   string           `json:"bidValueToXUtxoId" bson:"bidValueToXUtxoId"` //PsbtAskTxId_bidYOffsetIndex
 	PsbtRawPreBid       string           `json:"psbtRawPreBid" bson:"psbtRawPreBid"`
 	PsbtRawMidBid       string           `json:"psbtRawMidBid" bson:"psbtRawMidBid"`
 	PsbtRawFinalBid     string           `json:"psbtRawFinalBid" bson:"psbtRawFinalBid"`
@@ -47,9 +48,28 @@ type OrderBrc20Model struct {
 	DealTime            int64            `json:"dealTime" bson:"dealTime"`
 	Timestamp           int64            `json:"timestamp" bson:"timestamp"`
 	InscriptionState    InscriptionState `json:"inscriptionState" bson:"inscriptionState"`
-	CreateTime          int64            `json:"createTime" bson:"createTime"`
-	UpdateTime          int64            `json:"updateTime" bson:"updateTime"`
-	State               int64            `json:"state" bson:"state"`
+
+	DealTxBlockState ClaimTxBlockState `json:"dealTxBlockState" bson:"dealTxBlockState"` //psbtBidTxId
+	DealTxBlock      int64             `json:"dealTxBlock" bson:"dealTxBlock"`
+	Percentage       int64             `json:"percentage" bson:"percentage"`
+	CalValue         int64             `json:"calValue" bson:"calValue"`
+	CalTotalValue    int64             `json:"calTotalValue" bson:"calTotalValue"`
+	CalStartBlock    int64             `json:"calStartBlock" bson:"calStartBlock"`
+	CalEndBlock      int64             `json:"calEndBlock" bson:"calEndBlock"`
+	RewardAmount     int64             `json:"rewardAmount" bson:"rewardAmount"`
+	RewardRealAmount int64             `json:"rewardRealAmount" bson:"rewardRealAmount"`
+	Version          int               `json:"version" bson:"version"`
+
+	CreateTime int64 `json:"createTime" bson:"createTime"`
+	UpdateTime int64 `json:"updateTime" bson:"updateTime"`
+	State      int64 `json:"state" bson:"state"`
+}
+
+type EventRewardCount struct {
+	Id                string `json:"id" bson:"_id"`
+	AmountTotal       int64  `json:"amountTotal" bson:"amountTotal"`
+	RewardAmountTotal int64  `json:"rewardAmountTotal" bson:"rewardAmountTotal"`
+	OrderCounts       int64  `json:"orderCounts" bson:"orderCounts"`
 }
 
 func (s OrderBrc20Model) getCollection() string {
