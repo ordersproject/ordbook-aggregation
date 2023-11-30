@@ -57,3 +57,19 @@ func GetYesterday24Time() int64 {
 	endTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day()-1, 23, 59, 59, 0, l)
 	return endTime.UnixNano() / 1e6
 }
+
+// Get 0 and 24 of the day according to the current time
+func GetToday0And24Time() (int64, int64) {
+	currentTime := time.Now()
+	startTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), 0, 0, 0, 0, l)
+	endTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), 23, 59, 59, 0, l)
+	return startTime.UnixNano() / 1e6, endTime.UnixNano() / 1e6
+}
+
+// Get 0 and 24 of the previous day according to the current time
+func GetYesterday0And24Time() (int64, int64) {
+	currentTime := time.Now()
+	startTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day()-1, 0, 0, 0, 0, l)
+	endTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day()-1, 23, 59, 59, 0, l)
+	return startTime.UnixNano() / 1e6, endTime.UnixNano() / 1e6
+}

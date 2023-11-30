@@ -230,3 +230,50 @@ func (s Brc20TickRecentlyInfoModel) GetWriteDB() (*mongo.Collection, error) {
 	}
 	return collection, nil
 }
+
+type BlockInfoModel struct {
+	Id           int64  `json:"id" bson:"_id" tb:"block_info_model" mg:"true"`
+	BlockId      string `json:"blockId" bson:"blockId"` //net_chain_height
+	Net          string `json:"net" bson:"net"`
+	Chain        string `json:"chain" bson:"chain"`
+	Height       int64  `json:"height" bson:"height"`
+	Hash         string `json:"hash" bson:"hash"`
+	BlockTime    int64  `json:"blockTime" bson:"blockTime"`
+	BlockTimeStr string `json:"blockTimeStr" bson:"blockTimeStr"`
+	Timestamp    int64  `json:"timestamp" bson:"timestamp"`
+	CreateTime   int64  `json:"createTime" bson:"createTime"`
+	UpdateTime   int64  `json:"updateTime" bson:"updateTime"`
+	State        int64  `json:"state" bson:"state"`
+}
+
+func (s BlockInfoModel) getCollection() string {
+	return "block_info_model"
+}
+
+func (s BlockInfoModel) getDB() string {
+	return major.DsOrdbook
+}
+
+func (s BlockInfoModel) GetReadDB() (*mongo.Collection, error) {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return nil, err
+	}
+	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+	return collection, nil
+}
+
+func (s BlockInfoModel) GetWriteDB() (*mongo.Collection, error) {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return nil, err
+	}
+	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+	return collection, nil
+}

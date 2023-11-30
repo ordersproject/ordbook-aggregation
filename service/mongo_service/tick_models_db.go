@@ -553,3 +553,167 @@ func SetBrc20TickRecentlyInfoModel(brc20TickRecentlyInfo *model.Brc20TickRecentl
 		return createBrc20TickRecentlyInfoModel(brc20TickRecentlyInfo)
 	}
 }
+
+func FindBlockInfoModelByBlockId(blockId string) (*model.BlockInfoModel, error) {
+	collection, err := model.BlockInfoModel{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.D{
+		{"blockId", blockId},
+		//{"state", model.STATE_EXIST},
+	}
+	entity := &model.BlockInfoModel{}
+	err = collection.FindOne(context.TODO(), queryBson).Decode(entity)
+	if err != nil {
+		return nil, err
+	}
+	return entity, nil
+}
+
+func createBlockInfoModel(blockInfo *model.BlockInfoModel) (*model.BlockInfoModel, error) {
+	collection, err := model.BlockInfoModel{}.GetWriteDB()
+	if err != nil {
+		return nil, err
+	}
+
+	CreateUniqueIndex(collection, "blockId")
+	CreateIndex(collection, "net")
+	CreateIndex(collection, "chain")
+	CreateIndex(collection, "height")
+	CreateIndex(collection, "blockTime")
+	CreateIndex(collection, "timestamp")
+
+	entity := &model.BlockInfoModel{
+		Id:           util.GetUUIDInt64(),
+		BlockId:      blockInfo.BlockId,
+		Net:          blockInfo.Net,
+		Chain:        blockInfo.Chain,
+		Height:       blockInfo.Height,
+		Hash:         blockInfo.Hash,
+		BlockTime:    blockInfo.BlockTime,
+		BlockTimeStr: blockInfo.BlockTimeStr,
+		Timestamp:    blockInfo.Timestamp,
+		CreateTime:   util.Time(),
+		State:        model.STATE_EXIST,
+	}
+
+	_, err = collection.InsertOne(context.TODO(), entity)
+	if err != nil {
+		return nil, err
+	} else {
+		//id := res.InsertedID
+		//fmt.Println("insert id :", id)
+		return entity, nil
+	}
+}
+
+func SetBlockInfoModel(blockInfo *model.BlockInfoModel) (*model.BlockInfoModel, error) {
+	entity, err := FindBlockInfoModelByBlockId(blockInfo.BlockId)
+	if err == nil && entity != nil {
+		collection, err := model.BlockInfoModel{}.GetWriteDB()
+		if err != nil {
+			return nil, err
+		}
+		filter := bson.D{
+			{"blockId", blockInfo.BlockId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "blockId", Value: blockInfo.BlockId})
+		bsonData = append(bsonData, bson.E{Key: "net", Value: blockInfo.Net})
+		bsonData = append(bsonData, bson.E{Key: "chain", Value: blockInfo.Chain})
+		bsonData = append(bsonData, bson.E{Key: "height", Value: blockInfo.Height})
+		bsonData = append(bsonData, bson.E{Key: "hash", Value: blockInfo.Hash})
+		bsonData = append(bsonData, bson.E{Key: "blockTime", Value: blockInfo.BlockTime})
+		bsonData = append(bsonData, bson.E{Key: "blockTimeStr", Value: blockInfo.BlockTimeStr})
+		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: blockInfo.Timestamp})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return nil, err
+		}
+		return blockInfo, nil
+	} else {
+		return createBlockInfoModel(blockInfo)
+	}
+}
+
+func FindNewestHeightBlockInfoModel(net, chain string) (*model.BlockInfoModel, error) {
+	collection, err := model.BlockInfoModel{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.D{
+		{"net", net},
+		{"chain", chain},
+		//{"state", model.STATE_EXIST},
+	}
+	entity := &model.BlockInfoModel{}
+	sort := options.FindOne().SetSort(bson.M{"height": -1})
+	err = collection.FindOne(context.TODO(), queryBson, sort).Decode(entity)
+	if err != nil {
+		return nil, err
+	}
+	return entity, nil
+}
+
+func FindBlockInfoModelList(net, chain string, skip, limit int64) ([]*model.BlockInfoModel, error) {
+	collection, err := model.BlockInfoModel{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"net":   net,
+		"chain": chain,
+		//"state": model.STATE_EXIST,
+	}
+
+	models := make([]*model.BlockInfoModel, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(skip)
+	sort := options.Find().SetSort(bson.M{"height": 1})
+	if cursor, err := collection.Find(context.Background(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.BlockInfoModel{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get BlockInfoModel Error")
+	}
+	return models, nil
+}
+
+func FindNewestHeightBlockInfoModelByBlockTime(net, chain string, blockTime int64) (*model.BlockInfoModel, error) {
+	collection, err := model.BlockInfoModel{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.M{
+		"net":   net,
+		"chain": chain,
+		//{"state", model.STATE_EXIST},
+	}
+	if blockTime != 0 {
+		queryBson["blockTime"] = bson.M{
+			LTE_: blockTime,
+		}
+	}
+
+	entity := &model.BlockInfoModel{}
+	sort := options.FindOne().SetSort(bson.M{"height": -1})
+	err = collection.FindOne(context.TODO(), queryBson, sort).Decode(entity)
+	if err != nil {
+		return nil, err
+	}
+	return entity, nil
+}

@@ -102,15 +102,18 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 	entityList, _ = mongo_service.FindOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress,
 		req.OrderType, req.OrderState,
 		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType, 0, 0)
-	list = make([]*respond.Brc20Item, len(entityList))
-	for k, v := range entityList {
-		if v.OrderId == "387aed98502eb6639488bf6b41edba83d62de1da5b70e5575a8c68ca12359446" {
-			fmt.Printf("[FIND]387aed98502eb6639488bf6b41edba83d62de1da5b70e5575a8c68ca12359446\n")
-		}
+	list = make([]*respond.Brc20Item, 0)
+	for _, v := range entityList {
 		if req.Address != "" && v.PoolOrderId != "" {
-			poolOwner := checkPoolAddress(v.OrderId, req.Address)
+			poolOwner := checkPoolAddress(v.PoolOrderId, req.Address)
 			if poolOwner > 0 {
 				continue
+			}
+
+			if v.OrderType == model.OrderTypeBuy && req.Address != v.BuyerAddress {
+				if checkPoolType(v.PoolOrderId) != model.PoolTypeBoth {
+					continue
+				}
 			}
 		}
 
@@ -140,8 +143,8 @@ func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error
 		} else {
 			flag = v.Timestamp
 		}
-		//list = append(list, item)
-		list[k] = item
+		list = append(list, item)
+		//list[k] = item
 	}
 	return &respond.OrderResponse{
 		Total:   total,

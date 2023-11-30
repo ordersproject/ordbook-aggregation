@@ -162,19 +162,26 @@ func GetMarketPrice(net, tick, pair string) uint64 {
 		}
 	} else {
 		marketPrice := uint64(0)
-		if tickInfo.Sell != 0 && tickInfo.Buy != 0 {
-			marketPrice = (tickInfo.Sell + tickInfo.Buy) / 2
-		} else if tickInfo.Sell != 0 && tickInfo.Buy == 0 {
-			marketPrice = tickInfo.Sell
-		} else if tickInfo.Sell == 0 && tickInfo.Buy != 0 {
-			marketPrice = tickInfo.Buy
-		} else {
-			otherPriceInfo := getOtherMarketPrice(tick)
-			if otherPriceInfo != nil && otherPriceInfo.UpdateTime != 0 {
-				price, _ := strconv.ParseUint(otherPriceInfo.LastPrice, 10, 64)
-				return price
-			}
+
+		otherPriceInfo := getOtherMarketPrice(tick)
+		if otherPriceInfo != nil && otherPriceInfo.UpdateTime != 0 {
+			price, _ := strconv.ParseUint(otherPriceInfo.LastPrice, 10, 64)
+			return price
 		}
+
+		//if tickInfo.Sell != 0 && tickInfo.Buy != 0 {
+		//	marketPrice = (tickInfo.Sell + tickInfo.Buy) / 2
+		//} else if tickInfo.Sell != 0 && tickInfo.Buy == 0 {
+		//	marketPrice = tickInfo.Sell
+		//} else if tickInfo.Sell == 0 && tickInfo.Buy != 0 {
+		//	marketPrice = tickInfo.Buy
+		//} else {
+		//	otherPriceInfo := getOtherMarketPrice(tick)
+		//	if otherPriceInfo != nil && otherPriceInfo.UpdateTime != 0 {
+		//		price, _ := strconv.ParseUint(otherPriceInfo.LastPrice, 10, 64)
+		//		return price
+		//	}
+		//}
 		return marketPrice
 	}
 
@@ -402,6 +409,19 @@ func GetTestFakerInscription(net string) []*model.OrderUtxoModel {
 	return utxoMockInscriptionList
 }
 
+func SaveForUserLpUtxo(net, tick, address, orderId, utxoPreTxId string, utxoPreIndex int64, state model.DummyState) {
+	dummyEntity := &model.OrderBrc20BidDummyModel{
+		Net:        net,
+		DummyId:    fmt.Sprintf("%s:%d", utxoPreTxId, utxoPreIndex),
+		OrderId:    orderId,
+		Tick:       tick,
+		Address:    address,
+		DummyState: state,
+		Timestamp:  tool.MakeTimestamp(),
+	}
+	mongo_service.SetOrderBrc20BidDummyModel(dummyEntity)
+}
+
 func SaveForUserBidDummy(net, tick, address, orderId, dummyPreTxId string, dummyPreIndex int64, state model.DummyState) {
 	dummyEntity := &model.OrderBrc20BidDummyModel{
 		Net:        net,
@@ -428,7 +448,7 @@ func SaveForUserBidUtxo(net, tick, address, orderId, utxoPreTxId string, utxoPre
 	mongo_service.SetOrderBrc20BidDummyModel(dummyEntity)
 }
 
-func UpdateForOrderBidDummy(orderId string, state model.DummyState) {
+func UpdateForOrderLiveUtxo(orderId string, state model.DummyState) {
 	dummyList, _ := mongo_service.FindOrderBrc20BidDummyModelList(orderId, "", model.DummyStateLive, 0, 10)
 	for _, v := range dummyList {
 		v.DummyState = state

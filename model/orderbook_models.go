@@ -49,6 +49,9 @@ type OrderBrc20Model struct {
 	Timestamp           int64            `json:"timestamp" bson:"timestamp"`
 	InscriptionState    InscriptionState `json:"inscriptionState" bson:"inscriptionState"`
 
+	SellerTotalFee int64 `json:"sellerTotalFee" bson:"sellerTotalFee"`
+	BuyerTotalFee  int64 `json:"buyerTotalFee" bson:"buyerTotalFee"`
+
 	DealTxBlockState ClaimTxBlockState `json:"dealTxBlockState" bson:"dealTxBlockState"` //psbtBidTxId
 	DealTxBlock      int64             `json:"dealTxBlock" bson:"dealTxBlock"`
 	Percentage       int64             `json:"percentage" bson:"percentage"`

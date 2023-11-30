@@ -77,6 +77,11 @@ func Run() {
 		//brc20.POST("/pool/reward/claim", auth.AuthSignMiddleware(), ClaimReward)
 		brc20.POST("/pool/reward/claim", ClaimReward)
 		brc20.GET("/pool/reward/orders", FetchPoolRewardOrders)
+		brc20.GET("/pool/reward/records", FetchRewardRecord)
+
+		brc20.GET("/pool/err/orders", FetchErrPoolOrders)
+		brc20.POST("/pool/err/order/release", ReleaseErrPool)
+		brc20.POST("/pool/err/order/release/commit", auth.AuthSignMiddleware(), UpdateErrRelease)
 
 		brc20.GET("/event/reward/info", FetchEventOwnerReward)
 		//brc20.POST("/pool/reward/claim", auth.AuthSignMiddleware(), ClaimReward)

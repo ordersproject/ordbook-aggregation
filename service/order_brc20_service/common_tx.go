@@ -85,7 +85,7 @@ func BuildCommonTx(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutp
 	}
 
 	changeVal := totalAmount - outAmount - int64(reqFee)
-	if changeVal >= 600 {
+	if changeVal >= 600 && changeAddress != "" {
 		addr, err := btcutil.DecodeAddress(changeAddress, netParam)
 		if err != nil {
 			return nil, err
@@ -185,6 +185,85 @@ func BuildTx(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutput, fe
 			fmt.Println(err)
 			return nil, err
 		}
+		tx.TxIn[i].Witness = witnessScript
+	}
+
+	return tx, nil
+}
+
+func BuildCommonTxV2(netParam *chaincfg.Params, ins []*TxInputUtxo, outs []*TxOutput, changeAddress string, fee int64) (*wire.MsgTx, error) {
+	tx := wire.NewMsgTx(2)
+	totalAmount := int64(0)
+	outAmount := int64(0)
+	for _, out := range outs {
+		addr, err := btcutil.DecodeAddress(out.Address, netParam)
+		if err != nil {
+			return nil, err
+		}
+		pkScript, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			return nil, err
+		}
+		tx.AddTxOut(wire.NewTxOut(out.Amount, pkScript))
+		outAmount = outAmount + out.Amount
+	}
+
+	for _, in := range ins {
+		hash, err := chainhash.NewHashFromStr(in.TxId)
+		if err != nil {
+			return nil, err
+		}
+		prevOut := wire.NewOutPoint(hash, uint32(in.TxIndex))
+		txIn := wire.NewTxIn(prevOut, nil, nil)
+		tx.AddTxIn(txIn)
+		totalAmount = totalAmount + int64(in.Amount)
+	}
+
+	txSize := tx.SerializeSize() + SpendSize*len(tx.TxIn)
+	//txSize := tx.SerializeSize()
+
+	reqFee := btcutil.Amount(txSize * int(fee))
+	fmt.Printf("txSize:%d, txSizeOnly:%d, reqFee:%d, totalAmount:%d, outAmount:%d\n", txSize, tx.SerializeSize(), reqFee, totalAmount, outAmount)
+	if totalAmount-outAmount < int64(reqFee) {
+		return nil, errors.New("Insufficient fee")
+	}
+
+	changeVal := totalAmount - outAmount - int64(reqFee)
+	if changeVal >= 600 && changeAddress != "" {
+		addr, err := btcutil.DecodeAddress(changeAddress, netParam)
+		if err != nil {
+			return nil, err
+		}
+		pkScript, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			return nil, err
+		}
+		tx.AddTxOut(wire.NewTxOut(changeVal, pkScript))
+	}
+
+	for i, in := range ins {
+		privateKeyBytes, err := hex.DecodeString(in.PriHex)
+		if err != nil {
+			return nil, err
+		}
+		privateKey, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
+
+		pkScriptByte, err := hex.DecodeString(in.PkScript)
+		if err != nil {
+			return nil, err
+		}
+		prevOutputFetcher := NewPrevOutputFetcher(pkScriptByte, int64(in.Amount))
+		sigHashes := txscript.NewTxSigHashes(tx, prevOutputFetcher)
+
+		witnessScript, err := txscript.WitnessSignature(
+			tx, sigHashes, i, int64(in.Amount), pkScriptByte,
+			txscript.SigHashAll|txscript.SigHashAnyOneCanPay, privateKey, true,
+		)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+		//tx.TxIn[i].SignatureScript = sigScript
 		tx.TxIn[i].Witness = witnessScript
 	}
 

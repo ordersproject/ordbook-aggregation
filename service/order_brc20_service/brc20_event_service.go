@@ -26,8 +26,8 @@ import (
 
 func FetchEventOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20RewardResp, error) {
 	var (
-		entityRewardSeller       *model.EventRewardCount
-		entityRewardBuyer        *model.EventRewardCount
+		//entityRewardSeller       *model.EventRewardCount
+		//entityRewardBuyer        *model.EventRewardCount
 		entityRewardOrderCount   *model.PoolRewardOrderCount
 		totalRewardAmount        uint64 = 0
 		totalRewardExtraAmount   uint64 = 0
@@ -35,6 +35,8 @@ func FetchEventOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20R
 		hasReleasePoolOrderCount int64  = 0
 		tick                     string = "rdex"
 		rewardTick               string = config.EventOneRewardTick
+		entityExtraReward        *model.RewardCount
+		entityBidReward          *model.RewardCount
 	)
 
 	//if req.Tick != config.PlatformRewardTick {
@@ -43,19 +45,34 @@ func FetchEventOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20R
 
 	//hasReleasePoolOrderCount, _ = mongo_service.CountPoolBrc20ModelList(req.Net, req.Tick, "", req.Address, model.PoolTypeAll, model.PoolStateUsed)
 
-	entityRewardSeller, _ = mongo_service.CountOwnEventOrderBrc20RewardBySeller(req.Net, tick, req.Address, config.EventOneStartTime)
-	if entityRewardSeller != nil {
-		totalRewardAmount = totalRewardAmount + uint64(entityRewardSeller.RewardAmountTotal)/2
+	entityExtraReward, _ = mongo_service.CountRewardRecord(req.Net, tick, "", "", req.Address, model.RewardTypeEventOneLpUnusedV2)
+	if entityExtraReward != nil {
+		totalRewardExtraAmount = uint64(entityExtraReward.RewardAmountTotal)
 	}
-	entityRewardBuyer, _ = mongo_service.CountOwnEventOrderBrc20RewardByBuyer(req.Net, tick, "", req.Address, config.EventOneStartTime)
-	if entityRewardBuyer != nil {
-		totalRewardAmount = totalRewardAmount + uint64(entityRewardBuyer.RewardAmountTotal)/2
+
+	//entityRewardSeller, _ = mongo_service.CountOwnEventOrderBrc20RewardBySeller(req.Net, tick, req.Address, config.EventOneStartTime)
+	//if entityRewardSeller != nil {
+	//	totalRewardAmount = totalRewardAmount + uint64(entityRewardSeller.RewardAmountTotal)/2
+	//}
+	//entityRewardBuyer, _ = mongo_service.CountOwnEventOrderBrc20RewardByBuyer(req.Net, tick, "", req.Address, config.EventOneStartTime)
+	//if entityRewardBuyer != nil {
+	//	totalRewardAmount = totalRewardAmount + uint64(entityRewardBuyer.RewardAmountTotal)/2
+	//}
+
+	entityBidReward, _ = mongo_service.CountRewardRecord(req.Net, tick, "", "", req.Address, model.RewardTypeEventOneBid)
+	if entityBidReward != nil {
+		totalRewardAmount = totalRewardAmount + uint64(entityBidReward.RewardAmountTotal)
 	}
 
 	entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, rewardTick, "", req.Address, model.RewardTypeEventOneBid)
 	if entityRewardOrderCount != nil {
 		hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
 	}
+
+	if hadClaimRewardAmount > totalRewardAmount+totalRewardExtraAmount {
+		hadClaimRewardAmount = totalRewardAmount + totalRewardExtraAmount
+	}
+
 	return &respond.PoolBrc20RewardResp{
 		Net:                      req.Net,
 		Tick:                     req.Tick,
@@ -85,12 +102,12 @@ func CalEventClaimFee(req *request.OrderBrc20CalFeeReq) (*respond.CalFeeResp, er
 
 func ClaimEventReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string) (string, error) {
 	var (
-		netParams                                                                 *chaincfg.Params = GetNetParams(req.Net)
-		orderId                                                                   string           = ""
-		entityOrder                                                               *model.PoolRewardOrderModel
-		nowTime                                                                   int64 = tool.MakeTimestamp()
-		entityRewardSeller                                                        *model.EventRewardCount
-		entityRewardBuyer                                                         *model.EventRewardCount
+		netParams   *chaincfg.Params = GetNetParams(req.Net)
+		orderId     string           = ""
+		entityOrder *model.PoolRewardOrderModel
+		nowTime     int64 = tool.MakeTimestamp()
+		//entityRewardSeller                                                        *model.EventRewardCount
+		//entityRewardBuyer                                                         *model.EventRewardCount
 		entityRewardOrderCount                                                    *model.PoolRewardOrderCount
 		entityBlockReward                                                         *model.PoolRewardBlockUserCount
 		totalRewardAmount                                                         uint64 = 0
@@ -104,6 +121,8 @@ func ClaimEventReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string
 		platformPrivateKeyRewardBrc20FeeUtxos, platformAddressRewardBrc20FeeUtxos string = GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(req.Net)
 		feeAmountForRewardInscription                                             int64  = 4000
 		feeAmountForRewardSend                                                    int64  = 4000
+		entityExtraReward                                                         *model.RewardCount
+		entityBidReward                                                           *model.RewardCount
 	)
 	//if req.Tick != config.EventOneRewardTick {
 	//	return "", errors.New(fmt.Sprintf("tick wrong:%s", config.EventOneRewardTick))
@@ -128,13 +147,23 @@ func ClaimEventReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string
 	//	}
 	//}
 
-	entityRewardSeller, _ = mongo_service.CountOwnEventOrderBrc20RewardBySeller(req.Net, tick, req.Address, config.EventOneStartTime)
-	if entityRewardSeller != nil {
-		totalRewardAmount = totalRewardAmount + uint64(entityRewardSeller.RewardAmountTotal)/2
+	entityExtraReward, _ = mongo_service.CountRewardRecord(req.Net, tick, "", "", req.Address, model.RewardTypeEventOneLpUnusedV2)
+	if entityExtraReward != nil {
+		totalRewardExtraAmount = uint64(entityExtraReward.RewardAmountTotal)
 	}
-	entityRewardBuyer, _ = mongo_service.CountOwnEventOrderBrc20RewardByBuyer(req.Net, tick, "", req.Address, config.EventOneStartTime)
-	if entityRewardBuyer != nil {
-		totalRewardAmount = totalRewardAmount + uint64(entityRewardBuyer.RewardAmountTotal)/2
+
+	//entityRewardSeller, _ = mongo_service.CountOwnEventOrderBrc20RewardBySeller(req.Net, tick, req.Address, config.EventOneStartTime)
+	//if entityRewardSeller != nil {
+	//	totalRewardAmount = totalRewardAmount + uint64(entityRewardSeller.RewardAmountTotal)/2
+	//}
+	//entityRewardBuyer, _ = mongo_service.CountOwnEventOrderBrc20RewardByBuyer(req.Net, tick, "", req.Address, config.EventOneStartTime)
+	//if entityRewardBuyer != nil {
+	//	totalRewardAmount = totalRewardAmount + uint64(entityRewardBuyer.RewardAmountTotal)/2
+	//}
+
+	entityBidReward, _ = mongo_service.CountRewardRecord(req.Net, tick, "", "", req.Address, model.RewardTypeEventOneBid)
+	if entityBidReward != nil {
+		totalRewardAmount = totalRewardAmount + uint64(entityBidReward.RewardAmountTotal)
 	}
 
 	entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, rewardTick, "", req.Address, model.RewardTypeEventOneBid)
@@ -160,6 +189,10 @@ func ClaimEventReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string
 	if availableBalance < req.RewardAmount*1 {
 		return "", errors.New("AvailableBalance not enough. ")
 	}
+
+	//if CheckEventRemainingRewardTotal() {
+	//	return "", errors.New("event remaining reward have been capped. ")
+	//}
 
 	orderId = fmt.Sprintf("%s_%s_%s_%d_%d_%d", req.Net, rewardTick, req.Address, req.RewardAmount, nowTime, model.RewardTypeEventOneBid)
 	orderId = hex.EncodeToString(tool.SHA256([]byte(orderId)))
@@ -280,7 +313,7 @@ func ClaimEventReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string
 		}
 
 		//send
-		sendId, err := sendReward(utxoRewardSendList,
+		sendId, err := SendReward(utxoRewardSendList,
 			entityOrder.Net, entityOrder.InscriptionId, entityOrder.InscriptionOutValue, entityOrder.Address,
 			entityOrder.NetworkFeeRate)
 		if err != nil {
@@ -349,7 +382,7 @@ func inscriptionRewardForEvent(utxoList []*model.OrderUtxoModel, net, tick strin
 	return commitTxHash, inscriptionIdList[0], nil
 }
 
-func sendReward(utxoList []*model.OrderUtxoModel, net, inscriptionId string, inscriptionOutValue int64, sendAddress string, currentNetworkFeeRate int64) (string, error) {
+func SendReward(utxoList []*model.OrderUtxoModel, net, inscriptionId string, inscriptionOutValue int64, sendAddress string, currentNetworkFeeRate int64) (string, error) {
 	var (
 		netParams                                                                 *chaincfg.Params = GetNetParams(net)
 		platformPrivateKeyRewardBrc20, platformAddressRewardBrc20                 string           = config.EventPlatformPrivateKeyRewardBrc20, config.EventPlatformAddressRewardBrc20
@@ -357,7 +390,7 @@ func sendReward(utxoList []*model.OrderUtxoModel, net, inscriptionId string, ins
 		changeAddress                                                             string           = sendAddress
 		inscriptionIdStrs                                                         []string
 		txRaw                                                                     string = ""
-		feeRate                                                                          = currentNetworkFeeRate
+		feeRate                                                                          = currentNetworkFeeRate - 5
 	)
 	if inscriptionId == "" {
 		return "", errors.New("inscriptionId is empty")
@@ -505,7 +538,7 @@ func ClaimJob(orderId string) (string, error) {
 	}
 
 	//send
-	sendId, err := sendReward(utxoRewardSendList,
+	sendId, err := SendReward(utxoRewardSendList,
 		entityOrder.Net, entityOrder.InscriptionId, entityOrder.InscriptionOutValue, entityOrder.Address,
 		entityOrder.NetworkFeeRate)
 	if err != nil {

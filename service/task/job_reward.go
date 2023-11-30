@@ -16,12 +16,14 @@ import (
 	"ordbook-aggregation/service/oklink_service"
 	"ordbook-aggregation/service/order_brc20_service"
 	"ordbook-aggregation/service/unisat_service"
+	"ordbook-aggregation/tool"
 	"strconv"
 	"strings"
 	"time"
 )
 
 func JobForRewardOrder() {
+	//return
 	currentNetworkFee := common_service.GetFeeSummary()
 
 	//nomal
@@ -29,10 +31,11 @@ func JobForRewardOrder() {
 	jobForCheckRewardOrderSend(model.RewardTypeNormal, currentNetworkFee)
 
 	//event
-	//jobForCheckRewardOrderInscription(model.RewardTypeEventOneLp, currentNetworkFee)
-	//jobForCheckRewardOrderSend(model.RewardTypeEventOneLp, currentNetworkFee)
-	//jobForCheckRewardOrderInscription(model.RewardTypeEventOneBid, currentNetworkFee)
-	//jobForCheckRewardOrderSend(model.RewardTypeEventOneBid, currentNetworkFee)
+	jobForCheckRewardOrderInscription(model.RewardTypeEventOneLp, currentNetworkFee)
+	jobForCheckRewardOrderSend(model.RewardTypeEventOneLp, currentNetworkFee)
+
+	jobForCheckRewardOrderSendEventBid(model.RewardTypeEventOneBid)
+
 }
 
 func getPlatformRewardPrivateKeyAndAddress(net string, rewardType model.RewardType) (string, string) {
@@ -120,6 +123,7 @@ func inscriptionReward(utxoList []*model.OrderUtxoModel, net, tick string, amoun
 	var (
 		netParams                                                                 *chaincfg.Params = order_brc20_service.GetNetParams(net)
 		_, platformAddressRewardBrc20                                             string           = getPlatformRewardPrivateKeyAndAddress(net, rewardType)
+		_, platformAddressReceiveBidValue                                         string           = order_brc20_service.GetPlatformKeyAndAddressReceiveBidValue(net)
 		platformPrivateKeyRewardBrc20FeeUtxos, platformAddressRewardBrc20FeeUtxos string           = order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(net)
 		transferContent                                                           string           = fmt.Sprintf(`{"p":"brc-20", "op":"transfer", "tick":"%s", "amt":"%d"}`, tick, amount)
 		commitTxHash                                                              string           = ""
@@ -132,7 +136,7 @@ func inscriptionReward(utxoList []*model.OrderUtxoModel, net, tick string, amoun
 		//feeRate int64 = 10
 		//feeRate          int64                               = 60
 		inscribeUtxoList []*inscription_service.InscribeUtxo = make([]*inscription_service.InscribeUtxo, 0)
-		changeAddress    string                              = ""
+		changeAddress    string                              = platformAddressReceiveBidValue
 	)
 	for _, utxo := range utxoList {
 		if utxo.Address != platformAddressRewardBrc20FeeUtxos {
@@ -174,16 +178,17 @@ func inscriptionReward(utxoList []*model.OrderUtxoModel, net, tick string, amoun
 
 func jobForCheckRewardOrderSend(rewardType model.RewardType, currentNetworkFeeRate int64) {
 	var (
-		net                string = "livenet"
-		tick               string = config.PlatformRewardTick
-		pair               string = fmt.Sprintf("%s-BTC", strings.ToUpper(tick))
-		entityList         []*model.PoolRewardOrderModel
-		limit              int64 = 50
-		timestamp          int64 = 0
-		utxoRewardSendList []*model.OrderUtxoModel
-		sendId             string = ""
-		err                error
-		utxoLimit          int64 = 1
+		net                                                                       string = "livenet"
+		tick                                                                      string = config.PlatformRewardTick
+		pair                                                                      string = fmt.Sprintf("%s-BTC", strings.ToUpper(tick))
+		platformPrivateKeyRewardBrc20FeeUtxos, platformAddressRewardBrc20FeeUtxos string = order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(net)
+		entityList                                                                []*model.PoolRewardOrderModel
+		limit                                                                     int64                   = 50
+		timestamp                                                                 int64                   = 0
+		utxoRewardSendList                                                        []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
+		sendId                                                                    string                  = ""
+		err                                                                       error
+		utxoLimit                                                                 int64 = 1
 		//utxoLimit             int64 = 5
 	)
 
@@ -201,13 +206,45 @@ func jobForCheckRewardOrderSend(rewardType model.RewardType, currentNetworkFeeRa
 		if v.InscriptionId == "" {
 			continue
 		}
-
-		utxoRewardSendList, err = order_brc20_service.GetUnoccupiedUtxoList(net, utxoLimit, 0, model.UtxoTypeRewardSend, "", currentNetworkFeeRate)
-		if err != nil {
-			major.Println(fmt.Sprintf("[REWARD-SEND]  [%s]get utxo err:%s", v.OrderId, err.Error()))
-			order_brc20_service.ReleaseUtxoList(utxoRewardSendList)
-			continue
+		if v.RewardType == model.RewardTypeEventOneBid {
+			if tool.MakeTimestamp()-v.Timestamp < 1000*60*60*1 {
+				continue
+			}
+			if v.SendId != "" {
+				continue
+			}
 		}
+
+		if v.RewardType == model.RewardTypeEventOneBid {
+			addr, err := btcutil.DecodeAddress(platformAddressRewardBrc20FeeUtxos, order_brc20_service.GetNetParams(v.Net))
+			if err != nil {
+				continue
+			}
+			pkScriptByte, err := txscript.PayToAddrScript(addr)
+			if err != nil {
+				continue
+			}
+			utxoRewardSendList = make([]*model.OrderUtxoModel, 0)
+			utxoRewardSendList = append(utxoRewardSendList, &model.OrderUtxoModel{
+				UtxoId:        fmt.Sprintf("%s_%d", v.FeeUtxoTxId, 1),
+				Net:           v.Net,
+				UtxoType:      model.UtxoTypeRewardSend,
+				Amount:        uint64(v.FeeSend),
+				Address:       platformAddressRewardBrc20FeeUtxos,
+				PrivateKeyHex: platformPrivateKeyRewardBrc20FeeUtxos,
+				TxId:          v.FeeUtxoTxId,
+				Index:         1,
+				PkScript:      hex.EncodeToString(pkScriptByte),
+			})
+		} else {
+			utxoRewardSendList, err = order_brc20_service.GetUnoccupiedUtxoList(net, utxoLimit, 0, model.UtxoTypeRewardSend, "", currentNetworkFeeRate)
+			if err != nil {
+				major.Println(fmt.Sprintf("[REWARD-SEND]  [%s]get utxo err:%s", v.OrderId, err.Error()))
+				order_brc20_service.ReleaseUtxoList(utxoRewardSendList)
+				continue
+			}
+		}
+
 		if int64(len(utxoRewardSendList)) < utxoLimit {
 			major.Println(fmt.Sprintf("[REWARD-SEND]  [%s]get utxo err: not encough", v.OrderId))
 			order_brc20_service.ReleaseUtxoList(utxoRewardSendList)
@@ -219,6 +256,7 @@ func jobForCheckRewardOrderSend(rewardType model.RewardType, currentNetworkFeeRa
 			major.Println(fmt.Sprintf("[REWARD-SEND]  [%s]send err:%s", v.OrderId, err.Error()))
 			order_brc20_service.ReleaseUtxoList(utxoRewardSendList)
 			continue
+			//return
 		}
 
 		v.SendId = sendId
@@ -231,21 +269,24 @@ func jobForCheckRewardOrderSend(rewardType model.RewardType, currentNetworkFeeRa
 		}
 		order_brc20_service.ReleaseUtxoList(utxoRewardSendList)
 		order_brc20_service.SetUsedRewardUtxo(utxoRewardSendList, sendId)
-		major.Println(fmt.Sprintf("[REWARD-SEND] [%s]SEND success", v.OrderId))
-		time.Sleep(1 * time.Second)
+		major.Println(fmt.Sprintf("[REWARD-SEND] [%s][%d]SEND success", v.OrderId, rewardType))
+		time.Sleep(2 * time.Second)
+
 	}
 }
 
 func sendReward(utxoList []*model.OrderUtxoModel, net, inscriptionId string, inscriptionOutValue int64, sendAddress string, rewardType model.RewardType, currentNetworkFeeRate int64) (string, error) {
 	var (
-		netParams                                                                 *chaincfg.Params = order_brc20_service.GetNetParams(net)
-		platformPrivateKeyRewardBrc20, platformAddressRewardBrc20                 string           = getPlatformRewardPrivateKeyAndAddress(net, rewardType)
-		platformPrivateKeyRewardBrc20FeeUtxos, platformAddressRewardBrc20FeeUtxos string           = order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(net)
-		_, platformAddressReceiveBidValue                                         string           = order_brc20_service.GetPlatformKeyAndAddressReceiveBidValue(net)
-		changeAddress                                                             string           = platformAddressReceiveBidValue
-		inscriptionIdStrs                                                         []string
-		txRaw                                                                     string = ""
-		feeRate                                                                          = int64(10)
+		netParams *chaincfg.Params = order_brc20_service.GetNetParams(net)
+		//platformPrivateKeyRewardBrc20, platformAddressRewardBrc20 string           = order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20(net)
+		platformPrivateKeyRewardBrc20, platformAddressRewardBrc20                 string = getPlatformRewardPrivateKeyAndAddress(net, rewardType)
+		platformPrivateKeyRewardBrc20FeeUtxos, platformAddressRewardBrc20FeeUtxos string = order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(net)
+		_, platformAddressReceiveBidValue                                         string = order_brc20_service.GetPlatformKeyAndAddressReceiveBidValue(net)
+		changeAddress                                                             string = platformAddressReceiveBidValue
+		//changeAddress     string = ""
+		inscriptionIdStrs []string
+		txRaw             string = ""
+		feeRate                  = int64(10)
 		//feeRate = int64(60)
 	)
 	if inscriptionId == "" {
@@ -277,29 +318,36 @@ func sendReward(utxoList []*model.OrderUtxoModel, net, inscriptionId string, ins
 	}
 
 	inputs := make([]*order_brc20_service.TxInputUtxo, 0)
-	inputs = append(inputs, &order_brc20_service.TxInputUtxo{
+	brcTxInput := &order_brc20_service.TxInputUtxo{
 		TxId:     inscriptionTxId,
 		TxIndex:  inscriptionTxIndex,
 		PkScript: hex.EncodeToString(pkScriptRewardBrc20),
 		Amount:   uint64(inscriptionOutValue),
 		PriHex:   platformPrivateKeyRewardBrc20,
-	})
+	}
+	inputs = append(inputs, brcTxInput)
 
+	//utxoFeeRate := currentNetworkFeeRate
 	for _, utxo := range utxoList {
 		if utxo.Address != platformAddressRewardBrc20FeeUtxos {
 			continue
 		}
-		inputs = append(inputs, &order_brc20_service.TxInputUtxo{
+		txInput := &order_brc20_service.TxInputUtxo{
 			TxId:     utxo.TxId,
 			TxIndex:  utxo.Index,
 			PkScript: hex.EncodeToString(pkScriptRewardBrc20FeeUtxos),
 			Amount:   uint64(utxo.Amount),
 			PriHex:   platformPrivateKeyRewardBrc20FeeUtxos,
-		})
+		}
+		inputs = append(inputs, txInput)
 		feeRate = feeRate + int64(2)
+
+		if utxo.NetworkFeeRate != 0 {
+			currentNetworkFeeRate = utxo.NetworkFeeRate
+		}
 	}
 	if currentNetworkFeeRate != 0 {
-		feeRate = currentNetworkFeeRate
+		feeRate = currentNetworkFeeRate - 5
 	}
 
 	outputs := make([]*order_brc20_service.TxOutput, 0)
@@ -307,7 +355,7 @@ func sendReward(utxoList []*model.OrderUtxoModel, net, inscriptionId string, ins
 		Address: sendAddress,
 		Amount:  int64(inscriptionOutValue),
 	})
-	tx, err := order_brc20_service.BuildCommonTx(netParams, inputs, outputs, changeAddress, feeRate)
+	tx, err := order_brc20_service.BuildCommonTxV2(netParams, inputs, outputs, changeAddress, feeRate)
 	if err != nil {
 		fmt.Printf("[REWARD-SEND]BuildCommonTx err:%s\n", err.Error())
 		return "", err
@@ -322,4 +370,81 @@ func sendReward(utxoList []*model.OrderUtxoModel, net, inscriptionId string, ins
 		return "", err
 	}
 	return txResp.Result, nil
+}
+
+func jobForCheckRewardOrderSendEventBid(rewardType model.RewardType) {
+	var (
+		net                                                                       string = "livenet"
+		tick                                                                      string = config.PlatformRewardTick
+		pair                                                                      string = fmt.Sprintf("%s-BTC", strings.ToUpper(tick))
+		platformPrivateKeyRewardBrc20FeeUtxos, platformAddressRewardBrc20FeeUtxos string = order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(net)
+		entityList                                                                []*model.PoolRewardOrderModel
+		limit                                                                     int64  = 50
+		timestamp                                                                 int64  = 0
+		sendId                                                                    string = ""
+	)
+
+	entityList, _ = mongo_service.FindPoolRewardOrderModelListByTimestamp(net, tick, pair, limit, timestamp, model.RewardStateInscription, rewardType)
+	if entityList == nil || len(entityList) == 0 {
+		return
+	}
+	for _, v := range entityList {
+		if v.Address == "" {
+			continue
+		}
+		if v.RewardState != model.RewardStateInscription {
+			continue
+		}
+		if v.InscriptionId == "" {
+			continue
+		}
+		if v.RewardType == model.RewardTypeEventOneBid {
+			if tool.MakeTimestamp()-v.Timestamp < 1000*60*60*1 {
+				continue
+			}
+			if v.SendId != "" {
+				continue
+			}
+		}
+
+		addr, err := btcutil.DecodeAddress(platformAddressRewardBrc20FeeUtxos, order_brc20_service.GetNetParams(v.Net))
+		if err != nil {
+			continue
+		}
+		pkScriptByte, err := txscript.PayToAddrScript(addr)
+		if err != nil {
+			continue
+		}
+		utxoRewardSendList := make([]*model.OrderUtxoModel, 0)
+		utxoRewardSendList = append(utxoRewardSendList, &model.OrderUtxoModel{
+			UtxoId:        fmt.Sprintf("%s_%d", v.FeeUtxoTxId, 1),
+			Net:           v.Net,
+			UtxoType:      model.UtxoTypeRewardSend,
+			Amount:        uint64(v.FeeSend),
+			Address:       platformAddressRewardBrc20FeeUtxos,
+			PrivateKeyHex: platformPrivateKeyRewardBrc20FeeUtxos,
+			TxId:          v.FeeUtxoTxId,
+			Index:         1,
+			PkScript:      hex.EncodeToString(pkScriptByte),
+		})
+
+		//send
+		sendId, err = order_brc20_service.SendReward(utxoRewardSendList,
+			v.Net, v.InscriptionId, v.InscriptionOutValue, v.Address,
+			v.NetworkFeeRate)
+		if err != nil {
+			major.Println(fmt.Sprintf("[REWARD-SEND]  [%s]send err:%s", v.OrderId, err.Error()))
+			continue
+		}
+
+		v.SendId = sendId
+		v.RewardState = model.RewardStateSend
+		v.FeeRawTx = ""
+		_, err = mongo_service.SetPoolRewardOrderModel(v)
+		if err != nil {
+			major.Println(fmt.Sprintf("[REWARD-SEND]  [%s]SetPoolRewardOrderModel err:%s", v.OrderId, err.Error()))
+			continue
+		}
+		time.Sleep(2 * time.Second)
+	}
 }

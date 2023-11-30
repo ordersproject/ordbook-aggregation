@@ -29,8 +29,8 @@ const (
 	PoolModePsbt    PoolMode = 1
 	PoolModeCustody PoolMode = 2
 
-	ClaimTxBlockStateUnconfirmed = 1
-	ClaimTxBlockStateConfirmed   = 2
+	ClaimTxBlockStateUnconfirmed ClaimTxBlockState = 1
+	ClaimTxBlockStateConfirmed   ClaimTxBlockState = 2
 
 	MultiSigScriptAddressTickAvailableStateNo  = 0
 	MultiSigScriptAddressTickAvailableStateYes = 1
@@ -220,10 +220,12 @@ const (
 type RewardType int
 
 const (
-	RewardTypeNormal      RewardType = 1
-	RewardTypeExtra       RewardType = 2
-	RewardTypeEventOneLp  RewardType = 11
-	RewardTypeEventOneBid RewardType = 12
+	RewardTypeNormal             RewardType = 1
+	RewardTypeExtra              RewardType = 2
+	RewardTypeEventOneLp         RewardType = 11
+	RewardTypeEventOneBid        RewardType = 12
+	RewardTypeEventOneLpUnused   RewardType = 13
+	RewardTypeEventOneLpUnusedV2 RewardType = 15
 )
 
 type PoolRewardOrderModel struct {
@@ -367,7 +369,7 @@ const (
 
 type PoolBlockInfoModel struct {
 	Id                                   int64             `json:"id" bson:"_id" tb:"pool_block_info_model" mg:"true"`
-	BigBlockId                           string            `json:"bigBlockId" bson:"bigBlockId"` //bigBlock_cycleBlock
+	BigBlockId                           string            `json:"bigBlockId" bson:"bigBlockId"` //bigBlock_cycleBlock_calType
 	BigBlock                             int64             `json:"bigBlock" bson:"bigBlock"`
 	StartBlock                           int64             `json:"startBlock" bson:"startBlock"`
 	EndBlock                             int64             `json:"endBlock" bson:"endBlock"`
@@ -406,6 +408,124 @@ func (s PoolBlockInfoModel) GetReadDB() (*mongo.Collection, error) {
 }
 
 func (s PoolBlockInfoModel) GetWriteDB() (*mongo.Collection, error) {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return nil, err
+	}
+	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+	return collection, nil
+}
+
+type PoolTimeInfoModel struct {
+	Id                           int64             `json:"id" bson:"_id" tb:"pool_time_info_model" mg:"true"`
+	BigTimeId                    string            `json:"bigTimeId" bson:"bigTimeId"` //bigTime_cycleBlock_calType
+	BigTime                      int64             `json:"bigTime" bson:"bigTime"`
+	StartTime                    int64             `json:"startTime" bson:"startTime"`
+	EndTime                      int64             `json:"endTime" bson:"endTime"`
+	StartTimeStr                 string            `json:"startTimeStr" bson:"startTime"`
+	EndTimeStr                   string            `json:"endTimeStr" bson:"endTimeStr"`
+	CycleTime                    int64             `json:"cycleTime" bson:"cycleTime"`
+	CalPoolExtraRewardInfo       map[string]string `json:"calPoolExtraRewardInfo" bson:"calPoolExtraRewardInfo"` //{"poolOrderId":"value:percentage:amount:coinAmount:price"}
+	CalPoolExtraRewardTotalValue int64             `json:"calPoolExtraRewardTotalValue" bson:"calPoolExtraRewardTotalValue"`
+	CalType                      CalType           `json:"calType" bson:"calType"`
+	Timestamp                    int64             `json:"timestamp" bson:"timestamp"`
+	CreateTime                   int64             `json:"createTime" bson:"createTime"`
+	UpdateTime                   int64             `json:"updateTime" bson:"updateTime"`
+	State                        int64             `json:"state" bson:"state"`
+}
+
+func (s PoolTimeInfoModel) getCollection() string {
+	return "pool_time_info_model"
+}
+
+func (s PoolTimeInfoModel) getDB() string {
+	return major.DsOrdbook
+}
+
+func (s PoolTimeInfoModel) GetReadDB() (*mongo.Collection, error) {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return nil, err
+	}
+	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+	return collection, nil
+}
+
+func (s PoolTimeInfoModel) GetWriteDB() (*mongo.Collection, error) {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return nil, err
+	}
+	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+	return collection, nil
+}
+
+type RewardRecordModel struct {
+	Id                  int64      `json:"id" bson:"_id" tb:"reward_record_model" mg:"true"`
+	Net                 string     `json:"net" bson:"net"`
+	Tick                string     `json:"tick" bson:"tick"` //net_tick_calDay_fromOrderId
+	OrderId             string     `json:"orderId" bson:"orderId"`
+	Pair                string     `json:"pair" bson:"pair"`
+	FromOrderId         string     `json:"fromOrderId" bson:"fromOrderId"`
+	FromOrderRole       string     `json:"fromOrderRole" bson:"fromOrderRole"`
+	FromOrderTotalValue int64      `json:"fromOrderTotalValue" bson:"fromOrderTotalValue"`
+	FromOrderOwnValue   int64      `json:"fromOrderOwnValue" bson:"fromOrderOwnValue"`
+	Address             string     `json:"address" bson:"address"`
+	TotalValue          int64      `json:"totalValue" bson:"totalValue"`
+	OwnValue            int64      `json:"ownValue" bson:"ownValue"`
+	Percentage          int64      `json:"percentage" bson:"percentage"`
+	RewardAmount        int64      `json:"rewardAmount" bson:"rewardAmount"`
+	RewardType          RewardType `json:"rewardType" bson:"rewardType"`
+	CalBigBlock         int64      `json:"calBigBlock" bson:"calBigBlock"`
+	CalDayIndex         int64      `json:"calDayIndex" bson:"calDayIndex"`
+	CalDay              int64      `json:"calDay" bson:"calDay"`
+	CalStartTime        int64      `json:"calStartTime" bson:"calStartTime"`
+	CalEndTime          int64      `json:"calEndTime" bson:"calEndTime"`
+	CalStartBlock       int64      `json:"calStartBlock" bson:"calStartBlock"`
+	CalEndBlock         int64      `json:"calEndBlock" bson:"calEndBlock"`
+	Version             int        `json:"version" bson:"version"`
+	Timestamp           int64      `json:"timestamp" bson:"timestamp"`
+	CreateTime          int64      `json:"createTime" bson:"createTime"`
+	UpdateTime          int64      `json:"updateTime" bson:"updateTime"`
+	State               int64      `json:"state" bson:"state"`
+}
+
+type RewardCount struct {
+	Id                string `json:"id" bson:"_id"`
+	RewardAmountTotal int64  `json:"rewardAmountTotal" bson:"rewardAmountTotal"`
+	OrderCounts       int64  `json:"orderCounts" bson:"orderCounts"`
+}
+
+func (s RewardRecordModel) getCollection() string {
+	return "reward_record_model"
+}
+
+func (s RewardRecordModel) getDB() string {
+	return major.DsOrdbook
+}
+
+func (s RewardRecordModel) GetReadDB() (*mongo.Collection, error) {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return nil, err
+	}
+	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+	return collection, nil
+}
+
+func (s RewardRecordModel) GetWriteDB() (*mongo.Collection, error) {
 	mongoDB, err := major.GetOrderbookDb()
 	if err != nil {
 		return nil, err

@@ -11,8 +11,6 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/shopspring/decimal"
-	"ordbook-aggregation/config"
 	"ordbook-aggregation/major"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/service/inscription_service"
@@ -137,8 +135,12 @@ func getPoolBrc20PsbtOrder(net, tick string, limit, page, flag int64) ([]*model.
 		entityList []*model.PoolBrc20Model
 		total      int64 = 0
 	)
-	total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", "", model.PoolTypeAll, model.PoolStateAdd)
-	entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", "", model.PoolTypeAll, model.PoolStateAdd,
+	//total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", "", model.PoolTypeAll, model.PoolStateAdd)
+	//entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", "", model.PoolTypeAll, model.PoolStateAdd,
+	//	limit, flag, page, "coinRatePrice", -1)
+
+	total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", "", model.PoolTypeBoth, model.PoolStateAdd)
+	entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", "", model.PoolTypeBoth, model.PoolStateAdd,
 		limit, flag, page, "coinRatePrice", -1)
 	return entityList, total, nil
 }
@@ -171,9 +173,9 @@ func setCoinStatusPoolBrc20Order(bidOrder *model.OrderBrc20Model, poolCoinState 
 
 func setRewardForPoolBrc20Order(poolOrderId string) {
 	var (
-		entityPool   *model.PoolBrc20Model
-		rewardAmount int64 = 0
-		dayTime      int64 = 1000 * 60 * 60 * 24
+		entityPool *model.PoolBrc20Model
+		//rewardAmount int64 = 0
+		//dayTime      int64 = 1000 * 60 * 60 * 24
 	)
 	entityPool, _ = mongo_service.FindPoolBrc20ModelByOrderId(poolOrderId)
 	if entityPool == nil {
@@ -181,31 +183,31 @@ func setRewardForPoolBrc20Order(poolOrderId string) {
 	}
 	AddNotificationForPoolUsed(entityPool.CoinAddress)
 
-	if entityPool.PoolType == model.PoolTypeTick {
-		rewardAmount = getSinglePoolReward()
-	} else {
-		rewardAmount = getDoublePoolReward(entityPool.Ratio)
-		dis := entityPool.DealTime - entityPool.Timestamp
-		days := dis / dayTime
-		count := days / config.PlatformRewardExtraRewardDuration
-
-		entity, _ := mongo_service.FindPoolInfoModelByPair(entityPool.Net, strings.ToUpper(entityPool.Pair))
-		if entity == nil || entity.Id == 0 {
-			return
-		}
-		_, amountTotal, _, _ := getOwnPoolInfo(entityPool.Net, entityPool.Tick, strings.ToUpper(entityPool.Pair), entityPool.CoinAddress)
-		ownerAmountTotalDe := decimal.NewFromInt(int64(amountTotal))
-		amountTotalDe := decimal.NewFromInt(int64(entity.Amount))
-		rewardAmountDe := decimal.NewFromInt(rewardAmount)
-		extraReward := ownerAmountTotalDe.Div(amountTotalDe).Mul(rewardAmountDe).IntPart()
-		extraReward = extraReward * count
-		rewardAmount = rewardAmount + extraReward
-	}
-	//entityPool.RewardAmount = rewardAmount
-	err := mongo_service.SetPoolBrc20ModelForReward(entityPool)
-	if err != nil {
-		major.Println(fmt.Sprintf("SetPoolBrc20ModelForReward err: %s", err.Error()))
-	}
+	//if entityPool.PoolType == model.PoolTypeTick {
+	//	rewardAmount = getSinglePoolReward()
+	//} else {
+	//	rewardAmount = getDoublePoolReward(entityPool.Ratio)
+	//	dis := entityPool.DealTime - entityPool.Timestamp
+	//	days := dis / dayTime
+	//	count := days / config.PlatformRewardExtraRewardDuration
+	//
+	//	entity, _ := mongo_service.FindPoolInfoModelByPair(entityPool.Net, strings.ToUpper(entityPool.Pair))
+	//	if entity == nil || entity.Id == 0 {
+	//		return
+	//	}
+	//	_, amountTotal, _, _ := getOwnPoolInfo(entityPool.Net, entityPool.Tick, strings.ToUpper(entityPool.Pair), entityPool.CoinAddress)
+	//	ownerAmountTotalDe := decimal.NewFromInt(int64(amountTotal))
+	//	amountTotalDe := decimal.NewFromInt(int64(entity.Amount))
+	//	rewardAmountDe := decimal.NewFromInt(rewardAmount)
+	//	extraReward := ownerAmountTotalDe.Div(amountTotalDe).Mul(rewardAmountDe).IntPart()
+	//	extraReward = extraReward * count
+	//	rewardAmount = rewardAmount + extraReward
+	//}
+	////entityPool.RewardAmount = rewardAmount
+	//err := mongo_service.SetPoolBrc20ModelForReward(entityPool)
+	//if err != nil {
+	//	major.Println(fmt.Sprintf("SetPoolBrc20ModelForReward err: %s", err.Error()))
+	//}
 	updatePoolInfo(entityPool)
 }
 
@@ -622,6 +624,35 @@ func updateClaim(poolOrder *model.PoolBrc20Model, rawTx string) error {
 	return nil
 }
 
+func updateErrClaim(poolOrder *model.PoolBrc20Model, rawTx string) error {
+	txPsbtResp, err := unisat_service.BroadcastTx(poolOrder.Net, rawTx)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Broadcast Psbt %s, poolOrderId-%s err:%s", poolOrder.Net, poolOrder.OrderId, err.Error()))
+	}
+	_ = txPsbtResp
+
+	poolOrder.ClaimTx = txPsbtResp.Result
+	poolOrder.ClaimTime = tool.MakeTimestamp()
+	if poolOrder.PoolState != model.PoolStateUsed {
+		poolOrder.PoolState = model.PoolStateErr
+	}
+	if poolOrder.PoolCoinState == model.PoolStateUsed {
+		poolOrder.PoolCoinState = model.PoolStateClaim
+	}
+
+	//decreasing := calculateDecrementFoNoReleasePool(poolOrder)
+	//poolOrder.Decreasing = decreasing
+
+	//rewardNowAmount := getRealNowRewardByDecreasing(poolOrder.RewardAmount, decreasing)
+	//poolOrder.RewardRealAmount = rewardNowAmount
+	poolOrder.ClaimTxBlockState = model.ClaimTxBlockStateUnconfirmed
+	err = mongo_service.SetPoolBrc20ModelForClaim(poolOrder)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func saveNewMultiSigInscriptionUtxo(net, txId string, txIndex int64, amount uint64) error {
 	startIndex := GetSaveStartIndex(net, model.UtxoTypeMultiInscriptionFromRelease, 0)
 	_, fromSegwitAddress := GetPlatformKeyAndAddressForMultiSigInscription(net)
@@ -806,8 +837,7 @@ func addPoolRewardPsbt(net, receiveAddress, claimPsbtRaw string) (*PsbtBuilder, 
 	return builder, nil
 }
 
-func makeBtcRefundTx(netParams *chaincfg.Params, refundUtxoList []*model.OrderUtxoModel, refundAmount uint64, refundAddress, changeAddress string) (*wire.MsgTx, error) {
-	fee := int64(14)
+func makeBtcRefundTx(netParams *chaincfg.Params, refundUtxoList []*model.OrderUtxoModel, refundAmount uint64, refundAddress, changeAddress string, feeRate int64) (*wire.MsgTx, error) {
 	inputs := make([]*TxInputUtxo, 0)
 	for _, u := range refundUtxoList {
 		inputs = append(inputs, &TxInputUtxo{
@@ -824,7 +854,7 @@ func makeBtcRefundTx(netParams *chaincfg.Params, refundUtxoList []*model.OrderUt
 		Address: refundAddress,
 		Amount:  int64(refundAmount),
 	})
-	tx, err := BuildCommonTx(netParams, inputs, outputs, changeAddress, fee)
+	tx, err := BuildCommonTx(netParams, inputs, outputs, changeAddress, feeRate)
 	if err != nil {
 		fmt.Printf("BuildCommonTx err:%s\n", err.Error())
 		return nil, err
@@ -862,6 +892,18 @@ func checkPoolAddress(poolOrderId, address string) int64 {
 	)
 	bidCount, _ = mongo_service.CountPoolBrc20ModelListForPoolOrderIdAndAddress(poolOrderId, address)
 	return bidCount
+}
+
+// check pool type
+func checkPoolType(poolOrderId string) model.PoolType {
+	var (
+		entityPool *model.PoolBrc20Model
+	)
+	entityPool, _ = mongo_service.FindPoolBrc20ModelByOrderId(poolOrderId)
+	if entityPool == nil {
+		return model.PoolTypeTick
+	}
+	return entityPool.PoolType
 }
 
 // remove invalid bid of pool order which is add state

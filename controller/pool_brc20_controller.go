@@ -416,6 +416,55 @@ func FetchPoolRewardOrders(c *gin.Context) {
 	return
 }
 
+// @Summary Fetch reward record
+// @Description Fetch reward record
+// @Produce  json
+// @Tags brc20
+// @Param net query string false "net:mainnet/signet/testnet"
+// @Param tick query string false "tick"
+// @Param address query string false "address"
+// @Param rewardType query int false "1-normal, 11-eventOneUsedLp,12-eventOneBid,15-eventOneUnusedLp"
+// @Param limit query int false "limit: Max-50"
+// @Param page query int false "page"
+// @Param flag query int false "flag"
+// @Param sortKey query string false "sortKey: timestamp, default:timestamp"
+// @Param sortType query int false "sortType: 1/-1"
+// @Success 200 {object} respond.PoolRewardRecordResponse ""
+// @Router /brc20/pool/reward/records [get]
+func FetchRewardRecord(c *gin.Context) {
+	var (
+		t             int64                             = tool.MakeTimestamp()
+		limitStr                                        = c.DefaultQuery("limit", "50")
+		pageStr                                         = c.DefaultQuery("page", "0")
+		flagStr                                         = c.DefaultQuery("flag", "0")
+		sortTypeStr                                     = c.DefaultQuery("sortType", "0")
+		rewardTypeStr                                   = c.DefaultQuery("rewardType", "0")
+		req           *request.PoolRewardRecordFetchReq = &request.PoolRewardRecordFetchReq{
+			Net:      c.DefaultQuery("net", ""),
+			Tick:     c.DefaultQuery("tick", ""),
+			Limit:    0,
+			Flag:     0,
+			Page:     0,
+			Address:  c.DefaultQuery("address", ""),
+			SortKey:  c.DefaultQuery("sortKey", ""),
+			SortType: 0,
+		}
+	)
+	rewardType, _ := strconv.ParseInt(rewardTypeStr, 10, 64)
+	req.RewardType = model.RewardType(rewardType)
+	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
+	req.Flag, _ = strconv.ParseInt(flagStr, 10, 64)
+	req.Page, _ = strconv.ParseInt(pageStr, 10, 64)
+	req.SortType, _ = strconv.ParseInt(sortTypeStr, 10, 64)
+	responseModel, err := order_brc20_service.FetchRewardRecord(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}
+
 // @Summary Fetch event reward info
 // @Description Fetch pool reward info
 // @Produce  json
@@ -493,6 +542,103 @@ func ClaimEventReward(c *gin.Context) {
 	if c.ShouldBindJSON(&requestModel) == nil {
 		publicKey = getAuthParams(c)
 		responseModel, err := order_brc20_service.ClaimEventReward(requestModel, publicKey, c.ClientIP())
+		if err != nil {
+			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+			return
+		}
+		c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+		return
+	}
+	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
+}
+
+// @Summary Fetch err pool orders
+// @Description Fetch err pool orders
+// @Produce  json
+// @Tags brc20
+// @Param net query string false "net:mainnet/signet/testnet"
+// @Param tick query string false "tick"
+// @Param address query string false "address"
+// @Param limit query int false "limit: Max-50"
+// @Param page query int false "page"
+// @Param flag query int false "flag"
+// @Param sortKey query string false "sortKey: timestamp/coinRatePrice, default:timestamp"
+// @Param sortType query int false "sortType: 1/-1"
+// @Success 200 {object} respond.PoolResponse ""
+// @Router /brc20/pool/err/orders [get]
+func FetchErrPoolOrders(c *gin.Context) {
+	var (
+		t           int64                         = tool.MakeTimestamp()
+		limitStr                                  = c.DefaultQuery("limit", "50")
+		pageStr                                   = c.DefaultQuery("page", "0")
+		flagStr                                   = c.DefaultQuery("flag", "0")
+		sortTypeStr                               = c.DefaultQuery("sortType", "0")
+		req         *request.PoolBrc20ErrFetchReq = &request.PoolBrc20ErrFetchReq{
+			Net:      c.DefaultQuery("net", ""),
+			Tick:     c.DefaultQuery("tick", ""),
+			Limit:    0,
+			Flag:     0,
+			Page:     0,
+			Address:  c.DefaultQuery("address", ""),
+			SortKey:  c.DefaultQuery("sortKey", ""),
+			SortType: 0,
+		}
+	)
+	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
+	req.Flag, _ = strconv.ParseInt(flagStr, 10, 64)
+	req.Page, _ = strconv.ParseInt(pageStr, 10, 64)
+	req.SortType, _ = strconv.ParseInt(sortTypeStr, 10, 64)
+	responseModel, err := order_brc20_service.FetchErrPoolOrders(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary get err release pool order
+// @Description get err release pool order
+// @Produce  json
+// @Param Request body request.PoolBrc20ClaimReq true "Request"
+// @Tags brc20
+// @Success 200 {object} respond.PoolBrc20ClaimResp ""
+// @Router /brc20/pool/err/order/release [post]
+func ReleaseErrPool(c *gin.Context) {
+	var (
+		t            int64 = tool.MakeTimestamp()
+		requestModel *request.PoolBrc20ClaimReq
+		publicKey    string = ""
+	)
+	if c.ShouldBindJSON(&requestModel) == nil {
+		publicKey = getAuthParams(c)
+		responseModel, err := order_brc20_service.ReleaseErrPool(requestModel, publicKey, c.ClientIP())
+		if err != nil {
+			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+			return
+		}
+		c.JSONP(http.StatusOK, respond.RespSuccess(responseModel, tool.MakeTimestamp()-t))
+		return
+	}
+	c.JSONP(http.StatusInternalServerError, respond.RespErr(errors.New("error parameter"), tool.MakeTimestamp()-t, respond.HttpsCodeError))
+}
+
+// @Summary release err pool order
+// @Description release err pool order
+// @Produce  json
+// @Param Request body request.PoolBrc20ClaimUpdateReq true "Request"
+// @Tags brc20
+// @Success 200 {object} respond.Message ""
+// @Router /brc20/pool/err/order/release/commit [post]
+func UpdateErrRelease(c *gin.Context) {
+	var (
+		t            int64 = tool.MakeTimestamp()
+		requestModel *request.PoolBrc20ClaimUpdateReq
+		publicKey    string = ""
+	)
+	if c.ShouldBindJSON(&requestModel) == nil {
+		publicKey = getAuthParams(c)
+		responseModel, err := order_brc20_service.UpdateErrRelease(requestModel, publicKey, c.ClientIP())
 		if err != nil {
 			c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
 			return

@@ -91,6 +91,8 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 		PoolOrderId:         orderBrc20.PoolOrderId,
 		Integral:            orderBrc20.Integral,
 		FreeState:           orderBrc20.FreeState,
+		SellerTotalFee:      orderBrc20.SellerTotalFee,
+		BuyerTotalFee:       orderBrc20.BuyerTotalFee,
 		DealTime:            orderBrc20.DealTime,
 		DealTxBlockState:    orderBrc20.DealTxBlockState,
 		DealTxBlock:         orderBrc20.DealTxBlock,
@@ -155,6 +157,7 @@ func SetOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20Mod
 		bsonData = append(bsonData, bson.E{Key: "inscriptionId", Value: orderBrc20.InscriptionId})
 		bsonData = append(bsonData, bson.E{Key: "inscriptionNumber", Value: orderBrc20.InscriptionNumber})
 		bsonData = append(bsonData, bson.E{Key: "sellInscriptionId", Value: orderBrc20.SellInscriptionId})
+		bsonData = append(bsonData, bson.E{Key: "bidValueToXUtxoId", Value: orderBrc20.BidValueToXUtxoId})
 		bsonData = append(bsonData, bson.E{Key: "psbtRawPreAsk", Value: orderBrc20.PsbtRawPreAsk})
 		bsonData = append(bsonData, bson.E{Key: "psbtRawFinalAsk", Value: orderBrc20.PsbtRawFinalAsk})
 		bsonData = append(bsonData, bson.E{Key: "psbtAskTxId", Value: orderBrc20.PsbtAskTxId})
@@ -167,6 +170,9 @@ func SetOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20Mod
 		bsonData = append(bsonData, bson.E{Key: "freeState", Value: orderBrc20.FreeState})
 		bsonData = append(bsonData, bson.E{Key: "dealTime", Value: orderBrc20.DealTime})
 		bsonData = append(bsonData, bson.E{Key: "timestamp", Value: orderBrc20.Timestamp})
+
+		bsonData = append(bsonData, bson.E{Key: "sellerTotalFee", Value: orderBrc20.SellerTotalFee})
+		bsonData = append(bsonData, bson.E{Key: "buyerTotalFee", Value: orderBrc20.BuyerTotalFee})
 
 		bsonData = append(bsonData, bson.E{Key: "dealTxBlockState", Value: orderBrc20.DealTxBlockState})
 		bsonData = append(bsonData, bson.E{Key: "dealTxBlock", Value: orderBrc20.DealTxBlock})
@@ -2011,4 +2017,35 @@ func CountOwnEventOrderBrc20RewardByBuyer(net, tick, pair, buyerAddress string, 
 	} else {
 		return nil, errors.New("db get EventRewardCount error")
 	}
+}
+
+func FindOrderBrc20ModelTickAndAmountByOrderId(orderId string) (string, uint64, uint64, int64, int64, int64, int64) {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return "", 0, 0, 0, 0, 0, 0
+	}
+	queryBson := bson.D{
+		{"orderId", orderId},
+		//{"state", model.STATE_EXIST},
+	}
+	entity := &model.OrderBrc20Model{}
+	projection := options.FindOne().SetProjection(bson.M{
+		"id":               1,
+		"_id":              1,
+		"orderId":          1,
+		"tick":             1,
+		"coinAmount":       1,
+		"amount":           1,
+		"dealTxBlock":      1,
+		"dealTime":         1,
+		"percentage":       1,
+		"rewardAmount":     1,
+		"rewardRealAmount": 1,
+		"state":            1,
+	})
+	err = collection.FindOne(context.TODO(), queryBson, projection).Decode(entity)
+	if err != nil {
+		return "", 0, 0, 0, 0, 0, 0
+	}
+	return entity.Tick, entity.CoinAmount, entity.Amount, entity.RewardRealAmount, entity.Percentage, entity.DealTxBlock, entity.DealTime
 }

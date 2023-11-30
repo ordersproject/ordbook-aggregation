@@ -13,6 +13,7 @@ var (
 	OklinkKey    = ""
 	MempoolSpace = ""
 	UnisatDomain = ""
+	OwnDomain    = ""
 
 	WsPort            = ""
 	RedisEndpoint     = ""
@@ -165,6 +166,7 @@ func InitConfig() {
 	HiroDomain = viper.GetString("hiro_domain")
 	OklinkDomain, OklinkKey = viper.GetString("oklink.domain"), viper.GetString("oklink.key")
 	UnisatDomain = viper.GetString("unisat.domain")
+	OwnDomain = viper.GetString("own.domain")
 	PlatformTestnetPrivateKeySendBrc20, PlatformTestnetAddressSendBrc20,
 		PlatformTestnetPrivateKeySendBrc20ForAsk, PlatformTestnetAddressSendBrc20ForAsk,
 		PlatformTestnetPrivateKeyReceiveValueForAsk, PlatformTestnetAddressReceiveValueForAsk,

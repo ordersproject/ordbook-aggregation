@@ -106,3 +106,27 @@ type PoolRewardOrderFetchReq struct {
 	SortKey     string            `json:"sortKey"`  //timestamp
 	SortType    int64             `json:"sortType"` //1/-1
 }
+
+type PoolRewardRecordFetchReq struct {
+	Net        string           `json:"net"` //livenet/signet/testnet
+	Tick       string           `json:"tick"`
+	Limit      int64            `json:"limit"`
+	RewardType model.RewardType `json:"rewardType"` //1-normal, 11-eventOneUsedLp,12-eventOneBid,15-eventOneUnusedLp
+	Flag       int64            `json:"flag"`
+	Page       int64            `json:"page"`
+	Address    string           `json:"address"`
+	SortKey    string           `json:"sortKey"`  //timestamp
+	SortType   int64            `json:"sortType"` //1/-1
+}
+
+type PoolBrc20ErrFetchReq struct {
+	Net      string `json:"net"` //livenet/signet/testnet
+	Tick     string `json:"tick"`
+	Pair     string `json:"pair"`
+	Limit    int64  `json:"limit"`
+	Flag     int64  `json:"flag"`
+	Page     int64  `json:"page"`
+	Address  string `json:"address"`
+	SortKey  string `json:"sortKey"`  //timestamp
+	SortType int64  `json:"sortType"` //1/-1
+}

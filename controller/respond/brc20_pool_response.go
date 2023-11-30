@@ -142,3 +142,30 @@ type PoolRewardOrderItem struct {
 	InscriptionId    string            `json:"inscriptionId,omitempty"`
 	SendId           string            `json:"sendId,omitempty"`
 }
+
+type PoolRewardRecordResponse struct {
+	Total   int64                   `json:"total,omitempty"`
+	Results []*PoolRewardRecordItem `json:"results,omitempty"`
+	Flag    int64                   `json:"flag,omitempty"`
+}
+
+type PoolRewardRecordItem struct {
+	Net                 string           `json:"net"`
+	Tick                string           `json:"tick"`
+	OrderId             string           `json:"orderId"`
+	FromOrderId         string           `json:"fromOrderId"`
+	FromOrderTick       string           `json:"fromOrderTick"`       //pool tick
+	FromOrderCoinAmount int64            `json:"fromOrderCoinAmount"` //pool coin amount
+	FromOrderAmount     int64            `json:"fromOrderAmount"`     //pool amount
+	FromOrderReward     int64            `json:"fromOrderReward"`     //bid order reward
+	FromOrderPercentage int64            `json:"fromOrderPercentage"` //bid percentage
+	FromOrderDealBlock  int64            `json:"fromOrderDealBlock"`  //bid deal block
+	FromOrderDealTime   int64            `json:"fromOrderDealTime"`   //bid deal time
+	Address             string           `json:"address"`
+	Percentage          int64            `json:"percentage,omitempty"`
+	RewardAmount        int64            `json:"rewardAmount"`
+	RewardType          model.RewardType `json:"rewardType"`
+	CalBigBlock         int64            `json:"calBigBlock"`
+	CalStartBlock       int64            `json:"calStartBlock"`
+	CalEndBlock         int64            `json:"calEndBlock"`
+}

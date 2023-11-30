@@ -1,5 +1,13 @@
 basePath: /book
 definitions:
+  model.ClaimTxBlockState:
+    enum:
+    - 1
+    - 2
+    type: integer
+    x-enum-varnames:
+    - ClaimTxBlockStateUnconfirmed
+    - ClaimTxBlockStateConfirmed
   model.FreeState:
     enum:
     - 1
@@ -124,14 +132,24 @@ definitions:
     - 2
     - 11
     - 12
+    - 13
+    - 15
     type: integer
     x-enum-varnames:
     - RewardTypeNormal
     - RewardTypeExtra
     - RewardTypeEventOneLp
     - RewardTypeEventOneBid
+    - RewardTypeEventOneLpUnused
+    - RewardTypeEventOneLpUnusedV2
   model.UtxoType:
     enum:
+    - 50
+    - 51
+    - 60
+    - 61
+    - 70
+    - 71
     - 1
     - 3
     - 4
@@ -145,14 +163,14 @@ definitions:
     - 20
     - 21
     - 30
-    - 50
-    - 51
-    - 60
-    - 61
-    - 70
-    - 71
     type: integer
     x-enum-varnames:
+    - UtxoTypeAirdropInscription
+    - UtxoTypeAirdropSend
+    - UtxoTypeToolClaimBackupInscription
+    - UtxoTypeToolClaimBackupSend
+    - UtxoTypeToolClaimAirdropInscription
+    - UtxoTypeToolClaimAirdropSend
     - UtxoTypeDummy
     - UtxoTypeDummy1200
     - UtxoTypeDummyBidX
@@ -166,12 +184,6 @@ definitions:
     - UtxoTypeRewardInscription
     - UtxoTypeRewardSend
     - UtxoTypeLoop
-    - UtxoTypeAirdropInscription
-    - UtxoTypeAirdropSend
-    - UtxoTypeToolClaimBackupInscription
-    - UtxoTypeToolClaimBackupSend
-    - UtxoTypeToolClaimAirdropInscription
-    - UtxoTypeToolClaimAirdropSend
   request.BidTxInput:
     properties:
       address:
@@ -728,8 +740,9 @@ definitions:
       dealTxBlock:
         type: integer
       dealTxBlockState:
+        allOf:
+        - $ref: '#/definitions/model.ClaimTxBlockState'
         description: psbtBidTxId
-        type: integer
       decimalNum:
         description: Btc decimal
         type: integer
@@ -1119,7 +1132,7 @@ definitions:
       dealCoinTxBlock:
         type: integer
       dealCoinTxBlockState:
-        type: integer
+        $ref: '#/definitions/model.ClaimTxBlockState'
       dealInscriptionId:
         description: InscriptionId
         type: string
@@ -1336,6 +1349,63 @@ definitions:
       results:
         items:
           $ref: '#/definitions/respond.PoolRewardOrderItem'
+        type: array
+      total:
+        type: integer
+    type: object
+  respond.PoolRewardRecordItem:
+    properties:
+      address:
+        type: string
+      calBigBlock:
+        type: integer
+      calEndBlock:
+        type: integer
+      calStartBlock:
+        type: integer
+      fromOrderAmount:
+        description: pool amount
+        type: integer
+      fromOrderCoinAmount:
+        description: pool coin amount
+        type: integer
+      fromOrderDealBlock:
+        description: bid deal block
+        type: integer
+      fromOrderDealTime:
+        description: bid deal time
+        type: integer
+      fromOrderId:
+        type: string
+      fromOrderPercentage:
+        description: bid percentage
+        type: integer
+      fromOrderReward:
+        description: bid order reward
+        type: integer
+      fromOrderTick:
+        description: pool tick
+        type: string
+      net:
+        type: string
+      orderId:
+        type: string
+      percentage:
+        type: integer
+      rewardAmount:
+        type: integer
+      rewardType:
+        $ref: '#/definitions/model.RewardType'
+      tick:
+        type: string
+    type: object
+  respond.PoolRewardRecordResponse:
+    properties:
+      flag:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/respond.PoolRewardRecordItem'
         type: array
       total:
         type: integer
@@ -2143,6 +2213,92 @@ paths:
       summary: Fetch user orders
       tags:
       - brc20
+  /brc20/pool/err/order/release:
+    post:
+      description: get err release pool order
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.PoolBrc20ClaimReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolBrc20ClaimResp'
+      summary: get err release pool order
+      tags:
+      - brc20
+  /brc20/pool/err/order/release/commit:
+    post:
+      description: release err pool order
+      parameters:
+      - description: Request
+        in: body
+        name: Request
+        required: true
+        schema:
+          $ref: '#/definitions/request.PoolBrc20ClaimUpdateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Message'
+      summary: release err pool order
+      tags:
+      - brc20
+  /brc20/pool/err/orders:
+    get:
+      description: Fetch err pool orders
+      parameters:
+      - description: net:mainnet/signet/testnet
+        in: query
+        name: net
+        type: string
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: address
+        in: query
+        name: address
+        type: string
+      - description: 'limit: Max-50'
+        in: query
+        name: limit
+        type: integer
+      - description: page
+        in: query
+        name: page
+        type: integer
+      - description: flag
+        in: query
+        name: flag
+        type: integer
+      - description: 'sortKey: timestamp/coinRatePrice, default:timestamp'
+        in: query
+        name: sortKey
+        type: string
+      - description: 'sortType: 1/-1'
+        in: query
+        name: sortType
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolResponse'
+      summary: Fetch err pool orders
+      tags:
+      - brc20
   /brc20/pool/inscription:
     get:
       description: Fetch pool inscription
@@ -2503,6 +2659,56 @@ paths:
           schema:
             $ref: '#/definitions/respond.PoolRewardOrderResponse'
       summary: Fetch pool reward orders
+      tags:
+      - brc20
+  /brc20/pool/reward/records:
+    get:
+      description: Fetch reward record
+      parameters:
+      - description: net:mainnet/signet/testnet
+        in: query
+        name: net
+        type: string
+      - description: tick
+        in: query
+        name: tick
+        type: string
+      - description: address
+        in: query
+        name: address
+        type: string
+      - description: 1-normal, 11-eventOneUsedLp,12-eventOneBid,15-eventOneUnusedLp
+        in: query
+        name: rewardType
+        type: integer
+      - description: 'limit: Max-50'
+        in: query
+        name: limit
+        type: integer
+      - description: page
+        in: query
+        name: page
+        type: integer
+      - description: flag
+        in: query
+        name: flag
+        type: integer
+      - description: 'sortKey: timestamp, default:timestamp'
+        in: query
+        name: sortKey
+        type: string
+      - description: 'sortType: 1/-1'
+        in: query
+        name: sortType
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.PoolRewardRecordResponse'
+      summary: Fetch reward record
       tags:
       - brc20
   /brc20/tickers:

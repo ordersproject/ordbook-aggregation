@@ -10,6 +10,7 @@ import (
 	"ordbook-aggregation/redis"
 	"ordbook-aggregation/service/cache_service"
 	"ordbook-aggregation/service/mongo_service"
+	"ordbook-aggregation/service/own_service"
 	"ordbook-aggregation/tool"
 	"sync"
 )
@@ -83,6 +84,7 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 		//	perAmount = doBidUtxoPerAmount50w
 		//}
 		limit = totalNeedAmount/perAmount + 1
+
 		break
 	case model.UtxoTypeMultiInscription:
 		//perAmount = 5000
@@ -168,6 +170,14 @@ func GetUnoccupiedUtxoList(net string, limit, totalNeedAmount int64, utxoType mo
 			return nil, err
 		}
 		v.PkScript = hex.EncodeToString(pkScriptByte)
+
+		if v.UtxoType == model.UtxoTypeRewardSend {
+			//utxoInfo := getUtxoInfo(v.TxId, v.Index)
+			//if utxoInfo != nil {
+			//	v.Amount = uint64(utxoInfo.Value)
+			//}
+		}
+
 	}
 
 	cacheUtxoList(unoccupiedUtxoList)
@@ -288,4 +298,24 @@ func GetSaveStartIndex(net string, utxoType model.UtxoType, perAmount int64) int
 		startIndex = latestUtxo.SortIndex
 	}
 	return startIndex
+}
+
+func getUtxoInfo(txId string, txIndex int64) *own_service.UtxoInfo {
+	var (
+		infoMap   map[string]*own_service.UtxoInfo
+		outPoints []string = []string{
+			fmt.Sprintf("%s:%d", txId, txIndex),
+		}
+	)
+	infoMap, err := own_service.CheckUtxoInfo(outPoints)
+	if err != nil {
+		return nil
+	}
+	if len(infoMap) == 0 {
+		return nil
+	}
+	if _, ok := infoMap[fmt.Sprintf("%s:%d", txId, txIndex)]; !ok {
+		return nil
+	}
+	return infoMap[fmt.Sprintf("%s:%d", txId, txIndex)]
 }

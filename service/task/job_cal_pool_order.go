@@ -22,18 +22,19 @@ func jobForCalPoolOrder() {
 
 	fmt.Printf("[JOP][CalPoolOrder] processingBigBlock:%d, currentBigBlock:%d\n", processingBigBlock, currentBigBlock)
 
-	for i := processingBigBlock; i <= currentBigBlock; i++ {
+	for i := processingBigBlock + 1; i < currentBigBlock; i++ {
 		fmt.Printf("[JOP][CalPoolOrder] processingBigBlock:%d, currentBigBlock:%d, bigBlock:%d\n", processingBigBlock, currentBigBlock, i)
 		if i <= 0 {
 			continue
 		}
-		startBlock, endBlock := getStartBlockAndEndBlockByBigBlock(i)
+		startBlock, endBlock := getStartBlockAndEndBlockByBigBlock(i + 1)
+		fmt.Printf("[JOP][CalPoolOrder] processingBigBlock:%d, currentBigBlock:%d, bigBlock:%d, startBlock:%d, endBlock:%d\n", processingBigBlock, currentBigBlock, i, startBlock, endBlock)
 		if startBlock == 0 || endBlock == 0 {
 			continue
 		}
 		//order_brc20_service.CalAllPoolOrder(net, startBlock, endBlock, nowTime)
 		calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue := order_brc20_service.CalAllPoolOrderV2(net, startBlock, endBlock, nowTime)
-		order_brc20_service.UpdatePoolBlockInfo(startBlock, endBlock, (endBlock-startBlock)+1, nowTime,
+		order_brc20_service.UpdatePoolBlockInfo(order_brc20_service.GetCurrentBigBlock(startBlock), startBlock, endBlock, (endBlock-startBlock)+1, nowTime,
 			calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue,
 			nil, 0,
 			model.CalTypePlatform)

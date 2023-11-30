@@ -171,7 +171,7 @@ func FetchPreBid(req *request.OrderBrc20GetBidReq) (*respond.BidPre, error) {
 		for _, v := range poolOrderList {
 			finishCount, _ := mongo_service.FindUsedInscriptionPoolFinish(v.InscriptionId)
 			if finishCount != 0 {
-				fmt.Printf("finishCount InscriptionPool: [%s]\n", v.InscriptionId)
+				//fmt.Printf("finishCount InscriptionPool: [%s]\n", v.InscriptionId)
 				continue
 			}
 
@@ -187,7 +187,9 @@ func FetchPreBid(req *request.OrderBrc20GetBidReq) (*respond.BidPre, error) {
 				}
 			}
 
-			if marketPrice > v.CoinRatePrice || marketCoinPrice > uint64(v.CoinPrice) {
+			//if marketPrice > v.CoinRatePrice || marketCoinPrice > uint64(v.CoinPrice) {
+			if marketCoinPrice > uint64(v.CoinPrice) {
+				fmt.Printf("marketPrice not enrough OrderId: [%s] [%d - %d][%d - %d]\n", v.OrderId, marketPrice, v.CoinRatePrice, marketCoinPrice, v.CoinPrice)
 				//fmt.Printf("marketPrice not enrough OrderId: [%s]\n", v.OrderId)
 				continue
 			}
@@ -957,6 +959,7 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 		utxoDummyBidXList                         []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
 		coinPrice                                 int64                   = 0
 		coinPriceDecimalNum                       int32                   = 0
+		buyerTotalFee                             int64                   = 0
 	)
 	entityOrder, _ = mongo_service.FindOrderBrc20ModelByOrderId(req.OrderId)
 	if entityOrder == nil || entityOrder.Id == 0 {
@@ -1119,6 +1122,7 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 	if hex.EncodeToString(platformFeeOut.PkScript) != platformFeePkScript && hex.EncodeToString(platformFeeOut2.PkScript) != platformFeePkScript {
 		return "", errors.New("Wrong Psbt: wrong address of platform fee, please contact customer service. ")
 	}
+	buyerTotalFee = int64(platformFee)
 
 	//check out for buyer changeWallet
 	changeAmount := uint64(0)
@@ -1194,6 +1198,7 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 	entityOrder.Amount = req.Amount
 	entityOrder.OrderState = model.OrderStateCreate
 	entityOrder.PsbtRawMidBid = req.PsbtRaw
+	entityOrder.BuyerTotalFee = buyerTotalFee
 	_, err = mongo_service.SetOrderBrc20Model(entityOrder)
 	if err != nil {
 		//fmt.Printf("SetOrderBrc20Model: %+v\n", entityOrder)
@@ -1288,6 +1293,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		feeAmountForRewardSend         int64 = 4000
 		feeAmountForPlatform           int64 = 3000
 		sellerNetworkFeeAmount         int64 = 0
+		sellerTotalFee                 int64 = 0
 
 		dealTxIndex, dealTxOutValue         int64 = 0, 0 // receive btc
 		dealCoinTxIndex, dealCoinTxOutValue int64 = 0, 0 // receive brc20
@@ -1377,6 +1383,10 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		}
 	}
 
+	if sellerSendAddress == entity.BuyerAddress {
+		return nil, errors.New("You cannot sell on your own order. ")
+	}
+
 	sellerReceiveValue := uint64(sellOuts[0].Value)
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(sellOuts[0].PkScript, netParams)
 	if err != nil {
@@ -1412,7 +1422,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		if int64(sellerPayFee)-int64(sellerChangeOutput.Amount) < (feeAmountForReleaseInscription + feeAmountForRewardInscription + feeAmountForRewardSend + feeAmountForPlatform) {
 			return nil, errors.New("Wrong Psbt: seller's payFee amount dose not match. ")
 		}
-
+		sellerTotalFee = int64(sellerPayFee) - int64(sellerChangeOutput.Amount)
 		sellerNetworkFeeAmount = (int64(sellerPayFee) - int64(sellerChangeOutput.Amount)) - (feeAmountForReleaseInscription + feeAmountForRewardInscription + feeAmountForRewardSend + feeAmountForPlatform)
 		if req.NetworkFee != 0 {
 			if req.NetworkFee != sellerNetworkFeeAmount {
@@ -1600,7 +1610,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 						if entity.PlatformDummy == model.PlatformDummyYes {
 							dummyUtxoList, _ := mongo_service.FindOccupiedUtxoListByOrderId(entity.Net, entity.OrderId, 1000, model.UsedOccupied)
 							ReleaseOccupiedDummyUtxo(dummyUtxoList)
-							UpdateForOrderBidDummy(entity.OrderId, model.DummyStateFinish)
+							UpdateForOrderLiveUtxo(entity.OrderId, model.DummyStateFinish)
 						}
 
 						//set pool order err
@@ -2083,7 +2093,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			if entity.PlatformDummy == model.PlatformDummyYes {
 				dummyUtxoList, _ := mongo_service.FindOccupiedUtxoListByOrderId(entity.Net, entity.OrderId, 1000, model.UsedOccupied)
 				ReleaseOccupiedDummyUtxo(dummyUtxoList)
-				UpdateForOrderBidDummy(entity.OrderId, model.DummyStateCancel)
+				UpdateForOrderLiveUtxo(entity.OrderId, model.DummyStateCancel)
 			}
 			return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck address utxo list, utxo had been spent: %s. Please select a different liquidity and place a new order. ", bidInId))
 		}
@@ -2132,6 +2142,8 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	entity.PsbtBidTxId = psbtXTxId
 	entity.SellerAddress = sellerSendAddress
 	entity.SellInscriptionId = sellInscriptionId
+	entity.SellerTotalFee = sellerTotalFee
+	entity.BidValueToXUtxoId = fmt.Sprintf("%s_%d", psbtYTxId, bidYOffsetIndex)
 	_, err = mongo_service.SetOrderBrc20Model(entity)
 	if err != nil {
 		return nil, err
@@ -2229,7 +2241,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, newDummy600Index+1, psbtYTxId)
 		SaveNewUtxoFromBid(req.Net, feeOutputForReleaseInscription, "", newBidXUtxoOuputIndexForReleaseInscription, psbtYTxId, model.UtxoTypeMultiInscription, entity.PoolOrderId, req.NetworkFeeRate)
 		SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardInscription, psbtYTxId, model.UtxoTypeRewardInscription, entity.PoolOrderId, req.NetworkFeeRate)
-		SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardSend, psbtYTxId, model.UtxoTypeRewardSend, entity.PoolOrderId, req.NetworkFeeRate)
+		SaveNewUtxoFromBid(req.Net, feeOutputForRewardSend, "", newBidXUtxoOuputIndexForRewardSend, psbtYTxId, model.UtxoTypeRewardSend, entity.PoolOrderId, req.NetworkFeeRate)
 
 		if entity.PoolOrderId != "" {
 			setCoinStatusPoolBrc20Order(entity, model.PoolStateUsed, dealCoinTxIndex, dealCoinTxOutValue, entity.DealTime)
@@ -2277,7 +2289,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, newDummy600Index+1, psbtYTxId)
 		SaveNewUtxoFromBid(req.Net, feeOutputForReleaseInscription, "", newBidXUtxoOuputIndexForReleaseInscription, psbtYTxId, model.UtxoTypeMultiInscription, entity.PoolOrderId, req.NetworkFeeRate)
 		SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardInscription, psbtYTxId, model.UtxoTypeRewardInscription, entity.PoolOrderId, req.NetworkFeeRate)
-		SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardSend, psbtYTxId, model.UtxoTypeRewardSend, entity.PoolOrderId, req.NetworkFeeRate)
+		SaveNewUtxoFromBid(req.Net, feeOutputForRewardSend, "", newBidXUtxoOuputIndexForRewardSend, psbtYTxId, model.UtxoTypeRewardSend, entity.PoolOrderId, req.NetworkFeeRate)
 
 		time.Sleep(800 * time.Millisecond)
 		txPsbtXResp, err := unisat_service.BroadcastTx(req.Net, txRawPsbtX)
@@ -2306,7 +2318,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		//txPsbtYRespTxId = txPsbtYResp
 	}
 
-	UpdateForOrderBidDummy(entity.OrderId, model.DummyStateFinish)
+	UpdateForOrderLiveUtxo(entity.OrderId, model.DummyStateFinish)
 	for k, v := range newBidXUtxoOuts {
 		SaveNewBidYUtxo10000FromBid(req.Net, v, platformPrivateKeyReceiveBidValueToReturn, newBidXUtxoOuputIndex+int64(k), psbtXTxId)
 	}
@@ -2341,6 +2353,8 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		if req.Version == 2 {
 			mongo_service.SetPoolBrc20ModelForVersion(entity.PoolOrderId, req.Version)
 		}
+		//lp which is used
+		UpdateForOrderLiveUtxo(entity.PoolOrderId, model.DummyStateFinish)
 	}
 
 	UpdateMarketPrice(req.Net, entity.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(entity.Tick)))
@@ -2488,7 +2502,7 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey, ip string) (string
 			if req.OrderState == model.OrderStateCancel {
 				state = model.DummyStateCancel
 			}
-			UpdateForOrderBidDummy(entityOrder.OrderId, state)
+			UpdateForOrderLiveUtxo(entityOrder.OrderId, state)
 			if entityOrder.PlatformDummy == model.PlatformDummyYes {
 				dummyUtxoList, _ := mongo_service.FindOccupiedUtxoListByOrderId(entityOrder.Net, entityOrder.OrderId, 1000, model.UsedOccupied)
 				ReleaseOccupiedDummyUtxo(dummyUtxoList)

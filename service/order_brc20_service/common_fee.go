@@ -3,7 +3,7 @@ package order_brc20_service
 var (
 	sendModulus                 int64 = 340
 	inscriptionModulus          int64 = 378
-	constant                    int64 = 30
+	constant                    int64 = 300
 	multiSigInscriptionConstant int64 = 1030
 )
 

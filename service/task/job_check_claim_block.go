@@ -48,16 +48,24 @@ func jobForCheckClaimBlock() {
 
 func jobForCheckPoolUsedDealTxBlock() {
 	var (
-		net           string = "livenet"
-		poolOrderList []*model.PoolBrc20Model
-		limit         int64 = 1000
+		net              string                  = "livenet"
+		allPoolOrderList []*model.PoolBrc20Model = make([]*model.PoolBrc20Model, 0)
+		limit            int64                   = 1000
 	)
 
-	poolOrderList, _ = mongo_service.FindPoolBrc20ModelListByDealTime(net, "", "", "", model.PoolStateUsed,
+	poolOrderListUsed, _ := mongo_service.FindPoolBrc20ModelListByDealTime(net, "", "", "", model.PoolStateUsed,
 		limit, 0, model.ClaimTxBlockStateUnconfirmed)
+	if poolOrderListUsed != nil && len(poolOrderListUsed) != 0 {
+		allPoolOrderList = append(allPoolOrderList, poolOrderListUsed...)
+	}
+	poolOrderListClaim, _ := mongo_service.FindPoolBrc20ModelListByDealTime(net, "", "", "", model.PoolStateClaim,
+		limit, 0, model.ClaimTxBlockStateUnconfirmed)
+	if poolOrderListClaim != nil && len(poolOrderListClaim) != 0 {
+		allPoolOrderList = append(allPoolOrderList, poolOrderListClaim...)
+	}
 
-	if poolOrderList != nil && len(poolOrderList) != 0 {
-		for _, v := range poolOrderList {
+	if allPoolOrderList != nil && len(allPoolOrderList) != 0 {
+		for _, v := range allPoolOrderList {
 			if v.DealCoinTxBlock != 0 {
 				continue
 			}

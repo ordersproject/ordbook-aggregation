@@ -29,3 +29,15 @@ func GetTx(net, txId string) (*Transaction, error) {
 	//fmt.Printf("[RPC]tx:%+v\n", tx)
 	return tx, err
 }
+
+func GetBlockInfo(net string, blockHeight int64) (*Block, error) {
+	client := NewClientController(net)
+	blockHash, err := client.GetBlockHash(net, uint64(blockHeight))
+	if err != nil {
+		fmt.Printf("[RPC]err:%s\n", err.Error())
+		return nil, err
+	}
+	blockInfo, err := client.GetBlock(net, blockHash)
+	//fmt.Printf("[RPC]tx:%+v\n", tx)
+	return blockInfo, err
+}
