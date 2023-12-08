@@ -472,9 +472,10 @@ func (s PoolTimeInfoModel) GetWriteDB() (*mongo.Collection, error) {
 type RewardRecordModel struct {
 	Id                  int64      `json:"id" bson:"_id" tb:"reward_record_model" mg:"true"`
 	Net                 string     `json:"net" bson:"net"`
-	Tick                string     `json:"tick" bson:"tick"` //net_tick_calDay_fromOrderId
-	OrderId             string     `json:"orderId" bson:"orderId"`
+	Tick                string     `json:"tick" bson:"tick"`
+	OrderId             string     `json:"orderId" bson:"orderId"` //net_tick_calDay_fromOrderId
 	Pair                string     `json:"pair" bson:"pair"`
+	RewardTick          string     `json:"rewardTick" bson:"rewardTick"`
 	FromOrderId         string     `json:"fromOrderId" bson:"fromOrderId"`
 	FromOrderRole       string     `json:"fromOrderRole" bson:"fromOrderRole"`
 	FromOrderTotalValue int64      `json:"fromOrderTotalValue" bson:"fromOrderTotalValue"`

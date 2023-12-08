@@ -563,6 +563,7 @@ func FetchBidPsbtByPlatform(req *request.OrderBrc20GetBidPlatformReq) (*respond.
 		coinPriceDecimalNum                                               int32  = 0
 		marketCoinPrice                                                   uint64 = 0
 		marketCoinPriceDecimalNum                                         int32  = coinPriceDecimalNumDefault
+		poolMarketPrice                                                   uint64 = 0
 	)
 	_ = platformPrivateKeyReceiveBidValue
 	buyerAddress = req.Address
@@ -644,6 +645,7 @@ func FetchBidPsbtByPlatform(req *request.OrderBrc20GetBidPlatformReq) (*respond.
 				Amount: uint64(poolOutputList[0].Value),
 				Script: hex.EncodeToString(poolOutputList[0].PkScript),
 			}
+			poolMarketPrice = uint64(poolOutputList[0].Value)
 
 		} else {
 			brc20BalanceResult, err = oklink_service.GetAddressBrc20BalanceResult(platformAddressSendBrc20, req.Tick, 1, 50)
@@ -762,6 +764,11 @@ func FetchBidPsbtByPlatform(req *request.OrderBrc20GetBidPlatformReq) (*respond.
 		}
 		marketPrice = uint64(marketPriceInt)
 		fmt.Printf("coinAmountInt:%d， finalSellPrice:%d\n", coinAmountInt, marketPrice)
+
+		if marketPrice+1 == poolMarketPrice {
+			marketPrice = poolMarketPrice
+		}
+
 	} else {
 		if marketPrice <= 0 {
 			return nil, errors.New("Empty Market. ")
@@ -1060,6 +1067,8 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 			if err != nil {
 				return "", err
 			}
+			UpdateForOrderLiveUtxo(entityOrder.OrderId, model.DummyStateCancel)
+
 			return "", errors.New(fmt.Sprintf("PSBT(X): Recheck pool order is empty. Please select a different liquidity and place a new order. "))
 		} else if poolOrder.PoolState != model.PoolStateAdd {
 			entityOrder.OrderState = model.OrderStateErr
@@ -1067,6 +1076,8 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 			if err != nil {
 				return "", err
 			}
+			UpdateForOrderLiveUtxo(entityOrder.OrderId, model.DummyStateCancel)
+
 			return "", errors.New(fmt.Sprintf("PSBT(X): Recheck pool order status not AddState. Please select a different liquidity and place a new order. "))
 		} else {
 			MultiSigScriptBtye, err := hex.DecodeString(poolOrder.MultiSigScript)
@@ -1288,12 +1299,14 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		feeOutputForRewardSend         Output
 		feeOutputForPlatform           Output
 		sellerChangeOutput             Output
-		feeAmountForReleaseInscription int64 = 5000
-		feeAmountForRewardInscription  int64 = 4000
-		feeAmountForRewardSend         int64 = 4000
-		feeAmountForPlatform           int64 = 3000
-		sellerNetworkFeeAmount         int64 = 0
-		sellerTotalFee                 int64 = 0
+		feeAmountForReleaseInscription int64        = 5000
+		feeAmountForRewardInscription  int64        = 4000
+		feeAmountForRewardSend         int64        = 4000
+		feeAmountForPlatform           int64        = 3000
+		sellerNetworkFeeAmount         int64        = 0
+		sellerTotalFee                 int64        = 0
+		sellerPayFeePreOutList         []*wire.TxIn = make([]*wire.TxIn, 0)
+		sellerPayFeeProOutOffsetIndex  int          = 6
 
 		dealTxIndex, dealTxOutValue         int64 = 0, 0 // receive btc
 		dealCoinTxIndex, dealCoinTxOutValue int64 = 0, 0 // receive brc20
@@ -1338,7 +1351,8 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	if sellOuts == nil || len(sellOuts) == 0 {
 		return nil, errors.New("Wrong Psbt: empty outputs. ")
 	}
-	if len(preOutList) != 1 && len(preOutList) != 2 {
+	//if len(preOutList) != 1 && len(preOutList) != 2 {
+	if len(preOutList) < 2 {
 		return nil, errors.New("Wrong Psbt: wrong length of inputs or length of outputs. ")
 	}
 	if strings.ToLower(req.Net) != "testnet" {
@@ -1380,6 +1394,32 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 				return nil, errors.New("Wrong Psbt: sellPayFee out of address dose not match. ")
 			}
 			sellerPayFee = feeInValue
+		} else if len(preOutList) > 2 {
+			for i := 1; i < len(preOutList); i++ {
+				preSellFeeTx, err := oklink_service.GetTxDetail(preOutList[i].PreviousOutPoint.Hash.String())
+				if err != nil {
+					preSellFeeTx, err = GetTxDetail(entity.Net, preOutList[i].PreviousOutPoint.Hash.String())
+					if err != nil {
+						return nil, errors.New(fmt.Sprintf("Wrong Psbt: sellPayFee input is empty preTx. [%s:%d] err:%s", preOutList[i].PreviousOutPoint.Hash.String(), preOutList[i].PreviousOutPoint.Index, err.Error()))
+					}
+				}
+				feeInValueDe, err := decimal.NewFromString(preSellFeeTx.OutputDetails[preOutList[i].PreviousOutPoint.Index].Amount)
+				if err != nil {
+					return nil, errors.New("Wrong Psbt: The value of sellPayFee input decimal parse err. ")
+				}
+				feeInValue := uint64(feeInValueDe.Mul(decimal.New(1, 8)).IntPart())
+				if feeInValue == 0 {
+					return nil, errors.New("Wrong Psbt: sellPayFee out of preTx is empty amount. ")
+				}
+				if sellerSendAddress != preSellFeeTx.OutputDetails[preOutList[i].PreviousOutPoint.Index].OutputHash {
+					return nil, errors.New("Wrong Psbt: sellPayFee out of address dose not match. ")
+				}
+				sellerPayFee += feeInValue
+
+				if i >= 2 {
+					sellerPayFeePreOutList = append(sellerPayFeePreOutList, preOutList[i])
+				}
+			}
 		}
 	}
 
@@ -1507,6 +1547,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			if err != nil {
 				return nil, err
 			}
+			UpdateForOrderLiveUtxo(entity.OrderId, model.DummyStateCancel)
 			return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck pool order is empty. Please select a different liquidity and place a new order. "))
 		} else if poolOrder.PoolState != model.PoolStateAdd {
 			entity.OrderState = model.OrderStateErr
@@ -1514,6 +1555,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			if err != nil {
 				return nil, err
 			}
+			UpdateForOrderLiveUtxo(entity.OrderId, model.DummyStateCancel)
 			return nil, errors.New(fmt.Sprintf("PSBT(X): Recheck pool order status not AddState. Please select a different liquidity and place a new order. "))
 		} else {
 			addressSendBrc20 = poolOrder.CoinAddress
@@ -1712,22 +1754,12 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	})
 
 	//add seller's payFee ins - index: 3
-	if len(preOutList) == 2 {
+	if len(preOutList) >= 2 {
 		inputs = append(inputs, Input{
 			OutTxId:  preOutList[1].PreviousOutPoint.Hash.String(),
 			OutIndex: preOutList[1].PreviousOutPoint.Index,
 		})
 	}
-
-	////add dummy1200 ins - index: 3
-	//if feeOutput.Script != "" {
-	//	for _, dummy := range utxoDummy1200List {
-	//		inputs = append(inputs, Input{
-	//			OutTxId:  dummy.TxId,
-	//			OutIndex: uint32(dummy.Index),
-	//		})
-	//	}
-	//}
 
 	//add btc pool psbt ins - index: 3/4
 	if poolBtcPsbtInput.OutTxId != "" {
@@ -1740,6 +1772,16 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			OutTxId:  dummy.TxId,
 			OutIndex: uint32(dummy.Index),
 		})
+	}
+
+	// add seller's payFee preOuts - index: 3+/4+/5+/6+
+	if len(sellerPayFeePreOutList) > 0 {
+		for _, preOut := range sellerPayFeePreOutList {
+			inputs = append(inputs, Input{
+				OutTxId:  preOut.PreviousOutPoint.Hash.String(),
+				OutIndex: preOut.PreviousOutPoint.Index,
+			})
+		}
 	}
 
 	//add Exchange pay value ins - index: 3,3+/4,4+/5,5+/6,6+
@@ -1858,13 +1900,27 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		return nil, errors.New(fmt.Sprintf("PSBT(Y): AddPartialSigIn err:%s", err.Error()))
 	}
 
-	if len(preOutList) == 2 {
+	if len(preOutList) >= 2 {
 		finalScriptWitness2 := psbtBuilder.PsbtUpdater.Upsbt.Inputs[1].FinalScriptWitness
 		witnessUtxo2 := psbtBuilder.PsbtUpdater.Upsbt.Inputs[1].WitnessUtxo
 		sighashType2 := psbtBuilder.PsbtUpdater.Upsbt.Inputs[1].SighashType
 		err = newPsbtBuilder.AddSigIn(witnessUtxo2, sighashType2, finalScriptWitness2, 3)
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("PSBT(Y): AddPartialSigIn2 err:%s", err.Error()))
+		}
+
+		if len(sellerPayFeePreOutList) > 0 {
+			for k, _ := range sellerPayFeePreOutList {
+				index := k + 1
+				finalScriptWitnessK := psbtBuilder.PsbtUpdater.Upsbt.Inputs[1+index].FinalScriptWitness
+				witnessUtxoK := psbtBuilder.PsbtUpdater.Upsbt.Inputs[1+index].WitnessUtxo
+				sighashTypeK := psbtBuilder.PsbtUpdater.Upsbt.Inputs[1+index].SighashType
+				err = newPsbtBuilder.AddSigIn(witnessUtxoK, sighashTypeK, finalScriptWitnessK, sellerPayFeeProOutOffsetIndex+k)
+				if err != nil {
+					return nil, errors.New(fmt.Sprintf("PSBT(Y): AddPartialSigIn for payFee err:%s", err.Error()))
+				}
+				bidYUtxoOffsetIndex++
+			}
 		}
 	}
 

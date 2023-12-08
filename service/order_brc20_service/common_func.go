@@ -596,6 +596,17 @@ func GetPlatformKeyAndAddressForLp(net string) (string, string) {
 	return config.PlatformMainnetPrivateKeyLp, config.PlatformMainnetAddressLp
 }
 
+func GetPlatformRewardPrivateKeyAndAddress(net string, rewardType model.RewardType) (string, string) {
+	switch rewardType {
+	case model.RewardTypeNormal, model.RewardTypeExtra:
+		return GetPlatformKeyAndAddressForRewardBrc20(net)
+	case model.RewardTypeEventOneLp, model.RewardTypeEventOneBid, model.RewardTypeEventOneLpUnusedV2:
+		return config.EventPlatformPrivateKeyRewardBrc20, config.EventPlatformAddressRewardBrc20
+	default:
+		return "", ""
+	}
+}
+
 func CheckBidInscriptionIdExist(inscriptionId string) bool {
 	entity, _ := mongo_service.FindOrderBrc20ModelByInscriptionId(inscriptionId, model.OrderStateCreate)
 	if entity == nil || entity.Id == 0 {

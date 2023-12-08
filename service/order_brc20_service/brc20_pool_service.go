@@ -15,6 +15,7 @@ import (
 	"ordbook-aggregation/controller/respond"
 	"ordbook-aggregation/major"
 	"ordbook-aggregation/model"
+	"ordbook-aggregation/node"
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/service/oklink_service"
 	"ordbook-aggregation/service/unisat_service"
@@ -286,11 +287,20 @@ func PushPoolOrder(req *request.PoolBrc20PushReq, publicKey string) (string, err
 
 	if publicKey != publicKeyLp {
 		if !CheckLpWhiteList(req.Address) {
-			if tool.MakeTimestamp() < config.EventOneStartTime || tool.MakeTimestamp() > config.EventOneEndTime {
+			currentBlockHeight, err := node.CurrentBlockHeight(req.Net)
+			if err != nil {
+				return "", errors.New(fmt.Sprintf("CurrentBlockHeight err: %s. ", err.Error()))
+			}
+			if int64(currentBlockHeight) < config.EventOneStartBlock || int64(currentBlockHeight) > config.EventOneEndBlock {
 				if req.Tick == "rdex" {
 					return "", errors.New("rdex not in pool")
 				}
 			}
+			//if tool.MakeTimestamp() < config.EventOneStartTime || tool.MakeTimestamp() > config.EventOneEndTime {
+			//	if req.Tick == "rdex" {
+			//		return "", errors.New("rdex not in pool")
+			//	}
+			//}
 		}
 	}
 
@@ -1315,12 +1325,19 @@ func FetchRewardRecord(req *request.PoolRewardRecordFetchReq) (*respond.PoolRewa
 		rewardType model.RewardType = model.RewardTypeNormal
 		rewardTick string           = config.PlatformRewardTick
 	)
+	_ = rewardTick
+	if req.Tick == "" {
+		req.Tick = config.PlatformRewardTick
+	}
 	if req.RewardType == model.RewardTypeEventOneBid || req.RewardType == model.RewardTypeEventOneLpUnusedV2 {
 		rewardType = req.RewardType
 		rewardTick = config.EventOneRewardTick
+	} else if req.RewardType == model.RewardTypeExtra {
+		rewardType = req.RewardType
 	}
-	total, _ = mongo_service.CountRewardRecordModelList(req.Net, rewardTick, req.Address, rewardType)
-	entityList, _ = mongo_service.FindRewardRecordModelList(req.Net, rewardTick, req.Address,
+
+	total, _ = mongo_service.CountRewardRecordModelList(req.Net, req.Tick, req.Address, rewardType)
+	entityList, _ = mongo_service.FindRewardRecordModelList(req.Net, req.Tick, req.Address,
 		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType, rewardType)
 	for _, v := range entityList {
 		fromOrderTick := ""
@@ -1639,4 +1656,290 @@ func UpdateErrRelease(req *request.PoolBrc20ClaimUpdateReq, publicKey, ip string
 	saveNewMultiSigInscriptionUtxo(entityOrder.Net, entityOrder.ClaimTx, multiSigInscriptionTxIndex, uint64(multiSigInscriptionTxAmount))
 
 	return "success", err
+}
+
+func FetchStandbyOwnerReward(req *request.PoolBrc20RewardReq) (*respond.PoolBrc20RewardResp, error) {
+	var (
+		//entityRewardSeller       *model.EventRewardCount
+		//entityRewardBuyer        *model.EventRewardCount
+		entityRewardOrderCount   *model.PoolRewardOrderCount
+		totalRewardAmount        uint64 = 0
+		totalRewardExtraAmount   uint64 = 0
+		hadClaimRewardAmount     uint64 = 0
+		hasReleasePoolOrderCount int64  = 0
+		tick                     string = "rdex"
+		rewardTick               string = config.EventOneRewardTick
+		entityExtraReward        *model.RewardCount
+
+		extraRewardType model.RewardType = model.RewardTypeEventOneLpUnusedV2
+		eventRewardType model.RewardType = model.RewardTypeEventOneBid
+	)
+
+	if req.RewardType == model.RewardTypeExtra {
+		tick = req.Tick
+		rewardTick = config.PlatformRewardTick
+		extraRewardType = model.RewardTypeExtra
+		eventRewardType = model.RewardTypeExtra
+	} else {
+		return nil, errors.New(fmt.Sprintf("rewardType wrong:%d", req.RewardType))
+	}
+
+	entityExtraReward, _ = mongo_service.CountRewardRecord(req.Net, tick, "", "", req.Address, extraRewardType)
+	if entityExtraReward != nil {
+		totalRewardExtraAmount = uint64(entityExtraReward.RewardAmountTotal)
+	}
+
+	entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, rewardTick, "", req.Address, eventRewardType)
+	if entityRewardOrderCount != nil {
+		hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
+	}
+
+	if hadClaimRewardAmount > totalRewardAmount+totalRewardExtraAmount {
+		hadClaimRewardAmount = totalRewardAmount + totalRewardExtraAmount
+	}
+
+	return &respond.PoolBrc20RewardResp{
+		Net:                      req.Net,
+		Tick:                     req.Tick,
+		RewardTick:               rewardTick,
+		TotalRewardAmount:        totalRewardAmount,
+		TotalRewardExtraAmount:   totalRewardExtraAmount,
+		HadClaimRewardAmount:     hadClaimRewardAmount,
+		HasReleasePoolOrderCount: hasReleasePoolOrderCount,
+	}, nil
+}
+
+func CalStandbyClaimFee(req *request.OrderBrc20CalFeeReq) (*respond.CalFeeResp, error) {
+	var (
+		feeAmountForRewardInscription         int64  = 4000
+		feeAmountForRewardSend                int64  = 4000
+		_, platformAddressRewardBrc20FeeUtxos string = GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(req.Net)
+	)
+	if req.Version == 2 {
+		_, feeAmountForRewardInscription, feeAmountForRewardSend = GenerateBidTakerFee(req.NetworkFeeRate)
+	}
+	return &respond.CalFeeResp{
+		RewardInscriptionFee: feeAmountForRewardInscription,
+		RewardSendFee:        feeAmountForRewardSend,
+		FeeAddress:           platformAddressRewardBrc20FeeUtxos,
+	}, nil
+}
+
+func ClaimStandbyReward(req *request.PoolBrc20ClaimRewardReq, publicKey, ip string) (string, error) {
+	var (
+		netParams                                                                 *chaincfg.Params = GetNetParams(req.Net)
+		orderId                                                                   string           = ""
+		entityOrder                                                               *model.PoolRewardOrderModel
+		nowTime                                                                   int64 = tool.MakeTimestamp()
+		entityRewardOrderCount                                                    *model.PoolRewardOrderCount
+		entityBlockReward                                                         *model.PoolRewardBlockUserCount
+		totalRewardAmount                                                         uint64           = 0
+		totalRewardExtraAmount                                                    uint64           = 0
+		hadClaimRewardAmount                                                      uint64           = 0
+		remainingRewardAmount                                                     int64            = 0
+		tick                                                                      string           = "rdex"
+		rewardTick                                                                string           = config.EventOneRewardTick
+		rewardType                                                                model.RewardType = model.RewardTypeEventOneBid
+		revealOutValue                                                            int64            = 546
+		_, platformAddressRewardBrc20                                             string           = config.EventPlatformPrivateKeyRewardBrc20, config.EventPlatformAddressRewardBrc20
+		platformPrivateKeyRewardBrc20FeeUtxos, platformAddressRewardBrc20FeeUtxos string           = GetPlatformKeyAndAddressForRewardBrc20FeeUtxos(req.Net)
+		feeAmountForRewardInscription                                             int64            = 4000
+		feeAmountForRewardSend                                                    int64            = 4000
+		entityExtraReward                                                         *model.RewardCount
+
+		extraRewardType model.RewardType = model.RewardTypeEventOneLpUnusedV2
+		eventRewardType model.RewardType = model.RewardTypeEventOneBid
+	)
+
+	if req.RewardType == model.RewardTypeExtra {
+		tick = req.Tick
+		rewardType = model.RewardTypeExtra
+		rewardTick = config.PlatformRewardTick
+		extraRewardType = model.RewardTypeExtra
+		eventRewardType = model.RewardTypeExtra
+		_, platformAddressRewardBrc20 = GetPlatformRewardPrivateKeyAndAddress(req.Net, req.RewardType)
+	} else {
+		return "", errors.New(fmt.Sprintf("rewardType wrong:%d", req.RewardType))
+	}
+
+	verified, err := CheckPublicKeyAddress(netParams, publicKey, req.Address)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("Check address err: %s. ", err.Error()))
+	}
+	if !verified {
+		return "", errors.New(fmt.Sprintf("Check address verified: %v. ", verified))
+	}
+
+	_ = entityBlockReward
+
+	entityExtraReward, _ = mongo_service.CountRewardRecord(req.Net, tick, "", "", req.Address, extraRewardType)
+	if entityExtraReward != nil {
+		totalRewardExtraAmount = uint64(entityExtraReward.RewardAmountTotal)
+	}
+
+	entityRewardOrderCount, _ = mongo_service.CountOwnPoolRewardOrder(req.Net, rewardTick, "", req.Address, eventRewardType)
+	if entityRewardOrderCount != nil {
+		hadClaimRewardAmount = uint64(entityRewardOrderCount.RewardCoinAmountTotal)
+
+		remainingRewardAmount = int64(totalRewardAmount+totalRewardExtraAmount) - int64(hadClaimRewardAmount)
+	}
+
+	if remainingRewardAmount < 0 {
+		remainingRewardAmount = 0
+	}
+	if remainingRewardAmount < req.RewardAmount || req.RewardAmount <= 0 {
+		return "", errors.New(fmt.Sprintf("You only have %d rdex to claim.", remainingRewardAmount))
+	}
+
+	brc20BalanceResult, err := oklink_service.GetAddressBrc20BalanceResult(platformAddressRewardBrc20, rewardTick, 1, 50)
+	if err != nil {
+		return "", err
+	}
+	availableBalance, _ := strconv.ParseInt(brc20BalanceResult.AvailableBalance, 10, 64)
+	fmt.Printf("availableBalance:%d, req.InscribeTransferAmount*req.Count: %d\n", availableBalance, req.RewardAmount*1)
+	if availableBalance < req.RewardAmount*1 {
+		return "", errors.New("AvailableBalance not enough. ")
+	}
+
+	//if CheckEventRemainingRewardTotal() {
+	//	return "", errors.New("event remaining reward have been capped. ")
+	//}
+
+	orderId = fmt.Sprintf("%s_%s_%s_%d_%d_%d", req.Net, rewardTick, req.Address, req.RewardAmount, nowTime, model.RewardTypeEventOneBid)
+	orderId = hex.EncodeToString(tool.SHA256([]byte(orderId)))
+	entityOrder, _ = mongo_service.FindPoolRewardOrderModelByOrderId(orderId)
+	if entityOrder != nil {
+		return "", errors.New("already exist")
+	}
+
+	entityOrder = &model.PoolRewardOrderModel{
+		Net:              req.Net,
+		Tick:             rewardTick,
+		OrderId:          orderId,
+		Pair:             fmt.Sprintf("%s-BTC", strings.ToUpper(rewardTick)),
+		RewardCoinAmount: req.RewardAmount,
+		Address:          req.Address,
+		RewardState:      model.RewardStateCreate,
+		Timestamp:        nowTime,
+		RewardType:       rewardType,
+		FeeRawTx:         req.FeeRawTx,
+		FeeUtxoTxId:      req.FeeUtxoTxId,
+		FeeInscription:   req.FeeInscription,
+		FeeSend:          req.FeeSend,
+		NetworkFeeRate:   req.NetworkFeeRate,
+		Version:          req.Version,
+	}
+
+	txRawByte, _ := hex.DecodeString(req.FeeRawTx)
+	tx := wire.NewMsgTx(2)
+	err = tx.Deserialize(bytes.NewReader(txRawByte))
+	if err != nil {
+		fmt.Printf(fmt.Sprintf("[REWARD-INSCRIPTION]  feeRawTx Deserialize err:%s", err.Error()))
+		return "", err
+	}
+	entityOrder.FeeUtxoTxId = tx.TxHash().String()
+
+	_, err = mongo_service.SetPoolRewardOrderModel(entityOrder)
+	if err != nil {
+		return "", errors.New("create order err")
+	}
+
+	addr, err := btcutil.DecodeAddress(platformAddressRewardBrc20FeeUtxos, GetNetParams(entityOrder.Net))
+	if err != nil {
+		return "", err
+	}
+	pkScriptByte, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return "", err
+	}
+
+	if len(tx.TxOut) < 2 {
+		return "", errors.New("feeRawTx wrong")
+	}
+	if tx.TxOut[0].Value != entityOrder.FeeInscription || tx.TxOut[1].Value != entityOrder.FeeSend ||
+		hex.EncodeToString(tx.TxOut[0].PkScript) != hex.EncodeToString(pkScriptByte) ||
+		hex.EncodeToString(tx.TxOut[1].PkScript) != hex.EncodeToString(pkScriptByte) ||
+		tx.TxHash().String() != entityOrder.FeeUtxoTxId {
+		return "", errors.New("feeRawTx wrong")
+	}
+
+	if entityOrder.Version == 2 {
+		_, feeAmountForRewardInscription, feeAmountForRewardSend = GenerateBidTakerFee(req.NetworkFeeRate)
+		if entityOrder.FeeInscription != feeAmountForRewardInscription || entityOrder.FeeSend != feeAmountForRewardSend {
+			return "", errors.New("feeAmount wrong")
+		}
+
+		txRaw, err := ToRaw(tx)
+		if err != nil {
+			return "", err
+		}
+		_, err = unisat_service.BroadcastTx(req.Net, txRaw)
+		if err != nil {
+			return "", err
+		}
+
+		utxoRewardInscriptionList := make([]*model.OrderUtxoModel, 0)
+		utxoRewardSendList := make([]*model.OrderUtxoModel, 0)
+
+		utxoRewardInscriptionList = append(utxoRewardInscriptionList, &model.OrderUtxoModel{
+			UtxoId:        fmt.Sprintf("%s_%d", req.FeeUtxoTxId, 0),
+			Net:           entityOrder.Net,
+			UtxoType:      model.UtxoTypeRewardInscription,
+			Amount:        uint64(entityOrder.FeeInscription),
+			Address:       platformAddressRewardBrc20FeeUtxos,
+			PrivateKeyHex: platformPrivateKeyRewardBrc20FeeUtxos,
+			TxId:          entityOrder.FeeUtxoTxId,
+			Index:         0,
+			PkScript:      hex.EncodeToString(pkScriptByte),
+		})
+		utxoRewardSendList = append(utxoRewardSendList, &model.OrderUtxoModel{
+			UtxoId:        fmt.Sprintf("%s_%d", req.FeeUtxoTxId, 1),
+			Net:           entityOrder.Net,
+			UtxoType:      model.UtxoTypeRewardSend,
+			Amount:        uint64(entityOrder.FeeSend),
+			Address:       platformAddressRewardBrc20FeeUtxos,
+			PrivateKeyHex: platformPrivateKeyRewardBrc20FeeUtxos,
+			TxId:          entityOrder.FeeUtxoTxId,
+			Index:         1,
+			PkScript:      hex.EncodeToString(pkScriptByte),
+		})
+
+		//inscribe
+		time.Sleep(1500 * time.Millisecond)
+		_, inscriptionId, err := inscriptionRewardForEvent(rewardType,
+			utxoRewardInscriptionList,
+			entityOrder.Net, entityOrder.Tick, entityOrder.RewardCoinAmount, revealOutValue,
+			entityOrder.NetworkFeeRate, req.Address)
+		if err != nil {
+			major.Println(fmt.Sprintf("[REWARD-INSCRIPTION] [%s]err: %s", entityOrder.OrderId, err.Error()))
+			return "", err
+		}
+		entityOrder.InscriptionId = inscriptionId
+		entityOrder.InscriptionOutValue = revealOutValue
+		entityOrder.RewardState = model.RewardStateInscription
+		_, err = mongo_service.SetPoolRewardOrderModel(entityOrder)
+		if err != nil {
+			major.Println(fmt.Sprintf("[REWARD-INSCRIPTION] [%s]SetPoolRewardOrderModel err: %s", entityOrder.OrderId, err.Error()))
+			return "", err
+		}
+
+		//send
+		sendId, err := SendReward(rewardType, utxoRewardSendList,
+			entityOrder.Net, entityOrder.InscriptionId, entityOrder.InscriptionOutValue, entityOrder.Address,
+			entityOrder.NetworkFeeRate)
+		if err != nil {
+			major.Println(fmt.Sprintf("[REWARD-SEND]  [%s]send err:%s", entityOrder.OrderId, err.Error()))
+			return "", err
+		}
+
+		entityOrder.SendId = sendId
+		entityOrder.RewardState = model.RewardStateSend
+		entityOrder.FeeRawTx = ""
+		_, err = mongo_service.SetPoolRewardOrderModel(entityOrder)
+		if err != nil {
+			major.Println(fmt.Sprintf("[REWARD-SEND]  [%s]SetPoolRewardOrderModel err:%s", entityOrder.OrderId, err.Error()))
+			return "", err
+		}
+	}
+	return "success", nil
 }

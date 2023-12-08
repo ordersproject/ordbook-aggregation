@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"ordbook-aggregation/config"
+	"ordbook-aggregation/major"
 	"ordbook-aggregation/model"
 	"ordbook-aggregation/node"
 	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/service/order_brc20_service"
+	"ordbook-aggregation/tool"
 )
 
 func jobForCalPoolOrder() {
 	var (
 		net                                 string = "livenet"
-		nowTime                             int64  = 0
+		chain                               string = "btc"
+		nowTime                             int64  = tool.MakeTimestamp()
 		processingBigBlock, currentBigBlock int64  = 0, 0
 	)
 	processingBigBlock = getCurrentProcessingBigBlock()
@@ -32,8 +35,15 @@ func jobForCalPoolOrder() {
 		if startBlock == 0 || endBlock == 0 {
 			continue
 		}
-		//order_brc20_service.CalAllPoolOrder(net, startBlock, endBlock, nowTime)
-		calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue := order_brc20_service.CalAllPoolOrderV2(net, startBlock, endBlock, nowTime)
+		startBlockTime, endBlockTime := getBlockTime(net, chain, startBlock), getBlockTime(net, chain, endBlock)
+		if startBlockTime == 0 || endBlockTime == 0 {
+			major.Println(fmt.Sprintf("[JOP][CalPoolOrder] getBlockTime err, startBlockTime:%d, endBlockTime:%d", startBlockTime, endBlockTime))
+			continue
+		}
+		fmt.Printf("[JOP][CalPoolOrder] processingBigBlock:%d, currentBigBlock:%d, bigBlock:%d, startBlock:%d, endBlock:%d, startBlockTime:%d[%s], endBlockTime:%d[%s]\n",
+			processingBigBlock, currentBigBlock, i, startBlock, endBlock, startBlockTime, tool.MakeDate(startBlockTime), endBlockTime, tool.MakeDate(endBlockTime))
+
+		calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue := order_brc20_service.CalAllPoolOrderV2(net, chain, startBlock, endBlock, i, startBlockTime, endBlockTime, nowTime)
 		order_brc20_service.UpdatePoolBlockInfo(order_brc20_service.GetCurrentBigBlock(startBlock), startBlock, endBlock, (endBlock-startBlock)+1, nowTime,
 			calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue,
 			nil, 0,

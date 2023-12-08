@@ -125,6 +125,7 @@ var (
 	PlatformRewardExtraDurationRewardRate int64  = 0
 	PlatformRewardCalStartTime            int64  = 0
 	PlatformRewardCalStartBlock           int64  = 0
+	PlatformRewardCalEndBlock             int64  = 0
 	PlatformRewardCalCycleBlock           int64  = 0
 	PlatformRewardTick                    string = ""
 	PlatformRewardDecreasingCycleTime     int64  = 0
@@ -270,6 +271,7 @@ func InitConfig() {
 	PlatformRewardExtraDurationRewardRate = viper.GetInt64("platform_service_reward.extra_reward_duration_rate")
 	PlatformRewardCalStartTime = viper.GetInt64("platform_service_reward.cal_start_time")
 	PlatformRewardCalStartBlock = viper.GetInt64("platform_service_reward.cal_start_block")
+	PlatformRewardCalEndBlock = viper.GetInt64("platform_service_reward.cal_end_block")
 	PlatformRewardCalCycleBlock = viper.GetInt64("platform_service_reward.cal_cycle_block")
 	PlatformRewardTick = viper.GetString("platform_service_reward.reward_tick")
 	PlatformRewardDecreasingCycleTime = viper.GetInt64("platform_service_reward.decreasing_cycle_time")

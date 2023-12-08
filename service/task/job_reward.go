@@ -40,7 +40,7 @@ func JobForRewardOrder() {
 
 func getPlatformRewardPrivateKeyAndAddress(net string, rewardType model.RewardType) (string, string) {
 	switch rewardType {
-	case model.RewardTypeNormal:
+	case model.RewardTypeNormal, model.RewardTypeExtra:
 		return order_brc20_service.GetPlatformKeyAndAddressForRewardBrc20(net)
 	case model.RewardTypeEventOneLp, model.RewardTypeEventOneBid:
 		return config.EventPlatformPrivateKeyRewardBrc20, config.EventPlatformAddressRewardBrc20
@@ -429,7 +429,7 @@ func jobForCheckRewardOrderSendEventBid(rewardType model.RewardType) {
 		})
 
 		//send
-		sendId, err = order_brc20_service.SendReward(utxoRewardSendList,
+		sendId, err = order_brc20_service.SendReward(v.RewardType, utxoRewardSendList,
 			v.Net, v.InscriptionId, v.InscriptionOutValue, v.Address,
 			v.NetworkFeeRate)
 		if err != nil {

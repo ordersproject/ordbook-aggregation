@@ -36,7 +36,7 @@ func JobForCalEventOrder() {
 		if startBlock == 0 || endBlock == 0 {
 			continue
 		}
-		if endBlock >= config.EventOneEndBlock {
+		if endBlock >= config.EventOneEndBlock+144 {
 			fmt.Printf("[JOP][CalEvenOrder] processingBigBlock:%d, currentBigBlock:%d, bigBlock:%d, startBlock:%d, endBlock:%d, event finish\n", processingBigBlock, currentBigBlock, startBlock, endBlock, i)
 			continue
 		}

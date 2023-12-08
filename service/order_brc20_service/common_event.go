@@ -18,6 +18,7 @@ import (
 func CalAllEventOrder(net, chain string, startBlock, endBlock, bigBlock, startBlockTime, endBlockTime, nowTime int64) (map[string]string, int64, map[string]string, int64, map[string]string, int64) {
 	var (
 		tick                             string                   = "rdex"
+		rewardTick                       string                   = config.EventOneRewardTick
 		allNoUsedEntityRdexPoolOrderList []*model.PoolBrc20Model  //rdex unused pool:20%
 		allEntityRdexPoolOrderList       []*model.PoolBrc20Model  //rdex used pool:40%
 		allEntityRdexBidOrderList        []*model.OrderBrc20Model //rdex bid:40%
@@ -115,17 +116,27 @@ func CalAllEventOrder(net, chain string, startBlock, endBlock, bigBlock, startBl
 				orderCalBlockIndex[v.OrderId] = calBlockIndex
 			}
 
+			//coinPrice := int64(1)
+			//coinPrice = int64(v.CoinRatePrice)
+			//if coinPrice == 0 {
+			//	coinPrice = 1
+			//}
+
 			coinPrice := int64(1)
-			coinPrice = int64(v.CoinRatePrice)
+			coinPrice = int64(v.CoinPrice)
+			coinPriceDecimalNum := v.CoinPriceDecimalNum
 			if coinPrice == 0 {
 				coinPrice = 1
 			}
+			coinAmountDe := decimal.NewFromInt(int64(v.CoinAmount))
+			coinPriceDe := decimal.NewFromInt(coinPrice)
+			coinAmountToAmount := coinAmountDe.Mul(coinPriceDe).Div(decimal.New(1, coinPriceDecimalNum)).IntPart()
 
-			totalCoinAmountNoUsed = totalCoinAmountNoUsed + int64(v.CoinAmount)*coinPrice
+			totalCoinAmountNoUsed = totalCoinAmountNoUsed + coinAmountToAmount
 			if _, ok := orderCoinAmountInfoNoUsed[v.OrderId]; ok {
-				orderCoinAmountInfoNoUsed[v.OrderId] = orderCoinAmountInfoNoUsed[v.OrderId] + int64(v.CoinAmount)*coinPrice
+				orderCoinAmountInfoNoUsed[v.OrderId] = orderCoinAmountInfoNoUsed[v.OrderId] + coinAmountToAmount
 			} else {
-				orderCoinAmountInfoNoUsed[v.OrderId] = int64(v.CoinAmount) * coinPrice
+				orderCoinAmountInfoNoUsed[v.OrderId] = coinAmountToAmount
 			}
 
 			totalAmountNoUsed = totalAmountNoUsed + int64(v.Amount)
@@ -184,6 +195,7 @@ func CalAllEventOrder(net, chain string, startBlock, endBlock, bigBlock, startBl
 				Tick:                orderEntity.Tick,
 				OrderId:             recordOrderId,
 				Pair:                orderEntity.Pair,
+				RewardTick:          rewardTick,
 				FromOrderId:         orderEntity.OrderId,
 				FromOrderRole:       "",
 				FromOrderTotalValue: 0,
@@ -191,8 +203,8 @@ func CalAllEventOrder(net, chain string, startBlock, endBlock, bigBlock, startBl
 				Address:             orderEntity.CoinAddress,
 				TotalValue:          allTotalValueNoUsed,
 				OwnValue:            orderTotalValue,
-				Percentage:          orderEntity.PercentageExtra,
-				RewardAmount:        orderEntity.RewardExtraAmount,
+				Percentage:          percentage,
+				RewardAmount:        rewardAmount,
 				RewardType:          model.RewardTypeEventOneLpUnusedV2,
 				CalBigBlock:         bigBlock,
 				CalDayIndex:         calBlockIndex,
@@ -210,9 +222,19 @@ func CalAllEventOrder(net, chain string, startBlock, endBlock, bigBlock, startBl
 			}
 			major.Println(fmt.Sprintf("[EVENT][CAL-POOL-BLOCK_USER][no-used]SetRewardRecordModel success [%s]", orderId))
 
-			calRdexPoolExtraRewardInfo[orderId] = fmt.Sprintf("%d:%d:%d:%d:%d", orderTotalValue, percentage, orderEntity.Amount, orderEntity.CoinAmount, orderEntity.CoinRatePrice)
+			coinPrice := int64(orderEntity.CoinPrice)
+			coinPriceDecimalNum := orderEntity.CoinPriceDecimalNum
+			coinPriceDe := decimal.NewFromInt(coinPrice)
+			coinPriceRateStr := "1"
+			coinPriceRateStr = coinPriceDe.Div(decimal.New(1, coinPriceDecimalNum)).String()
+
+			calRdexPoolExtraRewardInfo[orderId] = fmt.Sprintf("%d:%d:%d:%d:%s", orderTotalValue, percentage, orderEntity.Amount, orderEntity.CoinAmount, coinPriceRateStr)
 		}
 		calRdexPoolExtraRewardTotalValue = allTotalValueNoUsed
+	}
+
+	if endBlock >= config.EventOneEndBlock {
+		return calRdexPoolRewardInfo, calRdexPoolRewardTotalValue, calRdexPoolExtraRewardInfo, calRdexPoolExtraRewardTotalValue, calRdexBidDealExtraRewardInfo, calRdexBidDealExtraRewardTotalValue
 	}
 
 	allEntityRdexPoolOrderList, _ = mongo_service.FindUsedAndClaimedPoolBrc20ModelListByDealStartAndDealEndBlock(net, tick, "", "",
@@ -228,17 +250,27 @@ func CalAllEventOrder(net, chain string, startBlock, endBlock, bigBlock, startBl
 
 			coinAmount, amount := v.CoinAmount, v.Amount
 
+			//coinPrice := int64(1)
+			//coinPrice = int64(v.CoinRatePrice)
+			//if coinPrice == 0 {
+			//	coinPrice = 1
+			//}
+
 			coinPrice := int64(1)
-			coinPrice = int64(v.CoinRatePrice)
+			coinPrice = int64(v.CoinPrice)
+			coinPriceDecimalNum := v.CoinPriceDecimalNum
 			if coinPrice == 0 {
 				coinPrice = 1
 			}
+			coinAmountDe := decimal.NewFromInt(int64(coinAmount))
+			coinPriceDe := decimal.NewFromInt(coinPrice)
+			coinAmountToAmount := coinAmountDe.Mul(coinPriceDe).Div(decimal.New(1, coinPriceDecimalNum)).IntPart()
 
-			totalCoinAmount = totalCoinAmount + int64(coinAmount)*coinPrice
+			totalCoinAmount = totalCoinAmount + coinAmountToAmount
 			if _, ok := orderCoinAmountInfo[v.OrderId]; ok {
-				orderCoinAmountInfo[v.OrderId] = orderCoinAmountInfo[v.OrderId] + int64(coinAmount)*coinPrice
+				orderCoinAmountInfo[v.OrderId] = orderCoinAmountInfo[v.OrderId] + coinAmountToAmount
 			} else {
-				orderCoinAmountInfo[v.OrderId] = int64(coinAmount) * coinPrice
+				orderCoinAmountInfo[v.OrderId] = coinAmountToAmount
 			}
 
 			if v.PoolType == model.PoolTypeBoth {
@@ -285,9 +317,25 @@ func CalAllEventOrder(net, chain string, startBlock, endBlock, bigBlock, startBl
 					major.Println(fmt.Sprintf("[EVENT][CAL-POOL-BLOCK_USER][block]SetPoolBrc20ModelForCalReward err:%s", err.Error()))
 					continue
 				}
+
+				if orderEntity.ClaimTxBlockState == model.ClaimTxBlockStateConfirmed {
+					rewardNowAmount := getRealNowRewardByDecreasing(orderEntity.RewardAmount, orderEntity.Decreasing)
+					orderEntity.RewardRealAmount = rewardNowAmount
+					err := mongo_service.SetPoolBrc20ModelForClaim(orderEntity)
+					if err != nil {
+						major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBrc20ModelForClaim err:%s", err.Error()))
+					}
+				}
+
+				coinPrice := int64(orderEntity.CoinPrice)
+				coinPriceDecimalNum := orderEntity.CoinPriceDecimalNum
+				coinPriceDe := decimal.NewFromInt(coinPrice)
+				coinPriceRateStr := "1"
+				coinPriceRateStr = coinPriceDe.Div(decimal.New(1, coinPriceDecimalNum)).String()
+
 				major.Println(fmt.Sprintf("[EVENT][CAL-POOL-BLOCK_USER][block]SetPoolBrc20ModelForCalReward success [%s]", orderId))
 
-				calRdexPoolRewardInfo[orderId] = fmt.Sprintf("%d:%d:%d:%d:%d:%d:%d", orderTotalValue, percentage, orderEntity.Amount, orderEntity.CoinAmount, orderEntity.CoinRatePrice, orderEntity.DealCoinTxBlock, orderEntity.PoolType)
+				calRdexPoolRewardInfo[orderId] = fmt.Sprintf("%d:%d:%d:%d:%s:%d:%d", orderTotalValue, percentage, orderEntity.Amount, orderEntity.CoinAmount, coinPriceRateStr, orderEntity.DealCoinTxBlock, orderEntity.PoolType)
 			}
 			calRdexPoolRewardTotalValue = allTotalValue
 		} else {
@@ -367,6 +415,7 @@ func CalAllEventOrder(net, chain string, startBlock, endBlock, bigBlock, startBl
 						Tick:                orderEntity.Tick,
 						OrderId:             sellerRecordOrderId,
 						Pair:                fmt.Sprintf("%s-BTC", strings.ToUpper(orderEntity.Tick)),
+						RewardTick:          rewardTick,
 						FromOrderId:         orderEntity.OrderId,
 						FromOrderRole:       "seller",
 						FromOrderTotalValue: fromOrderTotalValue,
@@ -409,6 +458,7 @@ func CalAllEventOrder(net, chain string, startBlock, endBlock, bigBlock, startBl
 						Tick:                orderEntity.Tick,
 						OrderId:             buyerRecordOrderId,
 						Pair:                fmt.Sprintf("%s-BTC", strings.ToUpper(orderEntity.Tick)),
+						RewardTick:          rewardTick,
 						FromOrderId:         orderEntity.OrderId,
 						FromOrderRole:       "buyer",
 						FromOrderTotalValue: fromOrderTotalValue,
@@ -597,7 +647,7 @@ func getEventBlockStartTimeByTimestamp(net, chain string, lpTime int64) (int64, 
 		return 0, 0
 	}
 	lpBlock = lpBlockInfo.Height
-	for i := int64(0); i <= dayCount; i++ {
+	for i := int64(0); i <= dayCount+1; i++ {
 		if lpBlock >= calStartBlock+i*calCycleBlock && lpBlock < calStartBlock+(i+1)*calCycleBlock {
 			lpStartBlock = calStartBlock + i*calCycleBlock
 			break

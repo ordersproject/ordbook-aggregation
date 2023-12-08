@@ -29,11 +29,12 @@ type OrderBrc20FetchReq struct {
 }
 
 type OrderBrc20FetchOneReq struct {
-	Net               string `json:"net"` //livenet/signet/testnet
-	Tick              string `json:"tick"`
-	OrderId           string `json:"orderId"`
-	BuyerAddress      string `json:"buyerAddress"`
-	BuyerChangeAmount uint64 `json:"buyerChangeAmount"`
+	Net               string              `json:"net"` //livenet/signet/testnet
+	Tick              string              `json:"tick"`
+	OrderId           string              `json:"orderId"`
+	BuyerAddress      string              `json:"buyerAddress"`
+	BuyerChangeAmount uint64              `json:"buyerChangeAmount"`
+	PlatformDummy     model.PlatformDummy `json:"platformDummy"` //0-no 1-yes
 }
 
 type TickBrc20FetchReq struct {

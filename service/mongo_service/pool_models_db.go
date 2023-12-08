@@ -1010,6 +1010,8 @@ func FindPoolBrc20ModelListByStartTimeAndEndTimeAndNoRemove(net, tick, pair, add
 	}
 	if tick != "" {
 		find["tick"] = tick
+	} else {
+		find["tick"] = bson.M{NOT_EQ_: "rdex"}
 	}
 	if pair != "" {
 		find["pair"] = pair
@@ -2113,7 +2115,7 @@ func CountPoolRewardBlockUser(net, address string) (*model.PoolRewardBlockUserCo
 	}
 }
 
-func FindPoolBlockInfoModelList(bigBlock, limit int64) ([]*model.PoolBlockInfoModel, error) {
+func FindPoolBlockInfoModelList(cycleBlock, bigBlock, limit int64, calType model.CalType) ([]*model.PoolBlockInfoModel, error) {
 	collection, err := model.PoolBlockInfoModel{}.GetReadDB()
 	if err != nil {
 		return nil, errors.New("db connect error")
@@ -2128,6 +2130,12 @@ func FindPoolBlockInfoModelList(bigBlock, limit int64) ([]*model.PoolBlockInfoMo
 
 	if bigBlock != 0 {
 		find["bigBlock"] = bson.M{LTE_: bigBlock}
+	}
+	if cycleBlock != 0 {
+		find["cycleBlock"] = cycleBlock
+	}
+	if calType != 0 {
+		find["calType"] = calType
 	}
 
 	skip := int64(0)
@@ -2312,6 +2320,7 @@ func createRewardRecordModel(rewardRecord *model.RewardRecordModel) (*model.Rewa
 	CreateIndex(collection, "address")
 	CreateIndex(collection, "net")
 	CreateIndex(collection, "tick")
+	CreateIndex(collection, "rewardTick")
 	CreateIndex(collection, "fromOrderId")
 	CreateIndex(collection, "fromOrderRole")
 	CreateIndex(collection, "timestamp")
@@ -2326,6 +2335,7 @@ func createRewardRecordModel(rewardRecord *model.RewardRecordModel) (*model.Rewa
 		Tick:                rewardRecord.Tick,
 		OrderId:             rewardRecord.OrderId,
 		Pair:                rewardRecord.Pair,
+		RewardTick:          rewardRecord.RewardTick,
 		FromOrderId:         rewardRecord.FromOrderId,
 		FromOrderRole:       rewardRecord.FromOrderRole,
 		FromOrderTotalValue: rewardRecord.FromOrderTotalValue,
@@ -2375,6 +2385,7 @@ func SetRewardRecordModel(rewardRecord *model.RewardRecordModel) (*model.RewardR
 		bsonData = append(bsonData, bson.E{Key: "tick", Value: rewardRecord.Tick})
 		bsonData = append(bsonData, bson.E{Key: "orderId", Value: rewardRecord.OrderId})
 		bsonData = append(bsonData, bson.E{Key: "pair", Value: rewardRecord.Pair})
+		bsonData = append(bsonData, bson.E{Key: "rewardTick", Value: rewardRecord.RewardTick})
 		bsonData = append(bsonData, bson.E{Key: "fromOrderId", Value: rewardRecord.FromOrderId})
 		bsonData = append(bsonData, bson.E{Key: "fromOrderRole", Value: rewardRecord.FromOrderRole})
 		bsonData = append(bsonData, bson.E{Key: "fromOrderTotalValue", Value: rewardRecord.FromOrderTotalValue})

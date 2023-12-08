@@ -1,6 +1,7 @@
 package order_brc20_service
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/shopspring/decimal"
 	"ordbook-aggregation/config"
@@ -107,11 +108,16 @@ func getRealNowRewardByDecreasing(rewardAmount, decreasing int64) int64 {
 	return rewardNowAmount
 }
 
-func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) (map[string]string, int64, map[string]string, int64) {
+func CalAllPoolOrderV2(net, chain string, startBlock, endBlock, bigBlock, startBlockTime, endBlockTime, nowTime int64) (map[string]string, int64, map[string]string, int64) {
 	var (
+		platformStartTime int64  = config.PlatformRewardCalStartTime
+		rewardTick        string = config.PlatformRewardTick
+
 		allNoUsedEntityPoolOrderList []*model.PoolBrc20Model
 		allEntityPoolOrderList       []*model.PoolBrc20Model
 		limit                        int64 = 1000
+		unusedLimit                  int64 = 5000
+		calBlockLimit                int64 = config.PlatformRewardExtraRewardDuration
 
 		totalCoinAmount     int64                                    = 0
 		totalAmount         int64                                    = 0
@@ -125,13 +131,12 @@ func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) (map[str
 		allTotalValueNoUsed       int64            = 0
 		orderCoinAmountInfoNoUsed map[string]int64 = make(map[string]int64)
 		orderAmountInfoNoUsed     map[string]int64 = make(map[string]int64)
-		//orderBlockInfoNoUsed      map[string]*model.PoolBlockUserInfoModel = make(map[string]*model.PoolBlockUserInfoModel)
+		orderCalBlockIndex        map[string]int64 = make(map[string]int64)
 
 		//coinPrice int64 = int64(GetMarketPrice(net, tick, fmt.Sprintf("%s-BTC", strings.ToUpper(tick))))
 		coinPriceMap map[string]int64 = make(map[string]int64)
 
-		endTime   int64 = nowTime - 1000*60*60*24*config.PlatformRewardExtraRewardDuration
-		hasNoUsed bool  = false
+		hasNoUsed bool = false
 
 		calPoolRewardInfo            map[string]string = make(map[string]string) //{"poolOrderId":"value:percentage:amount:coinAmount:price"}
 		calPoolRewardTotalValue      int64             = 0
@@ -140,8 +145,8 @@ func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) (map[str
 	)
 
 	_ = coinPriceMap
-	allNoUsedEntityPoolOrderList, _ = mongo_service.FindPoolBrc20ModelListByEndTime(net, "", "", "",
-		model.PoolTypeBoth, model.PoolStateAdd, limit, 0, endTime)
+	allNoUsedEntityPoolOrderList, _ = mongo_service.FindPoolBrc20ModelListByStartTimeAndEndTimeAndNoRemove(net, "", "", "",
+		model.PoolTypeBoth, unusedLimit, 0, platformStartTime, endBlockTime)
 	if allNoUsedEntityPoolOrderList != nil && len(allNoUsedEntityPoolOrderList) != 0 {
 		hasNoUsed = true
 		for _, v := range allNoUsedEntityPoolOrderList {
@@ -149,17 +154,60 @@ func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) (map[str
 				continue
 			}
 
+			if v.Timestamp < platformStartTime {
+				continue
+			}
+
+			lpTimestamp := v.Timestamp
+			lpRemoveTime := v.UpdateTime
+			lpStartBlock, _ := getPlatformBlockStartTimeByTimestamp(net, chain, lpTimestamp)
+
+			if lpStartBlock < config.PlatformRewardCalStartBlock {
+				//fmt.Printf("[EVENT][CAL-POOL-BLOCK_USER][no-used] order[%s] lpStartBlock[%d] not in event block[%d]\n", v.OrderId, lpStartBlock, config.EventOneStartBlock)
+				continue
+			}
+			if lpStartBlock > endBlock {
+				//fmt.Printf("[EVENT][CAL-POOL-BLOCK_USER][no-used] order[%s] lpStartBlock[%d] not in currrent block[%d]\n", v.OrderId, lpStartBlock, endBlock)
+				continue
+			}
+			calBlockIndex := int64(0)
+			if v.DealTime != 0 {
+				lpDealStartBlock, _ := getPlatformBlockStartTimeByTimestamp(net, chain, v.DealTime)
+				if lpDealStartBlock < endBlock {
+					//fmt.Printf("[EVENT][CAL-POOL-BLOCK_USER][no-used] order[%s] lpDealStartBlock[%d] not in currrent block[%d]\n", v.OrderId, lpDealStartBlock, endBlock)
+					continue
+				}
+			} else if v.PoolState == model.PoolStateRemove {
+				lpRemoveStartBlock, _ := getPlatformBlockStartTimeByTimestamp(net, chain, lpRemoveTime)
+				if lpRemoveStartBlock < endBlock {
+					//fmt.Printf("[EVENT][CAL-POOL-BLOCK_USER][no-used] order[%s] lpRemoveStartBlock[%d] not in currrent block[%d]\n", v.OrderId, lpRemoveStartBlock, endBlock)
+					continue
+				}
+			}
+			calBlockIndex = calBlockPlatformByStartBlock(lpStartBlock, startBlock)
+			if calBlockIndex < calBlockLimit {
+				//fmt.Printf("[EVENT][CAL-POOL-BLOCK_USER][no-used] order[%s] calBlockIndex[%d] <= 0 startBlock[%d], lpStartBlock[%s]\n", v.OrderId, calBlockIndex, startBlock, lpStartBlock)
+				continue
+			}
+			if _, ok := orderCalBlockIndex[v.OrderId]; !ok {
+				orderCalBlockIndex[v.OrderId] = calBlockIndex
+			}
+
 			coinPrice := int64(1)
-			coinPrice = int64(v.CoinRatePrice)
+			coinPrice = int64(v.CoinPrice)
+			coinPriceDecimalNum := v.CoinPriceDecimalNum
 			if coinPrice == 0 {
 				coinPrice = 1
 			}
+			coinAmountDe := decimal.NewFromInt(int64(v.CoinAmount))
+			coinPriceDe := decimal.NewFromInt(coinPrice)
+			coinAmountToAmount := coinAmountDe.Mul(coinPriceDe).Div(decimal.New(1, coinPriceDecimalNum)).IntPart()
 
-			totalCoinAmountNoUsed = totalCoinAmountNoUsed + int64(v.CoinAmount)*coinPrice
+			totalCoinAmountNoUsed = totalCoinAmountNoUsed + coinAmountToAmount
 			if _, ok := orderCoinAmountInfoNoUsed[v.OrderId]; ok {
-				orderCoinAmountInfoNoUsed[v.OrderId] = orderCoinAmountInfoNoUsed[v.OrderId] + int64(v.CoinAmount)*coinPrice
+				orderCoinAmountInfoNoUsed[v.OrderId] = orderCoinAmountInfoNoUsed[v.OrderId] + coinAmountToAmount
 			} else {
-				orderCoinAmountInfoNoUsed[v.OrderId] = int64(v.CoinAmount) * coinPrice
+				orderCoinAmountInfoNoUsed[v.OrderId] = coinAmountToAmount
 			}
 
 			totalAmountNoUsed = totalAmountNoUsed + int64(v.Amount)
@@ -199,36 +247,60 @@ func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) (map[str
 			}
 			major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][no-used]SetPoolBrc20ModelForCalExtraReward success [%s]", orderId))
 
-			//calStartTime, calEndTime, calDay := GetNowCalStartTimeAndEndTime()
-			//recordOrderId := fmt.Sprintf("%s_%s_%d_%s_%d_%d", orderEntity.Net, orderEntity.Tick, calDay, orderEntity.OrderId, orderEntity.CalStartBlock, orderEntity.CalEndBlock)
-			//recordOrderId = hex.EncodeToString(tool.SHA256([]byte(recordOrderId)))
-			//poolExtraRewardRecord := &model.PoolExtraRewardRecordModel{
-			//	Net:               orderEntity.Net,
-			//	Tick:              orderEntity.Tick,
-			//	OrderId:           recordOrderId,
-			//	Pair:              orderEntity.Pair,
-			//	PoolOrderId:       orderEntity.OrderId,
-			//	Address:           orderEntity.CoinAddress,
-			//	TotalValue:        allTotalValueNoUsed,
-			//	OwnValue:          orderTotalValue,
-			//	PercentageExtra:   orderEntity.PercentageExtra,
-			//	RewardExtraAmount: orderEntity.RewardExtraAmount,
-			//	RewardType:        model.RewardTypeExtra,
-			//	CalDay:            calDay,
-			//	CalStartTime:      calStartTime,
-			//	CalEndTime:        calEndTime,
-			//	CalStartBlock:     startBlock,
-			//	CalEndBlock:       endBlock,
-			//	Version:           1,
-			//	Timestamp:         nowTime,
-			//}
-			//_, err = mongo_service.SetPoolExtraRewardRecordModel(poolExtraRewardRecord)
-			//if err != nil {
-			//	major.Println(fmt.Sprintf("[EVENT][CAL-POOL-BLOCK_USER][no-used]SetPoolExtraRewardRecordModel err:%s", err.Error()))
-			//}
-			major.Println(fmt.Sprintf("[EVENT][CAL-POOL-BLOCK_USER][no-used]SetPoolBrc20ModelForCalExtraReward success [%s]", orderId))
+			calBlockIndex := int64(0)
+			if _, ok := orderCalBlockIndex[orderId]; ok {
+				calBlockIndex = orderCalBlockIndex[orderId]
+			}
+			if calBlockIndex < calBlockLimit {
+				continue
+			}
 
-			calPoolExtraRewardInfo[orderId] = fmt.Sprintf("%d:%d:%d:%d:%d", orderTotalValue, percentage, orderEntity.Amount, orderEntity.CoinAmount, orderEntity.CoinRatePrice)
+			recordOrderId := fmt.Sprintf("%s_%s_%d_%d_%s_%d_%d_%d", orderEntity.Net, orderEntity.Tick, calBlockIndex, calBlockIndex, orderEntity.OrderId, startBlock, endBlock, orderEntity.Timestamp)
+			recordOrderId = hex.EncodeToString(tool.SHA256([]byte(recordOrderId)))
+
+			poolExtraRewardRecord, _ := mongo_service.FindRewardRecordModelByOrderId(recordOrderId)
+			if poolExtraRewardRecord != nil {
+				continue
+			}
+			poolExtraRewardRecord = &model.RewardRecordModel{
+				Net:                 orderEntity.Net,
+				Tick:                orderEntity.Tick,
+				OrderId:             recordOrderId,
+				Pair:                orderEntity.Pair,
+				RewardTick:          rewardTick,
+				FromOrderId:         orderEntity.OrderId,
+				FromOrderRole:       "",
+				FromOrderTotalValue: 0,
+				FromOrderOwnValue:   0,
+				Address:             orderEntity.CoinAddress,
+				TotalValue:          allTotalValueNoUsed,
+				OwnValue:            orderTotalValue,
+				Percentage:          percentage,
+				RewardAmount:        rewardAmount,
+				RewardType:          model.RewardTypeExtra,
+				CalBigBlock:         bigBlock,
+				CalDayIndex:         calBlockIndex,
+				CalDay:              calBlockIndex,
+				CalStartTime:        startBlockTime,
+				CalEndTime:          endBlockTime,
+				CalStartBlock:       startBlock,
+				CalEndBlock:         endBlock,
+				Version:             1,
+				Timestamp:           nowTime,
+			}
+			_, err = mongo_service.SetRewardRecordModel(poolExtraRewardRecord)
+			if err != nil {
+				major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][no-used]SetRewardRecordModel err:%s", err.Error()))
+			}
+			major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][no-used]SetPoolBrc20ModelForCalExtraReward success [%s]", orderId))
+
+			coinPrice := int64(orderEntity.CoinPrice)
+			coinPriceDecimalNum := orderEntity.CoinPriceDecimalNum
+			coinPriceDe := decimal.NewFromInt(coinPrice)
+			coinPriceRateStr := "1"
+			coinPriceRateStr = coinPriceDe.Div(decimal.New(1, coinPriceDecimalNum)).String()
+
+			calPoolExtraRewardInfo[orderId] = fmt.Sprintf("%d:%d:%d:%d:%s", orderTotalValue, percentage, orderEntity.Amount, orderEntity.CoinAmount, coinPriceRateStr)
 		}
 		calPoolExtraRewardTotalValue = allTotalValueNoUsed
 	}
@@ -243,16 +315,20 @@ func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) (map[str
 		coinAmount, amount := v.CoinAmount, v.Amount
 
 		coinPrice := int64(1)
-		coinPrice = int64(v.CoinRatePrice)
+		coinPrice = int64(v.CoinPrice)
+		coinPriceDecimalNum := v.CoinPriceDecimalNum
 		if coinPrice == 0 {
 			coinPrice = 1
 		}
+		coinAmountDe := decimal.NewFromInt(int64(coinAmount))
+		coinPriceDe := decimal.NewFromInt(coinPrice)
+		coinAmountToAmount := coinAmountDe.Mul(coinPriceDe).Div(decimal.New(1, coinPriceDecimalNum)).IntPart()
 
-		totalCoinAmount = totalCoinAmount + int64(coinAmount)*coinPrice
+		totalCoinAmount = totalCoinAmount + coinAmountToAmount
 		if _, ok := orderCoinAmountInfo[v.OrderId]; ok {
-			orderCoinAmountInfo[v.OrderId] = orderCoinAmountInfo[v.OrderId] + int64(coinAmount)*coinPrice
+			orderCoinAmountInfo[v.OrderId] = orderCoinAmountInfo[v.OrderId] + coinAmountToAmount
 		} else {
-			orderCoinAmountInfo[v.OrderId] = int64(coinAmount) * coinPrice
+			orderCoinAmountInfo[v.OrderId] = coinAmountToAmount
 		}
 
 		if v.PoolType == model.PoolTypeBoth {
@@ -314,9 +390,15 @@ func CalAllPoolOrderV2(net string, startBlock, endBlock, nowTime int64) (map[str
 			}
 		}
 
+		coinPrice := int64(orderEntity.CoinPrice)
+		coinPriceDecimalNum := orderEntity.CoinPriceDecimalNum
+		coinPriceDe := decimal.NewFromInt(coinPrice)
+		coinPriceRateStr := "1"
+		coinPriceRateStr = coinPriceDe.Div(decimal.New(1, coinPriceDecimalNum)).String()
+
 		major.Println(fmt.Sprintf("[CAL-POOL-BLOCK_USER][block]SetPoolBrc20ModelForCalReward success [%s]", orderId))
 
-		calPoolRewardInfo[orderId] = fmt.Sprintf("%d:%d:%d:%d:%d:%d:%d", orderTotalValue, percentage, orderEntity.Amount, orderEntity.CoinAmount, orderEntity.CoinRatePrice, orderEntity.DealCoinTxBlock, orderEntity.PoolType)
+		calPoolRewardInfo[orderId] = fmt.Sprintf("%d:%d:%d:%d:%s:%d:%d", orderTotalValue, percentage, orderEntity.Amount, orderEntity.CoinAmount, coinPriceRateStr, orderEntity.DealCoinTxBlock, orderEntity.PoolType)
 	}
 	calPoolRewardTotalValue = allTotalValue
 	return calPoolRewardInfo, calPoolRewardTotalValue, calPoolExtraRewardInfo, calPoolExtraRewardTotalValue
@@ -495,4 +577,43 @@ func GetNowCalStartTimeAndEndTime() (int64, int64, int64) {
 		}
 	}
 	return calStartTime, calEndTime, calDay
+}
+
+func getPlatformBlockStartTimeByTimestamp(net, chain string, lpTime int64) (int64, int64) {
+	var (
+		lpStartBlockTime int64 = 0
+		lpStartBlock     int64 = 0
+		lpBlock          int64 = 0
+		lpBlockInfo      *model.BlockInfoModel
+		calStartBlock    int64 = config.PlatformRewardCalStartBlock
+		calEndBlock      int64 = config.PlatformRewardCalEndBlock
+		calCycleBlock    int64 = config.PlatformRewardCalCycleBlock
+		blockCount       int64 = (calEndBlock - calStartBlock) / calCycleBlock
+	)
+
+	lpBlockInfo, _ = mongo_service.FindNewestHeightBlockInfoModelByBlockTime(net, chain, lpTime/1000)
+	if lpBlockInfo == nil {
+		return 0, 0
+	}
+	lpBlock = lpBlockInfo.Height
+	for i := int64(0); i <= blockCount; i++ {
+		if lpBlock >= calStartBlock+i*calCycleBlock && lpBlock < calStartBlock+(i+1)*calCycleBlock {
+			lpStartBlock = calStartBlock + i*calCycleBlock
+			break
+		}
+	}
+	lpStartBlockId := fmt.Sprintf("%s_%s_%d", net, chain, lpStartBlock)
+	lpStartBlockInfo, _ := mongo_service.FindBlockInfoModelByBlockId(lpStartBlockId)
+	if lpStartBlockInfo != nil {
+		lpStartBlockTime = lpStartBlockInfo.BlockTime
+	}
+	return lpStartBlock, lpStartBlockTime
+}
+
+func calBlockPlatformByStartBlock(startBlock1, startBlock2 int64) int64 {
+	var (
+		cycleBlock int64 = config.PlatformRewardCalCycleBlock
+		dayCount   int64 = (startBlock2 - startBlock1) / cycleBlock
+	)
+	return dayCount
 }

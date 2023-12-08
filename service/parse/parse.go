@@ -41,5 +41,6 @@ func parsePsbt(psbtRaw string) {
 		fmt.Printf(fmt.Sprintf("ExtractPsbtTransaction err:%s", err.Error()))
 		return
 	}
+	fmt.Printf("Tx:%s\n", txRawPsbtY)
 	parseTx(txRawPsbtY)
 }
