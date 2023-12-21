@@ -2,6 +2,9 @@ package common_service
 
 import (
 	"github.com/btcsuite/btcd/chaincfg"
+	"ordbook-aggregation/config"
+	"ordbook-aggregation/model"
+	"ordbook-aggregation/service/mongo_service"
 	"ordbook-aggregation/service/unisat_service"
 	"strings"
 )
@@ -97,4 +100,25 @@ func GetFeeSummary() int64 {
 		}
 	}
 	return currentFee
+}
+
+func GetCirculationAddress(net string) []string {
+	if net == "testnet" {
+		return config.PlatformTestnetCirculationExceptAddresses
+	}
+	return config.PlatformMainnetCirculationExceptAddresses
+}
+
+func GetCirculationSupply() uint64 {
+	var (
+		net               string = "livenet"
+		tick              string = "rdex"
+		orderCirculation  *model.OrderCirculationModel
+		circulationSupply uint64 = 0
+	)
+	orderCirculation, _ = mongo_service.FindOrderCirculationModelByTick(net, tick)
+	if orderCirculation != nil {
+		circulationSupply = orderCirculation.CirculationSupply
+	}
+	return circulationSupply
 }

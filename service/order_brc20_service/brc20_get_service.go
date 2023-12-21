@@ -59,7 +59,7 @@ func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*
 	}
 
 	if entity.PlatformDummy == model.PlatformDummyYes {
-		takerPsbtRaw, err = MakeAskTakerPsbtRaw(entity.Net, entity.PsbtRawPreAsk, req.BuyerAddress, req.BuyerChangeAmount)
+		takerPsbtRaw, err = MakeAskTakerPsbtRaw(entity.Net, entity.PsbtRawPreAsk, req.BuyerAddress, req.BuyerChangeAmount, true)
 		if err != nil {
 			return nil, err
 		}
@@ -90,20 +90,26 @@ func FetchOneOrders(req *request.OrderBrc20FetchOneReq, publicKey, ip string) (*
 
 func FetchOrders(req *request.OrderBrc20FetchReq) (*respond.OrderResponse, error) {
 	var (
-		entityList []*model.OrderBrc20Model
-		list       []*respond.Brc20Item
-		total      int64 = 0
-		flag       int64 = 0
+		entityList    []*model.OrderBrc20Model
+		list          []*respond.Brc20Item
+		total         int64          = 0
+		flag          int64          = 0
+		poolOrderMode model.PoolMode = model.PoolModeDefault
 	)
 	if req.Limit < 0 || req.Limit >= 1000 {
 		req.Limit = 1000
 	}
-	total, _ = mongo_service.CountOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress, req.OrderType, req.OrderState)
+	if req.OrderType == model.OrderTypeBuy {
+		poolOrderMode = model.PoolModePrepare
+	}
+
+	total, _ = mongo_service.CountOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress, req.OrderType, req.OrderState, poolOrderMode)
 	entityList, _ = mongo_service.FindOrderBrc20ModelList(req.Net, req.Tick, req.SellerAddress, req.BuyerAddress,
 		req.OrderType, req.OrderState,
-		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType, 0, 0)
+		req.Limit, req.Flag, req.Page, req.SortKey, req.SortType, 0, 0, poolOrderMode)
 	list = make([]*respond.Brc20Item, 0)
 	for _, v := range entityList {
+
 		if req.Address != "" && v.PoolOrderId != "" {
 			poolOwner := checkPoolAddress(v.PoolOrderId, req.Address)
 			if poolOwner > 0 {
@@ -197,7 +203,7 @@ func FetchTickers(req *request.TickBrc20FetchReq) (*respond.Brc20TickInfoRespons
 			PriceChangePercent:  strconv.FormatFloat(v.PriceChangePercent, 'f', 2, 64),
 			Ut:                  v.UpdateTime,
 		}
-		if v.AvgPrice == 0 || v.LastTotal < 5 {
+		if strings.ToLower(v.Tick) != "rdex" || (v.AvgPrice == 0 || v.LastTotal < 19) {
 			priceInfo := getOtherMarketPrice(v.Tick)
 			if priceInfo != nil {
 				item.AvgPrice = priceInfo.VisionPrice
@@ -456,7 +462,7 @@ func FetchTickKline(req *request.TickKlineFetchReq) (*respond.Brc20KlineInfo, er
 		list               []*respond.KlineItem = make([]*respond.KlineItem, 0)
 		startTime, endTime int64                = 0, tool.MakeTimestamp() //1m/1s/15m/1h/4h/1d/1w/
 		limit              int64                = req.Limit
-		dis                int64                = 1000 * 60 * 15
+		//dis                int64                = 1000 * 60 * 15
 	)
 	if req.Flag != 0 {
 		endTime = req.Flag
@@ -464,27 +470,27 @@ func FetchTickKline(req *request.TickKlineFetchReq) (*respond.Brc20KlineInfo, er
 	if req.Limit == 0 {
 		limit = 100
 	}
-	switch req.Interval {
-	case "15m":
-		startTime = endTime - limit*dis
-		break
-	case "1h":
-		startTime = endTime - limit*dis*4
-		break
-	case "4h":
-		startTime = endTime - limit*dis*4*4
-		break
-	case "1d":
-		startTime = endTime - limit*dis*4*24
-		break
-	case "1w":
-		startTime = endTime - limit*dis*4*24*7
-		break
-	default:
-		startTime = endTime - limit*dis
-	}
+	//switch req.Interval {
+	//case "15m":
+	//	startTime = endTime - limit*dis
+	//	break
+	//case "1h":
+	//	startTime = endTime - limit*dis*4
+	//	break
+	//case "4h":
+	//	startTime = endTime - limit*dis*4*4
+	//	break
+	//case "1d":
+	//	startTime = endTime - limit*dis*4*24
+	//	break
+	//case "1w":
+	//	startTime = endTime - limit*dis*4*24*7
+	//	break
+	//default:
+	//	startTime = endTime - limit*dis
+	//}
 	//fmt.Printf("%s-%s, %s-%s\n", req.Net, req.Tick, tool.MakeDate(startTime), tool.MakeDate(endTime))
-	entityList, _ = mongo_service.FindBrc20TickKlineModelList(req.Net, req.Tick, startTime, endTime)
+	entityList, _ = mongo_service.FindBrc20TickKlineModelList(req.Net, req.Tick, startTime, endTime, limit, req.Interval)
 	for _, v := range entityList {
 		list = append(list, &respond.KlineItem{
 			Timestamp: v.Timestamp,
@@ -569,5 +575,21 @@ func FetchEventOrders(req *request.Brc20EventOrderReq) (*respond.OrderEventRespo
 		Total:   total,
 		Results: list,
 		Flag:    flag,
+	}, nil
+}
+
+func FetchCirculationSupply() (*respond.Brc20SupplyInfoResponse, error) {
+	var (
+		net               string = "livenet"
+		tick              string = "rdex"
+		orderCirculation  *model.OrderCirculationModel
+		circulationSupply uint64 = 0
+	)
+	orderCirculation, _ = mongo_service.FindOrderCirculationModelByTick(net, tick)
+	if orderCirculation != nil {
+		circulationSupply = orderCirculation.CirculationSupply
+	}
+	return &respond.Brc20SupplyInfoResponse{
+		CirculationSupply: circulationSupply,
 	}, nil
 }

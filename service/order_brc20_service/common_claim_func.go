@@ -27,7 +27,7 @@ func GetUnoccupiedClaimBrc20PsbtList(net, tick string, count int64, coinAmount i
 	)
 	entityList, _ := mongo_service.FindOrderBrc20ModelList(net, tick, "", "",
 		model.OrderTypeSell, model.OrderStatePreClaim,
-		maxOrderLimit, 0, 0, "timestamp", 1, 0, coinAmount)
+		maxOrderLimit, 0, 0, "timestamp", 1, 0, coinAmount, model.PoolModeDefault)
 	if entityList == nil || len(entityList) == 0 {
 		return nil, errors.New("no Claim order")
 	}

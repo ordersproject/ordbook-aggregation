@@ -18,6 +18,7 @@ const (
 	UtxoTypeDummyAsk                    UtxoType = 7
 	UtxoTypeDummy1200Ask                UtxoType = 8
 	UtxoTypeMultiInscription            UtxoType = 10
+	UtxoTypeMultiInscriptionAndPin      UtxoType = 10
 	UtxoTypeMultiInscriptionFromRelease UtxoType = 11
 	UtxoTypeRewardInscription           UtxoType = 20
 	UtxoTypeRewardSend                  UtxoType = 21

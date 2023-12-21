@@ -7,7 +7,7 @@ import (
 
 func Run() {
 	//loopUtxoService()
-	//loopCheckOrder()
+	loopCheckOrder()
 }
 
 func loopUtxoService() {

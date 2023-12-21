@@ -19,15 +19,19 @@ const (
 	PoolTypeMultiSigInscription PoolType = 4
 	PoolTypeAll                 PoolType = 100
 
-	PoolStateAdd    PoolState = 1
-	PoolStateRemove PoolState = 2
-	PoolStateUsed   PoolState = 3
-	PoolStateClaim  PoolState = 4
-	PoolStateErr    PoolState = 5
+	PoolStateAdd                      PoolState = 1
+	PoolStateRemove                   PoolState = 2
+	PoolStateUsed                     PoolState = 3
+	PoolStateClaim                    PoolState = 4
+	PoolStateErr                      PoolState = 5
+	PoolStateErrInBtcPrepare          PoolState = 100
+	PoolStateErrInBtcPrepareAndRefund PoolState = 101
 
+	PoolModeDefault PoolMode = -1
 	PoolModeNone    PoolMode = 0
 	PoolModePsbt    PoolMode = 1
 	PoolModeCustody PoolMode = 2
+	PoolModePrepare PoolMode = 3
 
 	ClaimTxBlockStateUnconfirmed ClaimTxBlockState = 1
 	ClaimTxBlockStateConfirmed   ClaimTxBlockState = 2
@@ -65,14 +69,22 @@ type PoolBrc20Model struct {
 	PsbtRaw                  string   `json:"psbtRaw" bson:"psbtRaw"`
 	BtcPoolMode              PoolMode `json:"btcPoolMode" bson:"btcPoolMode"` //PoolMode for btc
 	UtxoId                   string   `json:"utxoId" bson:"utxoId"`           //UtxoId
-	RefundTx                 string   `json:"refundTx" bson:"refundTx"`       //UtxoId
-	PoolType                 PoolType `json:"poolType" bson:"poolType"`
 
-	PoolState      PoolState `json:"poolState" bson:"poolState"`
-	DealTx         string    `json:"dealTx" bson:"dealTx"`
-	DealTxIndex    int64     `json:"dealTxIndex" bson:"dealTxIndex"`
-	DealTxOutValue int64     `json:"dealTxOutValue" bson:"dealTxOutValue"`
-	DealTime       int64     `json:"dealTime" bson:"dealTime"`
+	PreUtxoRaw        string `json:"preUtxoRaw" bson:"preUtxoRaw"`               //preUtxoRaw
+	PreUtxoId         string `json:"preUtxoId" bson:"preUtxoId"`                 //preUtxoId
+	PreUtxoOutValue   uint64 `json:"preUtxoOutValue" bson:"preUtxoOutValue"`     //preUtxoOutValue
+	PreUtxoOutAddress string `json:"preUtxoOutAddress" bson:"preUtxoOutAddress"` //preUtxoOutAddress
+
+	RefundTx string   `json:"refundTx" bson:"refundTx"` //UtxoId
+	PoolType PoolType `json:"poolType" bson:"poolType"`
+
+	PoolState          PoolState `json:"poolState" bson:"poolState"`
+	DealTx             string    `json:"dealTx" bson:"dealTx"`
+	DealTxIndex        int64     `json:"dealTxIndex" bson:"dealTxIndex"`
+	DealTxOutValue     int64     `json:"dealTxOutValue" bson:"dealTxOutValue"`
+	DealTime           int64     `json:"dealTime" bson:"dealTime"`
+	DealReplaceTx      string    `json:"dealReplaceTx" bson:"dealReplaceTx"`
+	DealReplaceTxIndex int64     `json:"dealReplaceTxIndex" bson:"dealReplaceTxIndex"`
 
 	PoolCoinState        PoolState         `json:"poolCoinState" bson:"poolCoinState"`
 	DealCoinTxBlockState ClaimTxBlockState `json:"dealCoinTxBlockState" bson:"dealCoinTxBlockState"`

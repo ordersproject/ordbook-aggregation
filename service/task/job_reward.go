@@ -71,6 +71,7 @@ func jobForCheckRewardOrderInscription(rewardType model.RewardType, currentNetwo
 		return
 	}
 	for _, v := range entityList {
+
 		if v.Address == "" {
 			continue
 		}
@@ -83,7 +84,7 @@ func jobForCheckRewardOrderInscription(rewardType model.RewardType, currentNetwo
 
 		utxoRewardInscriptionList, err = order_brc20_service.GetUnoccupiedUtxoList(net, utxoLimit, 0, model.UtxoTypeRewardInscription, "", currentNetworkFeeRate)
 		if err != nil {
-			major.Println(fmt.Sprintf("[REWARD-INSCRIPTION]  [%s]get utxo err:%s", v.OrderId, err.Error()))
+			major.Println(fmt.Sprintf("[REWARD-INSCRIPTION]  [%s]currentNetworkFeeRate-[%d] get utxo err:%s", v.OrderId, currentNetworkFeeRate, err.Error()))
 			order_brc20_service.ReleaseUtxoList(utxoRewardInscriptionList)
 			continue
 		}
@@ -239,7 +240,7 @@ func jobForCheckRewardOrderSend(rewardType model.RewardType, currentNetworkFeeRa
 		} else {
 			utxoRewardSendList, err = order_brc20_service.GetUnoccupiedUtxoList(net, utxoLimit, 0, model.UtxoTypeRewardSend, "", currentNetworkFeeRate)
 			if err != nil {
-				major.Println(fmt.Sprintf("[REWARD-SEND]  [%s]get utxo err:%s", v.OrderId, err.Error()))
+				major.Println(fmt.Sprintf("[REWARD-SEND]  [%s] currentNetworkFeeRate-[%d] get utxo err:%s", v.OrderId, currentNetworkFeeRate, err.Error()))
 				order_brc20_service.ReleaseUtxoList(utxoRewardSendList)
 				continue
 			}
@@ -347,7 +348,7 @@ func sendReward(utxoList []*model.OrderUtxoModel, net, inscriptionId string, ins
 		}
 	}
 	if currentNetworkFeeRate != 0 {
-		feeRate = currentNetworkFeeRate - 5
+		feeRate = currentNetworkFeeRate - 10
 	}
 
 	outputs := make([]*order_brc20_service.TxOutput, 0)

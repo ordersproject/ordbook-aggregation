@@ -427,7 +427,7 @@ func FindNewestBrc20TickKlineModel(net, tick string) (*model.Brc20TickKlineModel
 	return entity, nil
 }
 
-func FindBrc20TickKlineModelList(net, tick string, startTime, endTime int64) ([]*model.Brc20TickKlineModel, error) {
+func FindBrc20TickKlineModelList(net, tick string, startTime, endTime, limit int64, timeType model.TimeType) ([]*model.Brc20TickKlineModel, error) {
 	collection, err := model.Brc20TickKlineModel{}.GetReadDB()
 	if err != nil {
 		return nil, errors.New("db connect error")
@@ -441,12 +441,15 @@ func FindBrc20TickKlineModelList(net, tick string, startTime, endTime int64) ([]
 		"tick":  tick,
 		"state": model.STATE_EXIST,
 	}
+	if timeType != "" {
+		find["timeType"] = timeType
+	}
 
 	between := bson.M{GTE_: startTime, LTE_: endTime}
 	find["timestamp"] = between
 
 	models := make([]*model.Brc20TickKlineModel, 0)
-	pagination := options.Find().SetLimit(5000).SetSkip(0)
+	pagination := options.Find().SetLimit(limit).SetSkip(0)
 	sort := options.Find().SetSort(bson.M{"timestamp": -1})
 	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
 		defer cursor.Close(context.Background())

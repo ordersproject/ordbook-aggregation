@@ -252,8 +252,8 @@ func FindUtxoList(net string, startIndex, limit, perAmount int64, utxoType model
 	}
 	if networkFeeRate != 0 {
 		find["networkFeeRate"] = bson.M{
-			GT_: networkFeeRate - 10,
-			LT_: networkFeeRate + 5,
+			GT_: networkFeeRate - 50,
+			LT_: networkFeeRate + 200,
 		}
 	}
 
@@ -464,6 +464,43 @@ func FindOccupiedUtxoListByOrderId(net, orderId string, limit int64, useState mo
 		"state":   model.STATE_EXIST,
 	}
 	find["used"] = useState
+
+	models := make([]*model.OrderUtxoModel, 0)
+	pagination := options.Find().SetLimit(limit).SetSkip(0)
+	sort := options.Find().SetSort(bson.M{"sortIndex": 1})
+	if cursor, err := collection.Find(context.TODO(), find, pagination, sort); err == nil {
+		defer cursor.Close(context.Background())
+		for cursor.Next(context.Background()) {
+			entity := &model.OrderUtxoModel{}
+			if err = cursor.Decode(entity); err == nil {
+				models = append(models, entity)
+			}
+		}
+	} else {
+		return nil, errors.New("Get OrderUtxoModel Error")
+	}
+	return models, nil
+}
+
+func FindUtxoListByTxId(net, txId string, limit int64, utxoType model.UtxoType, useState model.UsedState, confirmStatus model.ConfirmStatus) ([]*model.OrderUtxoModel, error) {
+	collection, err := model.OrderUtxoModel{}.GetReadDB()
+	if err != nil {
+		return nil, errors.New("db connect error")
+	}
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+
+	find := bson.M{
+		"net":      net,
+		"txId":     txId,
+		"utxoType": utxoType,
+		"state":    model.STATE_EXIST,
+	}
+	find["used"] = useState
+	if confirmStatus != -1 {
+		find["confirmStatus"] = confirmStatus
+	}
 
 	models := make([]*model.OrderUtxoModel, 0)
 	pagination := options.Find().SetLimit(limit).SetSkip(0)

@@ -37,6 +37,8 @@ definitions:
     - 5
     - 6
     - 8
+    - 30
+    - 31
     - 7
     - 9
     - 10
@@ -52,6 +54,8 @@ definitions:
     - OrderStateTimeout
     - OrderStateErr
     - OrderStateFinishButErr
+    - OrderStateErrHaft
+    - OrderStateErrInPoolBtcPrepare
     - OrderStatePreAsk
     - OrderStatePreClaim
     - OrderStateFinishClaim
@@ -76,14 +80,18 @@ definitions:
     - PlatformDummyYes
   model.PoolMode:
     enum:
+    - -1
     - 0
     - 1
     - 2
+    - 3
     type: integer
     x-enum-varnames:
+    - PoolModeDefault
     - PoolModeNone
     - PoolModePsbt
     - PoolModeCustody
+    - PoolModePrepare
   model.PoolState:
     enum:
     - 1
@@ -91,6 +99,8 @@ definitions:
     - 3
     - 4
     - 5
+    - 100
+    - 101
     type: integer
     x-enum-varnames:
     - PoolStateAdd
@@ -98,6 +108,8 @@ definitions:
     - PoolStateUsed
     - PoolStateClaim
     - PoolStateErr
+    - PoolStateErrInBtcPrepare
+    - PoolStateErrInBtcPrepareAndRefund
   model.PoolType:
     enum:
     - 1
@@ -146,6 +158,8 @@ definitions:
     enum:
     - 50
     - 51
+    - 52
+    - 53
     - 60
     - 61
     - 70
@@ -159,6 +173,7 @@ definitions:
     - 7
     - 8
     - 10
+    - 10
     - 11
     - 20
     - 21
@@ -167,6 +182,8 @@ definitions:
     x-enum-varnames:
     - UtxoTypeAirdropInscription
     - UtxoTypeAirdropSend
+    - UtxoTypeAirdropInscriptionTwitter
+    - UtxoTypeAirdropSendTwitter
     - UtxoTypeToolClaimBackupInscription
     - UtxoTypeToolClaimBackupSend
     - UtxoTypeToolClaimAirdropInscription
@@ -180,6 +197,7 @@ definitions:
     - UtxoTypeDummyAsk
     - UtxoTypeDummy1200Ask
     - UtxoTypeMultiInscription
+    - UtxoTypeMultiInscriptionAndPin
     - UtxoTypeMultiInscriptionFromRelease
     - UtxoTypeRewardInscription
     - UtxoTypeRewardSend
@@ -461,6 +479,9 @@ definitions:
         type: string
       orderId:
         type: string
+      preTxRaw:
+        description: BTC in preTxRaw
+        type: string
       psbtRaw:
         type: string
       rate:
@@ -559,7 +580,7 @@ definitions:
       btcPoolMode:
         allOf:
         - $ref: '#/definitions/model.PoolMode'
-        description: 1-psbt,2-custody, default:custody
+        description: 1-psbt,2-custody, default:custody，3-prepare
       btcUtxoId:
         description: txId_index
         type: string
@@ -580,6 +601,9 @@ definitions:
         allOf:
         - $ref: '#/definitions/model.PoolType'
         description: 1-tick,2-btc,3-both
+      preTxRaw:
+        description: BTC in preTxRaw
+        type: string
       psbtRaw:
         description: BTC
         type: string
@@ -846,6 +870,11 @@ definitions:
         type: string
       timestamp:
         description: Create time
+        type: integer
+    type: object
+  respond.Brc20SupplyInfoResponse:
+    properties:
+      circulationSupply:
         type: integer
     type: object
   respond.Brc20TickInfoResponse:
@@ -1957,6 +1986,10 @@ paths:
         in: query
         name: networkFeeRate
         type: integer
+      - description: orderId
+        in: query
+        name: orderId
+        type: string
       produces:
       - application/json
       responses:
@@ -2709,6 +2742,19 @@ paths:
           schema:
             $ref: '#/definitions/respond.PoolRewardRecordResponse'
       summary: Fetch reward record
+      tags:
+      - brc20
+  /brc20/supply/info:
+    get:
+      description: Fetch supply info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/respond.Brc20SupplyInfoResponse'
+      summary: Fetch supply info
       tags:
       - brc20
   /brc20/tickers:

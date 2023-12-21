@@ -77,7 +77,7 @@ func jobForRepurchase() {
 
 	entityList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "",
 		model.OrderTypeSell, model.OrderStateCreate,
-		100, 0, 0, "coinRatePrice", 1, 0, 0)
+		100, 0, 0, "coinRatePrice", 1, 0, 0, model.PoolModeDefault)
 
 	if entityList == nil || len(entityList) == 0 {
 		return

@@ -785,6 +785,12 @@
                         "description": "networkFeeRate",
                         "name": "networkFeeRate",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "orderId",
+                        "name": "orderId",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1969,6 +1975,26 @@
                 }
             }
         },
+        "/brc20/supply/info": {
+            "get": {
+                "description": "Fetch supply info",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch supply info",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Brc20SupplyInfoResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/tickers": {
             "get": {
                 "description": "Fetch tick info",
@@ -2227,6 +2253,8 @@
                 5,
                 6,
                 8,
+                30,
+                31,
                 7,
                 9,
                 10,
@@ -2242,6 +2270,8 @@
                 "OrderStateTimeout",
                 "OrderStateErr",
                 "OrderStateFinishButErr",
+                "OrderStateErrHaft",
+                "OrderStateErrInPoolBtcPrepare",
                 "OrderStatePreAsk",
                 "OrderStatePreClaim",
                 "OrderStateFinishClaim",
@@ -2275,14 +2305,18 @@
         "model.PoolMode": {
             "type": "integer",
             "enum": [
+                -1,
                 0,
                 1,
-                2
+                2,
+                3
             ],
             "x-enum-varnames": [
+                "PoolModeDefault",
                 "PoolModeNone",
                 "PoolModePsbt",
-                "PoolModeCustody"
+                "PoolModeCustody",
+                "PoolModePrepare"
             ]
         },
         "model.PoolState": {
@@ -2292,14 +2326,18 @@
                 2,
                 3,
                 4,
-                5
+                5,
+                100,
+                101
             ],
             "x-enum-varnames": [
                 "PoolStateAdd",
                 "PoolStateRemove",
                 "PoolStateUsed",
                 "PoolStateClaim",
-                "PoolStateErr"
+                "PoolStateErr",
+                "PoolStateErrInBtcPrepare",
+                "PoolStateErrInBtcPrepareAndRefund"
             ]
         },
         "model.PoolType": {
@@ -2360,6 +2398,8 @@
             "enum": [
                 50,
                 51,
+                52,
+                53,
                 60,
                 61,
                 70,
@@ -2373,6 +2413,7 @@
                 7,
                 8,
                 10,
+                10,
                 11,
                 20,
                 21,
@@ -2381,6 +2422,8 @@
             "x-enum-varnames": [
                 "UtxoTypeAirdropInscription",
                 "UtxoTypeAirdropSend",
+                "UtxoTypeAirdropInscriptionTwitter",
+                "UtxoTypeAirdropSendTwitter",
                 "UtxoTypeToolClaimBackupInscription",
                 "UtxoTypeToolClaimBackupSend",
                 "UtxoTypeToolClaimAirdropInscription",
@@ -2394,6 +2437,7 @@
                 "UtxoTypeDummyAsk",
                 "UtxoTypeDummy1200Ask",
                 "UtxoTypeMultiInscription",
+                "UtxoTypeMultiInscriptionAndPin",
                 "UtxoTypeMultiInscriptionFromRelease",
                 "UtxoTypeRewardInscription",
                 "UtxoTypeRewardSend",
@@ -2819,6 +2863,10 @@
                 "orderId": {
                     "type": "string"
                 },
+                "preTxRaw": {
+                    "description": "BTC in preTxRaw",
+                    "type": "string"
+                },
                 "psbtRaw": {
                     "type": "string"
                 },
@@ -2966,7 +3014,7 @@
                     "type": "integer"
                 },
                 "btcPoolMode": {
-                    "description": "1-psbt,2-custody, default:custody",
+                    "description": "1-psbt,2-custody, default:custody，3-prepare",
                     "allOf": [
                         {
                             "$ref": "#/definitions/model.PoolMode"
@@ -3005,6 +3053,10 @@
                             "$ref": "#/definitions/model.PoolType"
                         }
                     ]
+                },
+                "preTxRaw": {
+                    "description": "BTC in preTxRaw",
+                    "type": "string"
                 },
                 "psbtRaw": {
                     "description": "BTC",
@@ -3403,6 +3455,14 @@
                 },
                 "timestamp": {
                     "description": "Create time",
+                    "type": "integer"
+                }
+            }
+        },
+        "respond.Brc20SupplyInfoResponse": {
+            "type": "object",
+            "properties": {
+                "circulationSupply": {
                     "type": "integer"
                 }
             }

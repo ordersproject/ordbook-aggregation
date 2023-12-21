@@ -48,6 +48,7 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 	CreateIndex(collection, "timestamp")
 	CreateIndex(collection, "dealTime")
 	CreateIndex(collection, "poolOrderId")
+	CreateIndex(collection, "poolOrderMode")
 	CreateIndex(collection, "inscriptionId")
 	CreateIndex(collection, "sellInscriptionId")
 	CreateIndex(collection, "version")
@@ -73,6 +74,7 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 		BuyerIp:             orderBrc20.BuyerIp,
 		MarketAmount:        orderBrc20.MarketAmount,
 		PlatformFee:         orderBrc20.PlatformFee,
+		PlatformSellFee:     orderBrc20.PlatformSellFee,
 		ChangeAmount:        orderBrc20.ChangeAmount,
 		Fee:                 orderBrc20.Fee,
 		FeeRate:             orderBrc20.FeeRate,
@@ -89,6 +91,10 @@ func createOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20
 		PsbtRawFinalBid:     orderBrc20.PsbtRawFinalBid,
 		PsbtBidTxId:         orderBrc20.PsbtBidTxId,
 		PoolOrderId:         orderBrc20.PoolOrderId,
+		PoolCoinAddress:     orderBrc20.PoolCoinAddress,
+		PoolOrderMode:       orderBrc20.PoolOrderMode,
+		PoolPreUtxoRaw:      orderBrc20.PoolPreUtxoRaw,
+		PoolUtxoId:          orderBrc20.PoolUtxoId,
 		Integral:            orderBrc20.Integral,
 		FreeState:           orderBrc20.FreeState,
 		SellerTotalFee:      orderBrc20.SellerTotalFee,
@@ -149,6 +155,7 @@ func SetOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20Mod
 		bsonData = append(bsonData, bson.E{Key: "buyerIp", Value: orderBrc20.BuyerIp})
 		bsonData = append(bsonData, bson.E{Key: "marketAmount", Value: orderBrc20.MarketAmount})
 		bsonData = append(bsonData, bson.E{Key: "platformFee", Value: orderBrc20.PlatformFee})
+		bsonData = append(bsonData, bson.E{Key: "platformSellFee", Value: orderBrc20.PlatformSellFee})
 		bsonData = append(bsonData, bson.E{Key: "changeAmount", Value: orderBrc20.ChangeAmount})
 		bsonData = append(bsonData, bson.E{Key: "fee", Value: orderBrc20.Fee})
 		bsonData = append(bsonData, bson.E{Key: "feeRate", Value: orderBrc20.FeeRate})
@@ -166,6 +173,10 @@ func SetOrderBrc20Model(orderBrc20 *model.OrderBrc20Model) (*model.OrderBrc20Mod
 		bsonData = append(bsonData, bson.E{Key: "psbtRawFinalBid", Value: orderBrc20.PsbtRawFinalBid})
 		bsonData = append(bsonData, bson.E{Key: "psbtBidTxId", Value: orderBrc20.PsbtBidTxId})
 		bsonData = append(bsonData, bson.E{Key: "poolOrderId", Value: orderBrc20.PoolOrderId})
+		bsonData = append(bsonData, bson.E{Key: "poolCoinAddress", Value: orderBrc20.PoolCoinAddress})
+		bsonData = append(bsonData, bson.E{Key: "poolOrderMode", Value: orderBrc20.PoolOrderMode})
+		bsonData = append(bsonData, bson.E{Key: "poolPreUtxoRaw", Value: orderBrc20.PoolPreUtxoRaw})
+		bsonData = append(bsonData, bson.E{Key: "poolUtxoId", Value: orderBrc20.PoolUtxoId})
 		bsonData = append(bsonData, bson.E{Key: "integral", Value: orderBrc20.Integral})
 		bsonData = append(bsonData, bson.E{Key: "freeState", Value: orderBrc20.FreeState})
 		bsonData = append(bsonData, bson.E{Key: "dealTime", Value: orderBrc20.DealTime})
@@ -247,7 +258,7 @@ func CountOrderBrc20ModelListForClaim(net, tick string, orderState model.OrderSt
 	return total, nil
 }
 
-func CountOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string, orderType model.OrderType, orderState model.OrderState) (int64, error) {
+func CountOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string, orderType model.OrderType, orderState model.OrderState, poolOrderModel model.PoolMode) (int64, error) {
 	collection, err := model.OrderBrc20Model{}.GetReadDB()
 	if err != nil {
 		return 0, err
@@ -273,6 +284,9 @@ func CountOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string, ord
 	if orderState != 0 {
 		find["orderState"] = orderState
 	}
+	if poolOrderModel != model.PoolModeDefault {
+		find["poolOrderMode"] = poolOrderModel
+	}
 
 	total, err := collection.CountDocuments(context.TODO(), find)
 	if err != nil {
@@ -283,7 +297,8 @@ func CountOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string, ord
 
 func FindOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string,
 	orderType model.OrderType, orderState model.OrderState,
-	limit int64, flag, page int64, sortKey string, sortType int64, freeState model.FreeState, coinAmount int64) ([]*model.OrderBrc20Model, error) {
+	limit int64, flag, page int64, sortKey string, sortType int64, freeState model.FreeState, coinAmount int64,
+	poolOrderModel model.PoolMode) ([]*model.OrderBrc20Model, error) {
 	collection, err := model.OrderBrc20Model{}.GetReadDB()
 	if err != nil {
 		return nil, errors.New("db connect error")
@@ -328,6 +343,9 @@ func FindOrderBrc20ModelList(net, tick, sellerAddress, buyerAddress string,
 
 	if freeState != 0 {
 		find["freeState"] = freeState
+	}
+	if poolOrderModel != model.PoolModeDefault {
+		find["poolOrderMode"] = poolOrderModel
 	}
 
 	switch sortKey {
@@ -2048,4 +2066,132 @@ func FindOrderBrc20ModelTickAndAmountByOrderId(orderId string) (string, uint64, 
 		return "", 0, 0, 0, 0, 0, 0
 	}
 	return entity.Tick, entity.CoinAmount, entity.Amount, entity.RewardRealAmount, entity.Percentage, entity.DealTxBlock, entity.DealTime
+}
+
+func FindOrderBrc20ModelPoolModeByOrderId(orderId string) model.PoolMode {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return model.PoolModeDefault
+	}
+	queryBson := bson.D{
+		{"orderId", orderId},
+		//{"state", model.STATE_EXIST},
+	}
+	entity := &model.OrderBrc20Model{}
+	projection := options.FindOne().SetProjection(bson.M{
+		"id":            1,
+		"_id":           1,
+		"orderId":       1,
+		"tick":          1,
+		"poolOrderMode": 1,
+		"state":         1,
+	})
+	err = collection.FindOne(context.TODO(), queryBson, projection).Decode(entity)
+	if err != nil {
+		return model.PoolModeDefault
+	}
+	return entity.PoolOrderMode
+}
+
+func FindOrderBrc20ModelAmountByOrderId(orderId string) uint64 {
+	collection, err := model.OrderBrc20Model{}.GetReadDB()
+	if err != nil {
+		return 0
+	}
+	queryBson := bson.D{
+		{"orderId", orderId},
+		//{"state", model.STATE_EXIST},
+	}
+	entity := &model.OrderBrc20Model{}
+	projection := options.FindOne().SetProjection(bson.M{
+		"id":      1,
+		"_id":     1,
+		"orderId": 1,
+		"tick":    1,
+		"amount":  1,
+		"state":   1,
+	})
+	err = collection.FindOne(context.TODO(), queryBson, projection).Decode(entity)
+	if err != nil {
+		return 0
+	}
+	return entity.Amount
+}
+
+func FindOrderCirculationModelByTick(net, tick string) (*model.OrderCirculationModel, error) {
+	collection, err := model.OrderCirculationModel{}.GetReadDB()
+	if err != nil {
+		return nil, err
+	}
+	queryBson := bson.D{
+		{"net", net},
+		{"tick", tick},
+		//{"state", model.STATE_EXIST},
+	}
+	entity := &model.OrderCirculationModel{}
+	err = collection.FindOne(context.TODO(), queryBson).Decode(entity)
+	if err != nil {
+		return nil, err
+	}
+	return entity, nil
+}
+
+func createOrderCirculationModel(orderCirculation *model.OrderCirculationModel) (*model.OrderCirculationModel, error) {
+	collection, err := model.OrderCirculationModel{}.GetWriteDB()
+	if err != nil {
+		return nil, err
+	}
+
+	CreateIndex(collection, "net")
+	CreateIndex(collection, "tick")
+
+	entity := &model.OrderCirculationModel{
+		Id:                util.GetUUIDInt64(),
+		Net:               orderCirculation.Net,
+		Tick:              orderCirculation.Tick,
+		CirculationSupply: orderCirculation.CirculationSupply,
+		TotalSupply:       orderCirculation.TotalSupply,
+		CreateTime:        util.Time(),
+		State:             model.STATE_EXIST,
+	}
+
+	_, err = collection.InsertOne(context.TODO(), entity)
+	if err != nil {
+		return nil, err
+	} else {
+		//id := res.InsertedID
+		//fmt.Println("insert id :", id)
+		return entity, nil
+	}
+}
+
+func SetOrderCirculationModel(orderCirculation *model.OrderCirculationModel) (*model.OrderCirculationModel, error) {
+	entity, err := FindOrderCirculationModelByTick(orderCirculation.Net, orderCirculation.Tick)
+	if err == nil && entity != nil {
+		collection, err := model.OrderCirculationModel{}.GetWriteDB()
+		if err != nil {
+			return nil, err
+		}
+		filter := bson.D{
+			{"net", orderCirculation.Net},
+			{"tick", orderCirculation.Tick},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "net", Value: orderCirculation.Net})
+		bsonData = append(bsonData, bson.E{Key: "tick", Value: orderCirculation.Tick})
+		bsonData = append(bsonData, bson.E{Key: "circulationSupply", Value: orderCirculation.CirculationSupply})
+		bsonData = append(bsonData, bson.E{Key: "totalSupply", Value: orderCirculation.TotalSupply})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return nil, err
+		}
+		return orderCirculation, nil
+	} else {
+		return createOrderCirculationModel(orderCirculation)
+	}
 }

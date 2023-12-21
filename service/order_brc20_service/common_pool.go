@@ -139,8 +139,8 @@ func getPoolBrc20PsbtOrder(net, tick string, limit, page, flag int64) ([]*model.
 	//entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", "", model.PoolTypeAll, model.PoolStateAdd,
 	//	limit, flag, page, "coinRatePrice", -1)
 
-	total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", "", model.PoolTypeBoth, model.PoolStateAdd)
-	entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", "", model.PoolTypeBoth, model.PoolStateAdd,
+	total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", "", model.PoolTypeBoth, model.PoolStateAdd, model.PoolModePrepare)
+	entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", "", model.PoolTypeBoth, model.PoolStateAdd, model.PoolModePrepare,
 		limit, flag, page, "coinRatePrice", -1)
 	return entityList, total, nil
 }
@@ -396,6 +396,12 @@ func claimPoolBrc20Order(orderId, claimAddress string, poolType model.PoolType, 
 		claimTxIndex = entity.DealTxIndex
 		claimTxValue = entity.DealTxOutValue
 		claimMultiSigScript = entity.MultiSigScript
+
+		if entity.DealReplaceTx != "" {
+			claimTxId = entity.DealReplaceTx
+			claimTxIndex = entity.DealReplaceTxIndex
+		}
+
 		//claimMultiSigScript = entity.MultiSigScriptBtc
 	} else if poolType == model.PoolTypeMultiSigInscription {
 		if entity.DealInscriptionTx == "" {
@@ -589,8 +595,8 @@ func getMyPoolInscription(net, tick, address string) ([]*model.PoolBrc20Model, i
 	//total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", address, model.PoolTypeTick, model.PoolStateAdd)
 	//entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", address, model.PoolTypeTick, model.PoolStateAdd,
 	//	1000, 0, 0, "", 0)
-	total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", address, model.PoolTypeAll, model.PoolStateAdd)
-	entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", address, model.PoolTypeAll, model.PoolStateAdd,
+	total, _ = mongo_service.CountPoolBrc20ModelList(net, tick, "", address, model.PoolTypeAll, model.PoolStateAdd, model.PoolModeDefault)
+	entityList, _ = mongo_service.FindPoolBrc20ModelList(net, tick, "", address, model.PoolTypeAll, model.PoolStateAdd, model.PoolModeDefault,
 		1000, 0, 0, "", 0)
 	return entityList, total
 }
@@ -618,6 +624,33 @@ func updateClaim(poolOrder *model.PoolBrc20Model, rawTx string) error {
 	poolOrder.RewardRealAmount = rewardNowAmount
 	poolOrder.ClaimTxBlockState = model.ClaimTxBlockStateUnconfirmed
 	err = mongo_service.SetPoolBrc20ModelForClaim(poolOrder)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func updateClaimForPrepareMode(poolOrderId, DealTx string) error {
+	poolOrder, _ := mongo_service.FindPoolBrc20ModelByOrderId(poolOrderId)
+	if poolOrder == nil {
+		return errors.New(fmt.Sprintf("poolOrder is empty"))
+	}
+	poolOrder.ClaimTx = DealTx
+	poolOrder.ClaimTime = tool.MakeTimestamp()
+	if poolOrder.PoolState == model.PoolStateUsed {
+		poolOrder.PoolState = model.PoolStateClaim
+	}
+	if poolOrder.PoolCoinState == model.PoolStateUsed {
+		poolOrder.PoolCoinState = model.PoolStateClaim
+	}
+
+	decreasing := calculateDecrementFoNoReleasePool(poolOrder)
+	poolOrder.Decreasing = decreasing
+
+	rewardNowAmount := getRealNowRewardByDecreasing(poolOrder.RewardAmount, decreasing)
+	poolOrder.RewardRealAmount = rewardNowAmount
+	poolOrder.ClaimTxBlockState = model.ClaimTxBlockStateUnconfirmed
+	err := mongo_service.SetPoolBrc20ModelForClaim(poolOrder)
 	if err != nil {
 		return err
 	}
@@ -927,6 +960,142 @@ func removeInvalidBidByPoolOrderId(poolOrderId string) {
 		}
 		AddNotificationForBidInvalid(v.BuyerAddress)
 	}
+}
+
+func ParesPreUtxoId(preUtxoId string) ([]*wire.TxIn, error) {
+	var (
+		preUtxoIdList []string
+		txInList      []*wire.TxIn
+	)
+	preUtxoIdList = strings.Split(preUtxoId, ";")
+	for _, v := range preUtxoIdList {
+		if v == "" {
+			continue
+		}
+		vStrs := strings.Split(v, "_")
+		if len(vStrs) != 2 {
+			continue
+		}
+		txId := vStrs[0]
+		txIndex, _ := strconv.ParseInt(vStrs[1], 10, 64)
+		hash, err := chainhash.NewHashFromStr(txId)
+		if err != nil {
+			return nil, err
+		}
+		prevOut := wire.NewOutPoint(hash, uint32(txIndex))
+		txIn := wire.NewTxIn(prevOut, nil, nil)
+		txInList = append(txInList, txIn)
+	}
+	return txInList, nil
+}
+
+func RefundPoolPrepareUtxo(orderEntity *model.OrderBrc20Model, broadcastErr error) error {
+	var (
+		poolOrder *model.PoolBrc20Model
+	)
+	if orderEntity == nil {
+		return errors.New("order is empty")
+	}
+
+	orderEntity.OrderState = model.OrderStateErrInPoolBtcPrepare
+	_, err := mongo_service.SetOrderBrc20Model(orderEntity)
+	if err != nil {
+		return err
+	}
+
+	if orderEntity.PoolOrderId == "" {
+		return errors.New("pool order id is empty in brc20 order")
+	}
+	poolOrder, _ = mongo_service.FindPoolBrc20ModelByOrderId(orderEntity.PoolOrderId)
+	if poolOrder == nil {
+		return errors.New("pool order is empty in brc20 order")
+	}
+
+	poolOrder.PoolState = model.PoolStateErrInBtcPrepare
+	poolOrder.PoolCoinState = model.PoolStateErrInBtcPrepare
+	err = mongo_service.SetPoolBrc20ModelForRefund(poolOrder)
+	if err != nil {
+		return err
+	}
+
+	if poolOrder.BtcPoolMode == model.PoolModePrepare {
+		//make refund tx
+		refundTx, err := makeRefund(poolOrder)
+		if err != nil {
+			return err
+		}
+
+		poolOrder.RefundTx = refundTx
+		poolOrder.PoolState = model.PoolStateErrInBtcPrepareAndRefund
+		poolOrder.PoolCoinState = model.PoolStateErrInBtcPrepareAndRefund
+		err = mongo_service.SetPoolBrc20ModelForRefund(poolOrder)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func makeRefund(poolOrder *model.PoolBrc20Model) (string, error) {
+	var (
+		netParams                                                                             *chaincfg.Params        = GetNetParams(poolOrder.Net)
+		refundUtxoList                                                                        []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
+		_, platformAddressReceiveBidValue                                                     string                  = GetPlatformKeyAndAddressReceiveBidValue(poolOrder.Net)
+		platformPrivateKeyReceiveBidValueForPoolBtc, platformAddressReceiveBidValueForPoolBtc string                  = GetPlatformKeyAndAddressReceiveValueForPoolBtc(poolOrder.Net)
+		utxoListForRefundFee                                                                  []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
+		refundTx                                                                              string                  = ""
+		txRaw                                                                                 string                  = ""
+		err                                                                                   error
+	)
+	addr, err := btcutil.DecodeAddress(platformAddressReceiveBidValueForPoolBtc, netParams)
+	if err != nil {
+		return "", nil
+	}
+	pkScriptBtc, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return "", nil
+	}
+
+	if poolOrder.UtxoId == "" {
+		return "", errors.New("utxoId is empty")
+	}
+	btcUtxoIdStrs := strings.Split(poolOrder.UtxoId, "_")
+	if len(btcUtxoIdStrs) != 2 {
+		return "", errors.New("utxoId format error")
+	}
+	btcTxId := btcUtxoIdStrs[0]
+	btcTxOutIndex, _ := strconv.ParseInt(btcUtxoIdStrs[1], 10, 64)
+
+	refundUtxoList = append(refundUtxoList, &model.OrderUtxoModel{
+		TxId:          btcTxId,
+		Index:         btcTxOutIndex,
+		Amount:        poolOrder.Amount,
+		PrivateKeyHex: platformPrivateKeyReceiveBidValueForPoolBtc,
+		PkScript:      hex.EncodeToString(pkScriptBtc),
+	})
+	refundAmount := poolOrder.Amount
+
+	utxoListForRefundFee, err = GetUnoccupiedUtxoList(poolOrder.Net, 1, 0, model.UtxoTypeBidY, "", 0)
+	defer ReleaseUtxoList(utxoListForRefundFee)
+	refundUtxoList = append(refundUtxoList, utxoListForRefundFee...)
+
+	tx, err := makeBtcRefundTx(netParams, refundUtxoList, refundAmount, poolOrder.Address, platformAddressReceiveBidValue, 14)
+	if err != nil {
+		fmt.Printf("BuildCommonTx err:%s\n", err.Error())
+		return "", err
+	}
+	txRaw, err = ToRaw(tx)
+	if err != nil {
+		return "", err
+	}
+	txResp, err := unisat_service.BroadcastTx(poolOrder.Net, txRaw)
+	if err != nil {
+		return "", err
+	}
+	setUsedBidYUtxo(utxoListForRefundFee, txResp.Result)
+	refundTx = txResp.Result
+	return refundTx, nil
 }
 
 // auto fix 2-way pool order which is used state in half part

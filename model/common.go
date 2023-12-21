@@ -15,13 +15,15 @@ const (
 type OrderState int
 
 const (
-	OrderStateCreate       OrderState = 1
-	OrderStateFinish       OrderState = 2
-	OrderStateCancel       OrderState = 3
-	OrderStatePreCreate    OrderState = 4
-	OrderStateTimeout      OrderState = 5
-	OrderStateErr          OrderState = 6
-	OrderStateFinishButErr OrderState = 8
+	OrderStateCreate              OrderState = 1
+	OrderStateFinish              OrderState = 2
+	OrderStateCancel              OrderState = 3
+	OrderStatePreCreate           OrderState = 4
+	OrderStateTimeout             OrderState = 5
+	OrderStateErr                 OrderState = 6
+	OrderStateFinishButErr        OrderState = 8
+	OrderStateErrHaft             OrderState = 30
+	OrderStateErrInPoolBtcPrepare OrderState = 31
 
 	OrderStatePreAsk      OrderState = 7
 	OrderStatePreClaim    OrderState = 9

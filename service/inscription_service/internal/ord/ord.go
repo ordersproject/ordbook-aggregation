@@ -19,6 +19,7 @@ import (
 	"log"
 	"ordbook-aggregation/service/inscription_service/pkg/btcapi"
 	extRpcClient "ordbook-aggregation/service/inscription_service/pkg/rpcclient"
+	"time"
 )
 
 type UtxoAddressType string
@@ -597,6 +598,7 @@ func (tool *InscriptionTool) Inscribe() (commitTxHash *chainhash.Hash, revealTxH
 		if err != nil {
 			return commitTxHash, revealTxHashList, nil, fees, errors.Wrap(err, fmt.Sprintf("send reveal tx error, %d。", i))
 		}
+		time.Sleep(1 * time.Second)
 		revealTxHashList[i] = _revealTxHash
 		if len(tool.revealTx) == len(tool.txCtxDataList) {
 			inscriptions[i] = fmt.Sprintf("%si0", _revealTxHash)

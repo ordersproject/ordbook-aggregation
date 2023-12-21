@@ -78,9 +78,9 @@ func UpdateMarketPrice(net, tick, pair string) *model.Brc20TickModel {
 		bidLastFinish *model.OrderBrc20Model
 	)
 	askList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeSell, model.OrderStateCreate, 10, 0, 0,
-		"coinRatePrice", 1, 0, 0)
+		"coinRatePrice", 1, 0, 0, model.PoolModeDefault)
 	bidList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeBuy, model.OrderStateCreate, 10, 0, 0,
-		"coinRatePrice", -1, 0, 0)
+		"coinRatePrice", -1, 0, 0, model.PoolModeDefault)
 	for _, v := range askList {
 		if v.CoinRatePrice == 0 {
 			continue
@@ -268,9 +268,9 @@ func UpdateMarketPriceV2(net, tick, pair string) *model.Brc20TickModel {
 		bidLastFinishList []*model.OrderBrc20Model
 	)
 	askList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeSell, model.OrderStateCreate, 10, 0, 0,
-		"coinPrice", 1, 0, 0)
+		"coinPrice", 1, 0, 0, model.PoolModeDefault)
 	bidList, _ = mongo_service.FindOrderBrc20ModelList(net, tick, "", "", model.OrderTypeBuy, model.OrderStateCreate, 10, 0, 0,
-		"coinPrice", -1, 0, 0)
+		"coinPrice", -1, 0, 0, model.PoolModeDefault)
 	for _, v := range askList {
 		if v.CoinPrice == 0 {
 			continue
@@ -367,7 +367,7 @@ func GetMarketPriceV2(net, tick, pair string) uint64 {
 	}
 
 	marketPrice := tickInfo.LastTop
-	if tickInfo.LastTotal < 5 {
+	if (strings.ToLower(tickInfo.Tick) != "rdex") || tickInfo.LastTotal < 30 {
 		priceInfo := getOtherMarketPrice(tick)
 		visionPriceDe, _ := decimal.NewFromString(priceInfo.VisionPrice)
 		marketPrice = uint64(visionPriceDe.Mul(decimal.New(1, 8)).IntPart())
@@ -977,7 +977,7 @@ func GetTxConfirm(txId string) int64 {
 	return blockHeight
 }
 
-func MakeAskTakerPsbtRaw(net, psbtRaw, buyerAddress string, buyerChangeAmount uint64) (string, error) {
+func MakeAskTakerPsbtRaw(net, psbtRaw, buyerAddress string, buyerChangeAmount uint64, isUnSign bool) (string, error) {
 	var (
 		takerPsbtRaw                                        string           = ""
 		netParams                                           *chaincfg.Params = GetNetParams(net)
@@ -1136,9 +1136,11 @@ func MakeAskTakerPsbtRaw(net, psbtRaw, buyerAddress string, buyerChangeAmount ui
 		return "", errors.New(fmt.Sprintf("PSBT(Ask): AddPartialSigIn err:%s", err.Error()))
 	}
 
-	err = builder.UpdateAndSignInput(inputSigns)
-	if err != nil {
-		return "", err
+	if !isUnSign {
+		err = builder.UpdateAndSignInput(inputSigns)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	takerPsbtRaw, err = builder.ToString()
@@ -1147,6 +1149,52 @@ func MakeAskTakerPsbtRaw(net, psbtRaw, buyerAddress string, buyerChangeAmount ui
 	}
 
 	return takerPsbtRaw, nil
+}
+
+func SignAskTakerPsbtRawInDummy(net string, unSignDummyAskPsbtBuilder *PsbtBuilder) error {
+	var (
+		platformPrivateKeyDummyAsk, _ string       = GetPlatformKeyAndAddressForDummyAsk(net)
+		inputSigns                    []*InputSign = make([]*InputSign, 0)
+	)
+
+	platformDummyPkScript, err := AddressToPkScript(net, platformPrivateKeyDummyAsk)
+	if err != nil {
+		return errors.New("AddressToPkScript err: " + err.Error())
+	}
+	//add dummy inputSign: 0,1
+	inputSigns = append(inputSigns, &InputSign{
+		Index:       0,
+		OutRaw:      "",
+		PkScript:    platformDummyPkScript,
+		SighashType: txscript.SigHashAll | txscript.SigHashAnyOneCanPay,
+		PriHex:      platformPrivateKeyDummyAsk,
+		UtxoType:    Witness,
+		Amount:      600,
+	})
+	inputSigns = append(inputSigns, &InputSign{
+		Index:       1,
+		OutRaw:      "",
+		PkScript:    platformDummyPkScript,
+		SighashType: txscript.SigHashAll | txscript.SigHashAnyOneCanPay,
+		PriHex:      platformPrivateKeyDummyAsk,
+		UtxoType:    Witness,
+		Amount:      600,
+	})
+
+	inputSigns = append(inputSigns, &InputSign{
+		Index:       3,
+		OutRaw:      "",
+		PkScript:    platformDummyPkScript,
+		SighashType: txscript.SigHashAll | txscript.SigHashAnyOneCanPay,
+		PriHex:      platformPrivateKeyDummyAsk,
+		UtxoType:    Witness,
+		Amount:      1200,
+	})
+	err = unSignDummyAskPsbtBuilder.UpdateAndSignInput(inputSigns)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func UpdateAndNewDummyForAsk(net, takerPsbtRaw, askTxId string) {

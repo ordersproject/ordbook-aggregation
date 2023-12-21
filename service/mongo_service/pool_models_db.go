@@ -83,6 +83,10 @@ func createPoolBrc20Model(poolBrc20 *model.PoolBrc20Model) (*model.PoolBrc20Mode
 		InscriptionNumber:        poolBrc20.InscriptionNumber,
 		BtcPoolMode:              poolBrc20.BtcPoolMode,
 		UtxoId:                   poolBrc20.UtxoId,
+		PreUtxoRaw:               poolBrc20.PreUtxoRaw,
+		PreUtxoId:                poolBrc20.PreUtxoId,
+		PreUtxoOutValue:          poolBrc20.PreUtxoOutValue,
+		PreUtxoOutAddress:        poolBrc20.PreUtxoOutAddress,
 		RefundTx:                 poolBrc20.RefundTx,
 		PoolType:                 poolBrc20.PoolType,
 		PoolState:                poolBrc20.PoolState,
@@ -141,6 +145,10 @@ func SetPoolBrc20Model(poolBrc20 *model.PoolBrc20Model) (*model.PoolBrc20Model, 
 		bsonData = append(bsonData, bson.E{Key: "inscriptionNumber", Value: poolBrc20.InscriptionNumber})
 		bsonData = append(bsonData, bson.E{Key: "btcPoolMode", Value: poolBrc20.BtcPoolMode})
 		bsonData = append(bsonData, bson.E{Key: "utxoId", Value: poolBrc20.UtxoId})
+		bsonData = append(bsonData, bson.E{Key: "preUtxoRaw", Value: poolBrc20.PreUtxoRaw})
+		bsonData = append(bsonData, bson.E{Key: "preUtxoId", Value: poolBrc20.PreUtxoId})
+		bsonData = append(bsonData, bson.E{Key: "preUtxoOutValue", Value: poolBrc20.PreUtxoOutValue})
+		bsonData = append(bsonData, bson.E{Key: "preUtxoOutAddress", Value: poolBrc20.PreUtxoOutAddress})
 		bsonData = append(bsonData, bson.E{Key: "refundTx", Value: poolBrc20.RefundTx})
 		bsonData = append(bsonData, bson.E{Key: "poolType", Value: poolBrc20.PoolType})
 		bsonData = append(bsonData, bson.E{Key: "poolState", Value: poolBrc20.PoolState})
@@ -322,6 +330,33 @@ func SetPoolBrc20ModelForClaim(poolBrc20 *model.PoolBrc20Model) error {
 		bsonData = append(bsonData, bson.E{Key: "poolCoinState", Value: poolBrc20.PoolCoinState})
 		bsonData = append(bsonData, bson.E{Key: "rewardRealAmount", Value: poolBrc20.RewardRealAmount})
 		bsonData = append(bsonData, bson.E{Key: "decreasing", Value: poolBrc20.Decreasing})
+		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
+		update := bson.D{{"$set",
+			bsonData,
+		}}
+		_, err = collection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func SetPoolBrc20ModelForRefund(poolBrc20 *model.PoolBrc20Model) error {
+	entity, err := FindPoolBrc20ModelByOrderId(poolBrc20.OrderId)
+	if err == nil && entity != nil {
+		collection, err := model.PoolBrc20Model{}.GetWriteDB()
+		if err != nil {
+			return err
+		}
+		filter := bson.D{
+			{"orderId", poolBrc20.OrderId},
+			//{"state", model.STATE_EXIST},
+		}
+		bsonData := bson.D{}
+		bsonData = append(bsonData, bson.E{Key: "refundTx", Value: poolBrc20.RefundTx})
+		bsonData = append(bsonData, bson.E{Key: "poolState", Value: poolBrc20.PoolState})
+		bsonData = append(bsonData, bson.E{Key: "poolCoinState", Value: poolBrc20.PoolCoinState})
 		bsonData = append(bsonData, bson.E{Key: "updateTime", Value: util.Time()})
 		update := bson.D{{"$set",
 			bsonData,
@@ -541,7 +576,7 @@ func SetPoolBrc20ModelForVersion(orderId string, version int64) error {
 	return nil
 }
 
-func CountPoolBrc20ModelList(net, tick, pair, address string, poolType model.PoolType, poolState model.PoolState) (int64, error) {
+func CountPoolBrc20ModelList(net, tick, pair, address string, poolType model.PoolType, poolState model.PoolState, poolMode model.PoolMode) (int64, error) {
 	collection, err := model.PoolBrc20Model{}.GetReadDB()
 	if err != nil {
 		return 0, err
@@ -579,6 +614,10 @@ func CountPoolBrc20ModelList(net, tick, pair, address string, poolType model.Poo
 		find["poolState"] = poolState
 	}
 
+	if poolMode != model.PoolModeDefault {
+		find["btcPoolMode"] = poolMode
+	}
+
 	total, err := collection.CountDocuments(context.TODO(), find)
 	if err != nil {
 		return 0, err
@@ -587,7 +626,7 @@ func CountPoolBrc20ModelList(net, tick, pair, address string, poolType model.Poo
 }
 
 func FindPoolBrc20ModelList(net, tick, pair, address string,
-	poolType model.PoolType, poolState model.PoolState,
+	poolType model.PoolType, poolState model.PoolState, poolMode model.PoolMode,
 	limit, flag, page int64, sortKey string, sortType int64) ([]*model.PoolBrc20Model, error) {
 	collection, err := model.PoolBrc20Model{}.GetReadDB()
 	if err != nil {
@@ -628,6 +667,10 @@ func FindPoolBrc20ModelList(net, tick, pair, address string,
 	}
 	if poolState != 0 {
 		find["poolState"] = poolState
+	}
+
+	if poolMode != model.PoolModeDefault {
+		find["btcPoolMode"] = poolMode
 	}
 
 	switch sortKey {

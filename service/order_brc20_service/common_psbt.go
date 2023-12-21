@@ -503,6 +503,40 @@ func (s *PsbtBuilder) AddInput(in Input, signIn *InputSign) error {
 	return nil
 }
 
+func (s *PsbtBuilder) AddOutput(outs []Output) error {
+	txOuts := make([]*wire.TxOut, 0)
+	for _, out := range outs {
+		var pkScript []byte
+		if out.Script != "" {
+			scriptByte, err := hex.DecodeString(out.Script)
+			if err != nil {
+				return err
+			}
+			pkScript = scriptByte
+		} else {
+			address, err := btcutil.DecodeAddress(out.Address, s.NetParams)
+			if err != nil {
+				return err
+			}
+
+			pkScript, err = txscript.PayToAddrScript(address)
+			if err != nil {
+				return err
+			}
+		}
+
+		txOut := wire.NewTxOut(int64(out.Amount), pkScript)
+		txOuts = append(txOuts, txOut)
+	}
+
+	for _, out := range txOuts {
+		s.PsbtUpdater.Upsbt.UnsignedTx.AddTxOut(out)
+	}
+
+	s.PsbtUpdater.Upsbt.Outputs = make([]psbt.POutput, len(s.PsbtUpdater.Upsbt.UnsignedTx.TxOut))
+	return nil
+}
+
 func (s *PsbtBuilder) IsComplete() bool {
 	return s.PsbtUpdater.Upsbt.IsComplete()
 }
@@ -597,7 +631,7 @@ func CheckBrc20Ordinals(preTxOut *wire.TxIn, tick, address string) (*oklink_serv
 		}
 	}
 	if !has {
-		return nil, errors.New(fmt.Sprintf("Not a valid inscription. [%s]", inscriptionId))
+		return nil, errors.New(fmt.Sprintf("Not a valid inscription. [%s] time[%s]", inscriptionId, tool.MakeDate(tool.MakeTimestamp())))
 	}
 
 	brc20Resp, err := oklink_service.GetAddressBrc20BalanceResult(address, tick, 1, 100)

@@ -228,7 +228,7 @@ func FetchKline(c *gin.Context) {
 			Net:      c.DefaultQuery("net", "livenet"),
 			Tick:     c.DefaultQuery("tick", ""),
 			Limit:    0,
-			Interval: c.DefaultQuery("interval", "15m"),
+			Interval: model.TimeType(c.DefaultQuery("interval", "15m")),
 		}
 	)
 	resp, err := order_brc20_service.FetchTickKline(req)
@@ -398,6 +398,7 @@ func UpdateBidPsbt(c *gin.Context) {
 // @Tags brc20
 // @Param version query int false "version"
 // @Param networkFeeRate query int false "networkFeeRate"
+// @Param orderId query string false "orderId"
 // @Success 200 {object} respond.CalFeeResp ""
 // @Router /brc20/order/bid/cal/fee [get]
 func CalFeeAmount(c *gin.Context) {
@@ -408,6 +409,7 @@ func CalFeeAmount(c *gin.Context) {
 		req               *request.OrderBrc20CalFeeReq = &request.OrderBrc20CalFeeReq{
 			Version:        0,
 			NetworkFeeRate: 0,
+			OrderId:        c.DefaultQuery("orderId", ""),
 		}
 	)
 	req.Version, _ = strconv.ParseInt(versionStr, 10, 64)
@@ -614,6 +616,25 @@ func FetchEventOrders(c *gin.Context) {
 	req.Page, _ = strconv.ParseInt(pageStr, 10, 64)
 	req.Limit, _ = strconv.ParseInt(limitStr, 10, 64)
 	resp, err := order_brc20_service.FetchEventOrders(req)
+	if err != nil {
+		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
+		return
+	}
+	c.JSONP(http.StatusOK, respond.RespSuccess(resp, tool.MakeTimestamp()-t))
+	return
+}
+
+// @Summary Fetch supply info
+// @Description Fetch supply info
+// @Produce  json
+// @Tags brc20
+// @Success 200 {object} respond.Brc20SupplyInfoResponse ""
+// @Router /brc20/supply/info [get]
+func FetchCirculationSupply(c *gin.Context) {
+	var (
+		t int64 = tool.MakeTimestamp()
+	)
+	resp, err := order_brc20_service.FetchCirculationSupply()
 	if err != nil {
 		c.JSONP(http.StatusOK, respond.RespErr(err, tool.MakeTimestamp()-t, respond.HttpsCodeError))
 		return

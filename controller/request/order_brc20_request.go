@@ -47,11 +47,11 @@ type TickBrc20FetchReq struct {
 }
 
 type TickKlineFetchReq struct {
-	Net      string `json:"net"` //livenet/signet/testnet
-	Tick     string `json:"tick"`
-	Limit    int64  `json:"limit"`    //默认1000
-	Flag     int64  `json:"flag"`     //
-	Interval string `json:"interval"` //1m/1s/15m/1h/4h/1d/1w/
+	Net      string         `json:"net"` //livenet/signet/testnet
+	Tick     string         `json:"tick"`
+	Limit    int64          `json:"limit"`    //默认1000
+	Flag     int64          `json:"flag"`     //
+	Interval model.TimeType `json:"interval"` //1m/1s/15m/1h/4h/1d/1w/
 }
 
 type TickRecentlyInfoFetchReq struct {
@@ -117,8 +117,9 @@ type OrderBrc20UpdateBidReq struct {
 	Address      string `json:"address"`
 	OrderId      string `json:"orderId"`
 	PsbtRaw      string `json:"psbtRaw"`
-	Rate         int    `json:"rate"` //sats/B
-	Fee          uint64 `json:"fee"`  //fee
+	Rate         int    `json:"rate"`     //sats/B
+	Fee          uint64 `json:"fee"`      //fee
+	PreTxRaw     string `json:"preTxRaw"` // BTC in preTxRaw
 }
 
 type OrderBrc20UpdateReq struct {
@@ -150,6 +151,7 @@ type OrderBrc20DoBidReq struct {
 
 type OrderBrc20CalFeeReq struct {
 	Net            string `json:"net"`
+	OrderId        string `json:"orderId"`
 	Version        int64  `json:"version"`
 	NetworkFeeRate int64  `json:"networkFeeRate"`
 }

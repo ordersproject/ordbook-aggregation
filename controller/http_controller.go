@@ -32,6 +32,7 @@ func Run() {
 		brc20.GET("/tickers", FetchTicker)
 		brc20.GET("/kline", FetchKline)
 		brc20.GET("/event/orders", FetchEventOrders)
+		brc20.GET("/supply/info", FetchCirculationSupply)
 
 		brc20.GET("/order/bid/pre", FetchPreBid)
 		brc20.GET("/order/bid", FetchBidPsbt)

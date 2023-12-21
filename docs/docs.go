@@ -790,6 +790,12 @@ const docTemplate = `{
                         "description": "networkFeeRate",
                         "name": "networkFeeRate",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "orderId",
+                        "name": "orderId",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1974,6 +1980,26 @@ const docTemplate = `{
                 }
             }
         },
+        "/brc20/supply/info": {
+            "get": {
+                "description": "Fetch supply info",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "brc20"
+                ],
+                "summary": "Fetch supply info",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/respond.Brc20SupplyInfoResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/brc20/tickers": {
             "get": {
                 "description": "Fetch tick info",
@@ -2232,6 +2258,8 @@ const docTemplate = `{
                 5,
                 6,
                 8,
+                30,
+                31,
                 7,
                 9,
                 10,
@@ -2247,6 +2275,8 @@ const docTemplate = `{
                 "OrderStateTimeout",
                 "OrderStateErr",
                 "OrderStateFinishButErr",
+                "OrderStateErrHaft",
+                "OrderStateErrInPoolBtcPrepare",
                 "OrderStatePreAsk",
                 "OrderStatePreClaim",
                 "OrderStateFinishClaim",
@@ -2280,14 +2310,18 @@ const docTemplate = `{
         "model.PoolMode": {
             "type": "integer",
             "enum": [
+                -1,
                 0,
                 1,
-                2
+                2,
+                3
             ],
             "x-enum-varnames": [
+                "PoolModeDefault",
                 "PoolModeNone",
                 "PoolModePsbt",
-                "PoolModeCustody"
+                "PoolModeCustody",
+                "PoolModePrepare"
             ]
         },
         "model.PoolState": {
@@ -2297,14 +2331,18 @@ const docTemplate = `{
                 2,
                 3,
                 4,
-                5
+                5,
+                100,
+                101
             ],
             "x-enum-varnames": [
                 "PoolStateAdd",
                 "PoolStateRemove",
                 "PoolStateUsed",
                 "PoolStateClaim",
-                "PoolStateErr"
+                "PoolStateErr",
+                "PoolStateErrInBtcPrepare",
+                "PoolStateErrInBtcPrepareAndRefund"
             ]
         },
         "model.PoolType": {
@@ -2365,6 +2403,8 @@ const docTemplate = `{
             "enum": [
                 50,
                 51,
+                52,
+                53,
                 60,
                 61,
                 70,
@@ -2378,6 +2418,7 @@ const docTemplate = `{
                 7,
                 8,
                 10,
+                10,
                 11,
                 20,
                 21,
@@ -2386,6 +2427,8 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "UtxoTypeAirdropInscription",
                 "UtxoTypeAirdropSend",
+                "UtxoTypeAirdropInscriptionTwitter",
+                "UtxoTypeAirdropSendTwitter",
                 "UtxoTypeToolClaimBackupInscription",
                 "UtxoTypeToolClaimBackupSend",
                 "UtxoTypeToolClaimAirdropInscription",
@@ -2399,6 +2442,7 @@ const docTemplate = `{
                 "UtxoTypeDummyAsk",
                 "UtxoTypeDummy1200Ask",
                 "UtxoTypeMultiInscription",
+                "UtxoTypeMultiInscriptionAndPin",
                 "UtxoTypeMultiInscriptionFromRelease",
                 "UtxoTypeRewardInscription",
                 "UtxoTypeRewardSend",
@@ -2824,6 +2868,10 @@ const docTemplate = `{
                 "orderId": {
                     "type": "string"
                 },
+                "preTxRaw": {
+                    "description": "BTC in preTxRaw",
+                    "type": "string"
+                },
                 "psbtRaw": {
                     "type": "string"
                 },
@@ -2971,7 +3019,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "btcPoolMode": {
-                    "description": "1-psbt,2-custody, default:custody",
+                    "description": "1-psbt,2-custody, default:custody，3-prepare",
                     "allOf": [
                         {
                             "$ref": "#/definitions/model.PoolMode"
@@ -3010,6 +3058,10 @@ const docTemplate = `{
                             "$ref": "#/definitions/model.PoolType"
                         }
                     ]
+                },
+                "preTxRaw": {
+                    "description": "BTC in preTxRaw",
+                    "type": "string"
                 },
                 "psbtRaw": {
                     "description": "BTC",
@@ -3408,6 +3460,14 @@ const docTemplate = `{
                 },
                 "timestamp": {
                     "description": "Create time",
+                    "type": "integer"
+                }
+            }
+        },
+        "respond.Brc20SupplyInfoResponse": {
+            "type": "object",
+            "properties": {
+                "circulationSupply": {
                     "type": "integer"
                 }
             }

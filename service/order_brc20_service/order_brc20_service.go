@@ -169,6 +169,7 @@ func FetchPreBid(req *request.OrderBrc20GetBidReq) (*respond.BidPre, error) {
 		marketCoinPrice := GetMarketPriceV2(req.Net, req.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(req.Tick)))
 
 		for _, v := range poolOrderList {
+
 			finishCount, _ := mongo_service.FindUsedInscriptionPoolFinish(v.InscriptionId)
 			if finishCount != 0 {
 				//fmt.Printf("finishCount InscriptionPool: [%s]\n", v.InscriptionId)
@@ -262,25 +263,29 @@ func FetchBidPsbt(req *request.OrderBrc20GetBidReq) (*respond.BidPsbt, error) {
 		poolPsbtRaw                                                       string = ""
 		entityOrder                                                       *model.OrderBrc20Model
 		poolOrder                                                         *model.PoolBrc20Model
-		orderId                                                           string   = ""
-		coinDec                                                           int      = 18
-		amountDec                                                         int      = 8
-		coinRatePrice                                                     uint64   = 0
-		inscriptionId                                                     string   = ""
-		inscriptionNumber                                                 string   = ""
-		platformPrivateKeyReceiveBidValue, platformAddressReceiveBidValue string   = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
-		platformPrivateKeySendBrc20, platformAddressSendBrc20             string   = GetPlatformKeyAndAddressSendBrc20(req.Net)
-		inputSignsExchangePriHex                                          string   = platformPrivateKeySendBrc20
-		inputSignsExchangePkScript                                        string   = ""
-		inputSignsUtxoType                                                UtxoType = Witness
-		inputSignsTxHex                                                   string   = ""
-		inputSignsAmount                                                  uint64   = 0
-		poolOrderId                                                       string   = ""
-		marketPrice                                                       uint64   = 0
-		coinPrice                                                         int64    = 0
-		coinPriceDecimalNum                                               int32    = 0
-		marketCoinPrice                                                   uint64   = 0
-		marketCoinPriceDecimalNum                                         int32    = coinPriceDecimalNumDefault
+		orderId                                                           string         = ""
+		coinDec                                                           int            = 18
+		amountDec                                                         int            = 8
+		coinRatePrice                                                     uint64         = 0
+		inscriptionId                                                     string         = ""
+		inscriptionNumber                                                 string         = ""
+		platformPrivateKeyReceiveBidValue, platformAddressReceiveBidValue string         = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
+		platformPrivateKeySendBrc20, platformAddressSendBrc20             string         = GetPlatformKeyAndAddressSendBrc20(req.Net)
+		inputSignsExchangePriHex                                          string         = platformPrivateKeySendBrc20
+		inputSignsExchangePkScript                                        string         = ""
+		inputSignsUtxoType                                                UtxoType       = Witness
+		inputSignsTxHex                                                   string         = ""
+		inputSignsAmount                                                  uint64         = 0
+		poolOrderId                                                       string         = ""
+		poolOrderMode                                                     model.PoolMode = model.PoolModeDefault
+		poolCoinAddress                                                   string         = ""
+		poolPreUtxoRaw                                                    string         = ""
+		poolUtxoId                                                        string         = ""
+		marketPrice                                                       uint64         = 0
+		coinPrice                                                         int64          = 0
+		coinPriceDecimalNum                                               int32          = 0
+		marketCoinPrice                                                   uint64         = 0
+		marketCoinPriceDecimalNum                                         int32          = coinPriceDecimalNumDefault
 	)
 	_ = platformPrivateKeyReceiveBidValue
 
@@ -335,6 +340,10 @@ func FetchBidPsbt(req *request.OrderBrc20GetBidReq) (*respond.BidPsbt, error) {
 			inscriptionNumber = bidBalanceItem.InscriptionNumber
 			poolPsbtRaw = poolOrder.CoinPsbtRaw
 			req.CoinAmount = bidBalanceItem.Amount
+			poolOrderMode = poolOrder.BtcPoolMode
+			poolPreUtxoRaw = poolOrder.PreUtxoRaw
+			poolUtxoId = poolOrder.UtxoId
+			poolCoinAddress = poolOrder.CoinAddress
 		} else {
 			brc20BalanceResult, err = oklink_service.GetAddressBrc20BalanceResult(platformAddressSendBrc20, req.Tick, 1, 50)
 			if err != nil {
@@ -504,6 +513,10 @@ func FetchBidPsbt(req *request.OrderBrc20GetBidReq) (*respond.BidPsbt, error) {
 		PsbtRawPreAsk:       "",
 		PsbtRawPreBid:       psbtRaw,
 		PoolOrderId:         poolOrderId,
+		PoolCoinAddress:     poolCoinAddress,
+		PoolOrderMode:       poolOrderMode,
+		PoolPreUtxoRaw:      poolPreUtxoRaw,
+		PoolUtxoId:          poolUtxoId,
 		Timestamp:           tool.MakeTimestamp(),
 	}
 	_, err = mongo_service.SetOrderBrc20Model(entityOrder)
@@ -533,23 +546,27 @@ func FetchBidPsbtByPlatform(req *request.OrderBrc20GetBidPlatformReq) (*respond.
 		poolPsbtRaw                                                       string = ""
 		entityOrder                                                       *model.OrderBrc20Model
 		poolOrder                                                         *model.PoolBrc20Model
-		orderId                                                           string   = ""
-		coinDec                                                           int      = 18
-		amountDec                                                         int      = 8
-		coinRatePrice                                                     uint64   = 0
-		inscriptionId                                                     string   = ""
-		inscriptionNumber                                                 string   = ""
-		platformPrivateKeyReceiveBidValue, platformAddressReceiveBidValue string   = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
-		platformPrivateKeySendBrc20, platformAddressSendBrc20             string   = GetPlatformKeyAndAddressSendBrc20(req.Net)
-		platformPrivateKeyDummy, platformAddressDummy                     string   = GetPlatformKeyAndAddressForDummy(req.Net)
-		_, platformAddressReceiveBidValueToReturn                         string   = GetPlatformKeyAndAddressReceiveBidValueToReturn(req.Net)
-		inputSignsExchangePriHex                                          string   = platformPrivateKeySendBrc20
-		inputSignsExchangePkScript                                        string   = ""
-		inputSignsUtxoType                                                UtxoType = Witness
-		inputSignsTxHex                                                   string   = ""
-		inputSignsAmount                                                  uint64   = 0
-		poolOrderId                                                       string   = ""
-		marketPrice                                                       uint64   = 0
+		orderId                                                           string         = ""
+		coinDec                                                           int            = 18
+		amountDec                                                         int            = 8
+		coinRatePrice                                                     uint64         = 0
+		inscriptionId                                                     string         = ""
+		inscriptionNumber                                                 string         = ""
+		platformPrivateKeyReceiveBidValue, platformAddressReceiveBidValue string         = GetPlatformKeyAndAddressReceiveBidValue(req.Net)
+		platformPrivateKeySendBrc20, platformAddressSendBrc20             string         = GetPlatformKeyAndAddressSendBrc20(req.Net)
+		platformPrivateKeyDummy, platformAddressDummy                     string         = GetPlatformKeyAndAddressForDummy(req.Net)
+		_, platformAddressReceiveBidValueToReturn                         string         = GetPlatformKeyAndAddressReceiveBidValueToReturn(req.Net)
+		inputSignsExchangePriHex                                          string         = platformPrivateKeySendBrc20
+		inputSignsExchangePkScript                                        string         = ""
+		inputSignsUtxoType                                                UtxoType       = Witness
+		inputSignsTxHex                                                   string         = ""
+		inputSignsAmount                                                  uint64         = 0
+		poolOrderId                                                       string         = ""
+		poolOrderMode                                                     model.PoolMode = model.PoolModeDefault
+		poolCoinAddress                                                   string         = ""
+		poolPreUtxoRaw                                                    string         = ""
+		poolUtxoId                                                        string         = ""
+		marketPrice                                                       uint64         = 0
 		utxoDummy1200List                                                 []*model.OrderUtxoModel
 		utxoDummyList                                                     []*model.OrderUtxoModel
 		buyerAddress                                                      string = ""
@@ -614,6 +631,10 @@ func FetchBidPsbtByPlatform(req *request.OrderBrc20GetBidPlatformReq) (*respond.
 			inscriptionNumber = bidBalanceItem.InscriptionNumber
 			poolPsbtRaw = poolOrder.CoinPsbtRaw
 			req.CoinAmount = bidBalanceItem.Amount
+			poolOrderMode = poolOrder.BtcPoolMode
+			poolPreUtxoRaw = poolOrder.PreUtxoRaw
+			poolUtxoId = poolOrder.UtxoId
+			poolCoinAddress = poolOrder.CoinAddress
 
 			poolBrc20InputValue = poolOrder.CoinInputValue
 			poolPsbtBuilder, err = NewPsbtBuilder(netParams, poolOrder.CoinPsbtRaw)
@@ -935,6 +956,10 @@ func FetchBidPsbtByPlatform(req *request.OrderBrc20GetBidPlatformReq) (*respond.
 		PsbtRawPreAsk:       "",
 		PsbtRawPreBid:       psbtRaw,
 		PoolOrderId:         poolOrderId,
+		PoolCoinAddress:     poolCoinAddress,
+		PoolOrderMode:       poolOrderMode,
+		PoolPreUtxoRaw:      poolPreUtxoRaw,
+		PoolUtxoId:          poolUtxoId,
 		PlatformDummy:       model.PlatformDummy(req.PlatformDummy),
 		Timestamp:           tool.MakeTimestamp(),
 		Version:             2,
@@ -967,7 +992,21 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 		coinPrice                                 int64                   = 0
 		coinPriceDecimalNum                       int32                   = 0
 		buyerTotalFee                             int64                   = 0
+		preTxId                                   string                  = ""
+		preTx                                     *wire.MsgTx
 	)
+
+	if req.PreTxRaw == "" {
+		return "", errors.New("Wrong Psbt: empty preTxRaw. ")
+	}
+	preTxRawByte, _ := hex.DecodeString(req.PreTxRaw)
+	preTx = wire.NewMsgTx(2)
+	err = preTx.Deserialize(bytes.NewReader(preTxRawByte))
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("Wrong Psbt(btc): txRawPsbt Deserialize err:%s", err.Error()))
+	}
+	preTxId = preTx.TxHash().String()
+
 	entityOrder, _ = mongo_service.FindOrderBrc20ModelByOrderId(req.OrderId)
 	if entityOrder == nil || entityOrder.Id == 0 {
 		return "", errors.New("order is empty. ")
@@ -1021,8 +1060,27 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 	buyerInAmount := uint64(0)
 	if strings.ToLower(req.Net) != "testnet" {
 		if entityOrder.PlatformDummy == model.PlatformDummyYes {
-			buyerInAmount = req.BuyerInValue
-			buyerAddress = req.Address
+			//buyerInAmount = req.BuyerInValue
+			//buyerAddress = req.Address
+
+			if buyerInputTxId != preTxId {
+				return "", errors.New("Wrong Psbt: The value of buyer input dose not match. Please try again or contact customer service for assistance. ")
+			}
+			buyerInAmount = uint64(preTx.TxOut[buyerInputIndex].Value)
+			if buyerInAmount <= req.Amount {
+				return "", errors.New("Wrong Psbt: The value of buyer input dose not match. Please try again or contact customer service for assistance. ")
+			}
+			_, addrs, _, err := txscript.ExtractPkScriptAddrs(preTx.TxOut[buyerInputIndex].PkScript, netParams)
+			if err != nil {
+				return "", errors.New("Wrong Psbt: Extract address from out of preTx  err. ")
+			}
+			buyerAddress = addrs[0].EncodeAddress()
+
+			_, err = unisat_service.BroadcastTx(req.Net, req.PreTxRaw)
+			if err != nil {
+				return "", errors.New(fmt.Sprintf("Broadcast Psbt(PreTxRaw) %s err:%s", req.Net, err.Error()))
+			}
+
 		} else {
 			buyerTx, err := oklink_service.GetTxDetail(buyerInputTxId)
 			if err != nil {
@@ -1080,30 +1138,34 @@ func UpdateBidPsbt(req *request.OrderBrc20UpdateBidReq) (string, error) {
 
 			return "", errors.New(fmt.Sprintf("PSBT(X): Recheck pool order status not AddState. Please select a different liquidity and place a new order. "))
 		} else {
-			MultiSigScriptBtye, err := hex.DecodeString(poolOrder.MultiSigScript)
-			if err != nil {
-				return "", err
+			poolReceiveAddress := ""
+			if poolOrder.BtcPoolMode == model.PoolModePrepare {
+				poolReceiveAddress = poolOrder.Address
+			} else {
+				MultiSigScriptBtye, err := hex.DecodeString(poolOrder.MultiSigScript)
+				if err != nil {
+					return "", err
+				}
+				h := sha256.New()
+				h.Write(MultiSigScriptBtye)
+				nativeSegwitAddress, err := btcutil.NewAddressWitnessScriptHash(h.Sum(nil), netParams)
+				if err != nil {
+					fmt.Println("Failed to create native SegWit address:", err)
+					return "", err
+				}
+				poolReceiveAddress = nativeSegwitAddress.EncodeAddress()
 			}
-			h := sha256.New()
-			h.Write(MultiSigScriptBtye)
-			nativeSegwitAddress, err := btcutil.NewAddressWitnessScriptHash(h.Sum(nil), netParams)
-			if err != nil {
-				fmt.Println("Failed to create native SegWit address:", err)
-				return "", err
-			}
+
 			_, addrs, _, err := txscript.ExtractPkScriptAddrs(exchangeOrPoolOut.PkScript, netParams)
 			if err != nil {
 				return "", errors.New("Wrong Psbt: Extract address from out for Seller. ")
 			}
-			multiSigAddress := addrs[0].EncodeAddress()
-			if multiSigAddress != nativeSegwitAddress.EncodeAddress() {
-				return "", errors.New("Wrong Psbt: wrong MultiSigScript of out for pool. ")
+			valueReceiveAddress := addrs[0].EncodeAddress()
+
+			if valueReceiveAddress != poolReceiveAddress {
+				return "", errors.New("Wrong Psbt: wrong poolReceiveAddress of out for pool. ")
 			}
 
-			//pkScriptHex := hex.EncodeToString(exchangeOut.PkScript)
-			//if pkScriptHex != poolOrder.MultiSigScript {
-			//	return "", errors.New("Wrong Psbt: wrong MultiSigScript of out for pool. ")
-			//}
 		}
 	} else {
 		_, addrs, _, err := txscript.ExtractPkScriptAddrs(exchangeOrPoolOut.PkScript, netParams)
@@ -1234,6 +1296,10 @@ func CalFeeAmount(req *request.OrderBrc20CalFeeReq) (*respond.CalFeeResp, error)
 	)
 	if req.Version == 2 {
 		feeAmountForReleaseInscription, feeAmountForRewardInscription, feeAmountForRewardSend = GenerateBidTakerFee(req.NetworkFeeRate)
+		if req.OrderId != "" && mongo_service.FindOrderBrc20ModelPoolModeByOrderId(req.OrderId) == model.PoolModePrepare {
+			feeAmountForRewardInscription, feeAmountForRewardSend = 0, 0
+			feeAmountForPlatform = GenerateBidTakerPlatformFee(req.OrderId)
+		}
 	}
 	return &respond.CalFeeResp{
 		ReleaseInscriptionFee: feeAmountForReleaseInscription,
@@ -1290,6 +1356,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		inscriptionOutputValue uint64                  = 0
 		poolBtcUtxoList        []*model.OrderUtxoModel = make([]*model.OrderUtxoModel, 0)
 		poolBtcAmount          uint64                  = 0
+		poolBtcPreUtxoRaw      string                  = ""
 		poolBtcPsbtInput       Input
 		poolBtcPsbtSigIn       SigIn
 		poolBtcOutput          Output
@@ -1321,15 +1388,22 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		newBidXUtxoOuputIndexForReleaseInscription int64 = 0
 		newBidXUtxoOuputIndexForRewardInscription  int64 = 0
 		newBidXUtxoOuputIndexForRewardSend         int64 = 0
-	)
-	if req.Version == 2 {
-		feeAmountForReleaseInscription, feeAmountForRewardInscription, feeAmountForRewardSend = GenerateBidTakerFee(req.NetworkFeeRate)
-		fmt.Printf("feeAmountForReleaseInscription:%d, feeAmountForRewardInscription:%d, feeAmountForRewardSend:%d\n", feeAmountForReleaseInscription, feeAmountForRewardInscription, feeAmountForRewardSend)
-	}
 
+		pinBidXTxId    string = ""
+		pinBidXTxIndex int64  = 0
+	)
 	entity, _ = mongo_service.FindOrderBrc20ModelByOrderId(req.OrderId)
 	if entity == nil {
 		return nil, errors.New("Bid is empty. ")
+	}
+
+	if req.Version == 2 {
+		feeAmountForReleaseInscription, feeAmountForRewardInscription, feeAmountForRewardSend = GenerateBidTakerFee(req.NetworkFeeRate)
+		if entity.PoolOrderMode == model.PoolModePrepare {
+			feeAmountForRewardInscription, feeAmountForRewardSend = 0, 0
+			feeAmountForPlatform = GenerateBidTakerPlatformFee(req.OrderId)
+		}
+		fmt.Printf("feeAmountForReleaseInscription:%d, feeAmountForRewardInscription:%d, feeAmountForRewardSend:%d, feeAmountForPlatform:%d\n", feeAmountForReleaseInscription, feeAmountForRewardInscription, feeAmountForRewardSend, feeAmountForPlatform)
 	}
 
 	newDummyOutPriKeyHex, newDummyOutSegwitAddress, err := create_key.CreateSegwitKey(netParams)
@@ -1466,7 +1540,8 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		sellerNetworkFeeAmount = (int64(sellerPayFee) - int64(sellerChangeOutput.Amount)) - (feeAmountForReleaseInscription + feeAmountForRewardInscription + feeAmountForRewardSend + feeAmountForPlatform)
 		if req.NetworkFee != 0 {
 			if req.NetworkFee != sellerNetworkFeeAmount {
-				fmt.Printf("sellerPayFee:%d, sellerChangeOutput.Amount:%d\n", sellerPayFee, sellerChangeOutput.Amount)
+				fmt.Printf("(sellerPayFee:%d) - (sellerChangeOutput.Amount:%d) = (sellerTotalFee:%d)\n", sellerPayFee, sellerChangeOutput.Amount, sellerTotalFee)
+				fmt.Printf("(sellerTotalFee:%d) - (feeAmountForReleaseInscription:%d + feeAmountForRewardInscription:%d + feeAmountForRewardSend:%d + feeAmountForPlatform:%d) = (sellerNetworkFeeAmount:%d)\n", sellerTotalFee, feeAmountForReleaseInscription, feeAmountForRewardInscription, feeAmountForRewardSend, feeAmountForPlatform, sellerNetworkFeeAmount)
 				fmt.Printf("sellerNetworkFeeAmount:%d, req.NetworkFee:%d\n", sellerNetworkFeeAmount, req.NetworkFee)
 				return nil, errors.New("Wrong Psbt: seller's network Fee amount dose not match. ")
 			}
@@ -1491,16 +1566,21 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			Script:  platformPkScriptForMultiSigInscription,
 			Address: platformAddressForMultiSigInscription,
 		}
-		feeOutputForRewardInscription = Output{
-			Amount:  uint64(feeAmountForRewardInscription),
-			Script:  platformPkScriptForRewardBrc20FeeUtxos,
-			Address: platformAddressForRewardBrc20FeeUtxos,
+		if feeAmountForRewardInscription != 0 {
+			feeOutputForRewardInscription = Output{
+				Amount:  uint64(feeAmountForRewardInscription),
+				Script:  platformPkScriptForRewardBrc20FeeUtxos,
+				Address: platformAddressForRewardBrc20FeeUtxos,
+			}
 		}
-		feeOutputForRewardSend = Output{
-			Amount:  uint64(feeAmountForRewardSend),
-			Script:  platformPkScriptForRewardBrc20FeeUtxos,
-			Address: platformAddressForRewardBrc20FeeUtxos,
+		if feeAmountForRewardSend != 0 {
+			feeOutputForRewardSend = Output{
+				Amount:  uint64(feeAmountForRewardSend),
+				Script:  platformPkScriptForRewardBrc20FeeUtxos,
+				Address: platformAddressForRewardBrc20FeeUtxos,
+			}
 		}
+
 		feeOutputForPlatform = Output{
 			Amount:  uint64(feeAmountForPlatform),
 			Script:  platformPkScriptForReceiveFee,
@@ -1676,13 +1756,46 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 						Index:              poolBtcInputIndex,
 					}
 					bidYUtxoOffsetIndex = bidYUtxoOffsetIndex + 1
-					bidYOffsetIndex = bidYOffsetIndex + 1
 					dummy1200InputIndex = dummy1200InputIndex + 1
 					poolBtcAmount = poolOrder.Amount
 
 					poolBtcOutput = Output{
 						Amount: uint64(btcOutputList[0].Value),
 						Script: hex.EncodeToString(btcOutputList[0].PkScript),
+					}
+					bidYOffsetIndex = bidYOffsetIndex + 1
+					break
+				case model.PoolModePrepare:
+					if poolOrder.UtxoId == "" {
+						return nil, errors.New("pool order has empty UtxoId")
+					}
+					if poolOrder.PreUtxoRaw == "" {
+						return nil, errors.New("pool order has empty PreUtxoRaw")
+					}
+					inscriptionOutputValue = 546 - brc20ReceiveValue
+					utxoIdStrs := strings.Split(poolOrder.UtxoId, "_")
+					if len(utxoIdStrs) == 2 {
+						addr, err := btcutil.DecodeAddress(platformAddressReceiveBidValueForPoolBtc, netParams)
+						if err != nil {
+							return nil, err
+						}
+						pkScriptBtc, err := txscript.PayToAddrScript(addr)
+						if err != nil {
+							return nil, err
+						}
+						poolBtcAmount = poolOrder.Amount
+						poolBtcPreUtxoRaw = poolOrder.PreUtxoRaw
+						btcUtxoTxId := utxoIdStrs[0]
+						btcUtxoTxIndex, _ := strconv.ParseInt(utxoIdStrs[1], 10, 64)
+						poolBtcUtxoList = append(poolBtcUtxoList, &model.OrderUtxoModel{
+							TxId:          btcUtxoTxId,
+							Index:         btcUtxoTxIndex,
+							Amount:        poolOrder.Amount,
+							PrivateKeyHex: platformPrivateKeyReceiveBidValueForPoolBtc,
+							PkScript:      hex.EncodeToString(pkScriptBtc),
+						})
+						bidYUtxoOffsetIndex = bidYUtxoOffsetIndex + 1
+						dummy1200InputIndex = dummy1200InputIndex + 1
 					}
 					break
 				default:
@@ -1725,7 +1838,7 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		changeAmount = platformPayPerAmount*limit - totalNeedAmount
 	}
 	fmt.Printf("[DO]totalNeedAmount: %d， poolBtcAmount：%d, changeAmount: %d, sellerNetworkFeeAmount: %d\n", totalNeedAmount, poolBtcAmount, changeAmount, sellerNetworkFeeAmount)
-	if totalNeedAmount <= 0 {
+	if totalNeedAmount < 0 {
 		return nil, errors.New("Wrong Psbt: totalNeedAmount is less than 0. ")
 	}
 
@@ -1734,7 +1847,6 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	if err != nil {
 		return nil, err
 	}
-	utxoBidYList = append(utxoBidYList, poolBtcUtxoList...)
 
 	inputs := make([]Input, 0)
 	outputs := make([]Output, 0)
@@ -1764,6 +1876,13 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	//add btc pool psbt ins - index: 3/4
 	if poolBtcPsbtInput.OutTxId != "" {
 		inputs = append(inputs, poolBtcPsbtInput)
+	} else if len(poolBtcUtxoList) != 0 {
+		for _, utxo := range poolBtcUtxoList {
+			inputs = append(inputs, Input{
+				OutTxId:  utxo.TxId,
+				OutIndex: uint32(utxo.Index),
+			})
+		}
 	}
 
 	//add dummy1200 outs - idnex: 4/5
@@ -1804,25 +1923,30 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		Amount:  brc20ReceiveValue + inscriptionOutputValue,
 	}
 	if entity.PoolOrderId != "" {
-		multiSigScriptByte, err := hex.DecodeString(multiSigScript)
-		if err != nil {
-			return nil, err
-		}
-		h := sha256.New()
-		h.Write(multiSigScriptByte)
-		segwitAddress, err := btcutil.NewAddressWitnessScriptHash(h.Sum(nil), netParams)
-		if err != nil {
-			fmt.Println("Failed to create native SegWit address:", err)
-			return nil, errors.New(fmt.Sprintf("Failed to create native SegWit address:%s", err.Error()))
-		}
-		segwitAddr, err := btcutil.DecodeAddress(segwitAddress.EncodeAddress(), netParams)
-		if err != nil {
-			return nil, err
+		receiveBrc20Address := ""
+		if entity.PoolOrderMode == model.PoolModePrepare {
+			receiveBrc20Address = entity.PoolCoinAddress
+		} else {
+			multiSigScriptByte, err := hex.DecodeString(multiSigScript)
+			if err != nil {
+				return nil, err
+			}
+			h := sha256.New()
+			h.Write(multiSigScriptByte)
+			segwitAddress, err := btcutil.NewAddressWitnessScriptHash(h.Sum(nil), netParams)
+			if err != nil {
+				fmt.Println("Failed to create native SegWit address:", err)
+				return nil, errors.New(fmt.Sprintf("Failed to create native SegWit address:%s", err.Error()))
+			}
+			segwitAddr, err := btcutil.DecodeAddress(segwitAddress.EncodeAddress(), netParams)
+			if err != nil {
+				return nil, err
+			}
+			receiveBrc20Address = segwitAddr.EncodeAddress()
 		}
 		receiveBrc20 = Output{
-			Address: segwitAddr.EncodeAddress(),
-			//Script: multiSigScript,
-			Amount: brc20ReceiveValue + inscriptionOutputValue,
+			Address: receiveBrc20Address,
+			Amount:  brc20ReceiveValue + inscriptionOutputValue,
 		}
 		dealCoinTxIndex, dealCoinTxOutValue = 1, int64(brc20ReceiveValue+inscriptionOutputValue)
 	}
@@ -1954,6 +2078,19 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 			PriHex:      dummy.PrivateKeyHex,
 			UtxoType:    Witness,
 		})
+	}
+
+	if len(poolBtcUtxoList) != 0 {
+		for k, poolBtcUtxo := range poolBtcUtxoList {
+			inSigns = append(inSigns, &InputSign{
+				Index:       k + poolBtcInputIndex,
+				PkScript:    poolBtcUtxo.PkScript,
+				Amount:      poolBtcUtxo.Amount,
+				SighashType: txscript.SigHashAll,
+				PriHex:      poolBtcUtxo.PrivateKeyHex,
+				UtxoType:    Witness,
+			})
+		}
 	}
 
 	//add Exchange pay value ins - index: 3,3+ / 4,4+ / 5,5+
@@ -2281,11 +2418,23 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 
 	txPsbtXRespTxId := ""
 	txPsbtYRespTxId := ""
+	entity.PlatformSellFee = uint64(feeAmountForPlatform)
 	entity.DealTime = tool.MakeTimestamp()
 
 	if req.Net == "mainnet" || req.Net == "livenet" {
+		if poolBtcPreUtxoRaw != "" && entity.PoolPreUtxoRaw == poolBtcPreUtxoRaw {
+			_, err := unisat_service.BroadcastTx(req.Net, poolBtcPreUtxoRaw)
+			if err != nil {
+				return nil, errors.New(fmt.Sprintf("Broadcast poolPreTx %s err:%s. Please try again or contact customer service for assistance. ", req.Net, err.Error()))
+			}
+		}
+
 		txPsbtYResp, err := unisat_service.BroadcastTx(req.Net, txRawPsbtY)
 		if err != nil {
+			//refund txPoolPreBtc
+			if entity.PoolOrderMode == model.PoolModePrepare {
+				RefundPoolPrepareUtxo(entity, err)
+			}
 			return nil, errors.New(fmt.Sprintf("Broadcast Psbt(Y) %s err:%s. Please try again or contact customer service for assistance. ", req.Net, err.Error()))
 		}
 		SetUsedDummyUtxo(utxoDummy1200List, txPsbtYResp.Result)
@@ -2306,6 +2455,11 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		time.Sleep(800 * time.Millisecond)
 		txPsbtXResp, err := unisat_service.BroadcastTx(req.Net, txRawPsbtX)
 		if err != nil {
+			entity.OrderState = model.OrderStateErrHaft
+			_, err := mongo_service.SetOrderBrc20Model(entity)
+			if err != nil {
+				return nil, err
+			}
 			return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s. Please try again or contact customer service for assistance. ", req.Net, err.Error()))
 		}
 		SetUsedDummyUtxo(utxoDummyBidXList, txPsbtXResp.Result)     // set used dummy600 utxo for bidX
@@ -2314,26 +2468,20 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		txPsbtXRespTxId = txPsbtXResp.Result
 		txPsbtYRespTxId = txPsbtYResp.Result
 
-		//txPsbtYResp, err := node.BroadcastTx(req.Net, txRawPsbtY)
-		//if err != nil {
-		//	return nil, errors.New(fmt.Sprintf("Broadcast Psbt(Y) %s err:%s", req.Net, err.Error()))
-		//}
-		//setUsedDummyUtxo(utxoDummyList, txPsbtYResp)
-		//setUsedBidYUtxo(utxoBidYList, txPsbtYResp)
-		//
-		//time.Sleep(2 * time.Second)
-		//txPsbtXResp, err := node.BroadcastTx(req.Net, txRawPsbtX)
-		//if err != nil {
-		//	return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s", req.Net, err.Error()))
-		//}
-		//
-		//txPsbtXRespTxId = txPsbtXResp
-		//txPsbtYRespTxId = txPsbtYResp
-
 	} else {
+		if poolBtcPreUtxoRaw != "" && entity.PoolPreUtxoRaw == poolBtcPreUtxoRaw {
+			_, err := unisat_service.BroadcastTx(req.Net, poolBtcPreUtxoRaw)
+			if err != nil {
+				return nil, errors.New(fmt.Sprintf("Broadcast poolPreTx %s err:%s. Please try again or contact customer service for assistance. ", req.Net, err.Error()))
+			}
+		}
 
 		txPsbtYResp, err := unisat_service.BroadcastTx(req.Net, txRawPsbtY)
 		if err != nil {
+			//refund txPoolPreBtc
+			if entity.PoolOrderMode == model.PoolModePrepare {
+				RefundPoolPrepareUtxo(entity, err)
+			}
 			return nil, errors.New(fmt.Sprintf("Broadcast Psbt(Y) %s err:%s. Please try again or contact customer service for assistance. ", req.Net, err.Error()))
 		}
 		SetUsedDummyUtxo(utxoDummy1200List, txPsbtYResp.Result)
@@ -2350,6 +2498,11 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		time.Sleep(800 * time.Millisecond)
 		txPsbtXResp, err := unisat_service.BroadcastTx(req.Net, txRawPsbtX)
 		if err != nil {
+			entity.OrderState = model.OrderStateErrHaft
+			_, err := mongo_service.SetOrderBrc20Model(entity)
+			if err != nil {
+				return nil, err
+			}
 			return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s. Please try again or contact customer service for assistance. ", req.Net, err.Error()))
 		}
 		SetUsedDummyUtxo(utxoDummyBidXList, txPsbtXResp.Result)     // set used dummy600 utxo for bidX
@@ -2357,25 +2510,12 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 
 		txPsbtXRespTxId = txPsbtXResp.Result
 		txPsbtYRespTxId = txPsbtYResp.Result
-
-		//txPsbtYResp, err := node.BroadcastTx(req.Net, txRawPsbtY)
-		//if err != nil {
-		//	return nil, errors.New(fmt.Sprintf("Broadcast Psbt(Y) %s err:%s", req.Net, err.Error()))
-		//}
-		//setUsedDummyUtxo(utxoDummyList, txPsbtYResp)
-		//setUsedBidYUtxo(utxoBidYList, txPsbtYResp)
-		//txPsbtXResp, err := node.BroadcastTx(req.Net, txRawPsbtX)
-		//if err != nil {
-		//	return nil, errors.New(fmt.Sprintf("Broadcast Psbt(X) %s err:%s", req.Net, err.Error()))
-		//}
-		//serUsedFakerInscriptionUtxo(strings.ReplaceAll(entity.InscriptionId, "i", "_"), txPsbtXResp, model.UsedYes)
-		//
-		//txPsbtXRespTxId = txPsbtXResp
-		//txPsbtYRespTxId = txPsbtYResp
 	}
 
 	UpdateForOrderLiveUtxo(entity.OrderId, model.DummyStateFinish)
 	for k, v := range newBidXUtxoOuts {
+		pinBidXTxId = psbtXTxId
+		pinBidXTxIndex = newBidXUtxoOuputIndex + int64(k)
 		SaveNewBidYUtxo10000FromBid(req.Net, v, platformPrivateKeyReceiveBidValueToReturn, newBidXUtxoOuputIndex+int64(k), psbtXTxId)
 	}
 	if entity.PlatformDummy == model.PlatformDummyYes {
@@ -2387,13 +2527,6 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 		}
 	}
 
-	//SaveNewDummy1200FromBid(req.Net, newDummy1200Out, platformPrivateKeyReceiveDummyValue, 0, psbtYTxId)
-	//SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, newDummy600Index, psbtYTxId)
-	//SaveNewDummyFromBid(req.Net, newDummyOut, newDummyOutPriKeyHex, newDummy600Index+1, psbtYTxId)
-	//SaveNewUtxoFromBid(req.Net, feeOutputForReleaseInscription, "", newBidXUtxoOuputIndexForReleaseInscription, psbtYTxId, model.UtxoTypeMultiInscription)
-	//SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardInscription, psbtYTxId, model.UtxoTypeRewardInscription)
-	//SaveNewUtxoFromBid(req.Net, feeOutputForRewardInscription, "", newBidXUtxoOuputIndexForRewardSend, psbtYTxId, model.UtxoTypeRewardSend)
-
 	entity.OrderState = model.OrderStateFinish
 	entity.DealTxBlockState = model.ClaimTxBlockStateUnconfirmed
 	_, err = mongo_service.SetOrderBrc20Model(entity)
@@ -2403,11 +2536,15 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 
 	//todo use DB-Transaction
 	if entity.PoolOrderId != "" {
-		setStatusPoolBrc20Order(entity, model.PoolStateUsed, dealTxIndex, dealTxOutValue, entity.DealTime)
-		setCoinStatusPoolBrc20Order(entity, model.PoolStateUsed, dealCoinTxIndex, dealCoinTxOutValue, entity.DealTime)
+		poolStateInDeal := model.PoolStateUsed
+		setStatusPoolBrc20Order(entity, poolStateInDeal, dealTxIndex, dealTxOutValue, entity.DealTime)
+		setCoinStatusPoolBrc20Order(entity, poolStateInDeal, dealCoinTxIndex, dealCoinTxOutValue, entity.DealTime)
 		removeInvalidBidByPoolOrderId(entity.PoolOrderId)
 		if req.Version == 2 {
 			mongo_service.SetPoolBrc20ModelForVersion(entity.PoolOrderId, req.Version)
+		}
+		if entity.PoolOrderMode == model.PoolModePrepare {
+			updateClaimForPrepareMode(entity.PoolOrderId, entity.PsbtBidTxId)
 		}
 		//lp which is used
 		UpdateForOrderLiveUtxo(entity.PoolOrderId, model.DummyStateFinish)
@@ -2417,6 +2554,13 @@ func DoBid(req *request.OrderBrc20DoBidReq) (*respond.DoBidResp, error) {
 	UpdateMarketPriceV2(req.Net, entity.Tick, fmt.Sprintf("%s-BTC", strings.ToUpper(entity.Tick)))
 
 	AddNotificationForOrderFinish(entity.BuyerAddress)
+
+	//pin bid X tx
+	time.Sleep(500 * time.Millisecond)
+	err = MakePinTxForBidX(entity.Net, pinBidXTxId, pinBidXTxIndex, entity.PoolOrderId)
+	if err != nil {
+		fmt.Printf("[ERR][MakePinTxForBidX]-%s-%s\n", entity.OrderId, err.Error())
+	}
 
 	return &respond.DoBidResp{
 		TxIdX: txPsbtXRespTxId,
@@ -2483,6 +2627,13 @@ func UpdateOrder(req *request.OrderBrc20UpdateReq, publicKey, ip string) (string
 					buyerAddress = buyerTx.OutputDetails[buyerInputIndex].OutputHash
 				} else {
 					buyerAddress = req.Address
+				}
+
+				if entityOrder.PlatformDummy == model.PlatformDummyYes {
+					err = SignAskTakerPsbtRawInDummy(entityOrder.Net, finalAskPsbtBuilder)
+					if err != nil {
+						return "", errors.New(fmt.Sprintf("SignAskTakerPsbtRawInDummy err:%s", err.Error()))
+					}
 				}
 
 				verified, err := CheckPublicKeyAddress(netParams, publicKey, buyerAddress)

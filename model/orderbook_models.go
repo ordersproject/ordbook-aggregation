@@ -25,6 +25,7 @@ type OrderBrc20Model struct {
 	BuyerIp             string           `json:"buyerIp" bson:"buyerIp"`
 	MarketAmount        uint64           `json:"marketAmount" bson:"marketAmount"`
 	PlatformFee         uint64           `json:"platformFee" bson:"platformFee"`
+	PlatformSellFee     uint64           `json:"platformSellFee" bson:"platformSellFee"`
 	ChangeAmount        uint64           `json:"changeAmount" bson:"changeAmount"`
 	Fee                 uint64           `json:"fee" bson:"fee"`
 	FeeRate             int              `json:"feeRate" bson:"feeRate"`
@@ -42,6 +43,10 @@ type OrderBrc20Model struct {
 	PsbtRawFinalBid     string           `json:"psbtRawFinalBid" bson:"psbtRawFinalBid"`
 	PsbtBidTxId         string           `json:"psbtBidTxId" bson:"psbtBidTxId"`
 	PoolOrderId         string           `json:"poolOrderId" bson:"poolOrderId"`
+	PoolCoinAddress     string           `json:"poolCoinAddress" bson:"poolCoinAddress"`
+	PoolOrderMode       PoolMode         `json:"poolOrderMode" bson:"poolOrderMode"`
+	PoolPreUtxoRaw      string           `json:"poolPreUtxoRaw" bson:"poolPreUtxoRaw"` //poolPreUtxoRaw
+	PoolUtxoId          string           `json:"poolUtxoId" bson:"poolPreUtxoId"`      //poolUtxoId
 	Integral            int64            `json:"integral" bson:"integral"`
 	FreeState           FreeState        `json:"freeState" bson:"freeState"`
 	PlatformDummy       PlatformDummy    `json:"platformDummy" bson:"platformDummy"` //0-no 1-yes
@@ -296,6 +301,50 @@ func (s OrderNotificationModel) GetReadDB() (*mongo.Collection, error) {
 }
 
 func (s OrderNotificationModel) GetWriteDB() (*mongo.Collection, error) {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return nil, err
+	}
+	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+	return collection, nil
+}
+
+// circulation model
+type OrderCirculationModel struct {
+	Id                int64  `json:"id" bson:"_id" tb:"order_circulation_model" mg:"true"`
+	Net               string `json:"net" bson:"net"`
+	Tick              string `json:"tick" bson:"tick"`
+	CirculationSupply uint64 `json:"circulationSupply" bson:"circulationSupply"`
+	TotalSupply       uint64 `json:"totalSupply" bson:"totalSupply"`
+	CreateTime        int64  `json:"createTime" bson:"createTime"`
+	UpdateTime        int64  `json:"updateTime" bson:"updateTime"`
+	State             int64  `json:"state" bson:"state"`
+}
+
+func (s OrderCirculationModel) getCollection() string {
+	return "order_circulation_model"
+}
+
+func (s OrderCirculationModel) getDB() string {
+	return major.DsOrdbook
+}
+
+func (s OrderCirculationModel) GetReadDB() (*mongo.Collection, error) {
+	mongoDB, err := major.GetOrderbookDb()
+	if err != nil {
+		return nil, err
+	}
+	collection := mongoDB.Database(s.getDB()).Collection(s.getCollection())
+	if collection == nil {
+		return nil, errors.New("db connect error")
+	}
+	return collection, nil
+}
+
+func (s OrderCirculationModel) GetWriteDB() (*mongo.Collection, error) {
 	mongoDB, err := major.GetOrderbookDb()
 	if err != nil {
 		return nil, err

@@ -60,11 +60,11 @@ type Brc20TickItem struct {
 }
 
 type Brc20KlineInfo struct {
-	Net      string       `json:"net,omitempty"`
-	Tick     string       `json:"tick"`
-	Interval string       `json:"interval"` //1m/1s/15m/1h/4h/1d/1w/
-	List     []*KlineItem `json:"list"`
-	Flag     int64        `json:"flag"`
+	Net      string         `json:"net,omitempty"`
+	Tick     string         `json:"tick"`
+	Interval model.TimeType `json:"interval"` //1m/1s/15m/1h/4h/1d/1w/
+	List     []*KlineItem   `json:"list"`
+	Flag     int64          `json:"flag"`
 }
 type KlineItem struct {
 	Timestamp int64  `json:"timestamp"`
@@ -209,8 +209,12 @@ type Brc20EventItem struct {
 
 type CalFeeResp struct {
 	ReleaseInscriptionFee int64  `json:"releaseInscriptionFee,omitempty"`
-	RewardInscriptionFee  int64  `json:"rewardInscriptionFee,omitempty"`
-	RewardSendFee         int64  `json:"rewardSendFee,omitempty"`
+	RewardInscriptionFee  int64  `json:"rewardInscriptionFee"`
+	RewardSendFee         int64  `json:"rewardSendFee"`
 	PlatformFee           int64  `json:"platformFee,omitempty"`
 	FeeAddress            string `json:"feeAddress,omitempty"`
+}
+
+type Brc20SupplyInfoResponse struct {
+	CirculationSupply uint64 `json:"circulationSupply"`
 }

@@ -39,8 +39,9 @@ type PoolBrc20PushReq struct {
 	Address     string          `json:"address"`
 	CoinPsbtRaw string          `json:"coinPsbtRaw"`
 	CoinAmount  uint64          `json:"coinAmount"`
+	PreTxRaw    string          `json:"preTxRaw"`    // BTC in preTxRaw
 	PsbtRaw     string          `json:"psbtRaw"`     // BTC
-	BtcPoolMode model.PoolMode  `json:"btcPoolMode"` //1-psbt,2-custody, default:custody
+	BtcPoolMode model.PoolMode  `json:"btcPoolMode"` //1-psbt,2-custody, default:custody，3-prepare
 	BtcUtxoId   string          `json:"btcUtxoId"`   //txId_index
 	Amount      uint64          `json:"amount"`
 	Ratio       int64           `json:"ratio"` // ratio: 12/15/18/100//10000
